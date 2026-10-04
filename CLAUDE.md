@@ -68,6 +68,23 @@ src/
   hooks/useGameStore.ts       # Zustand store
 ```
 
+## Surviving a Refresh — IMPORTANT
+
+A browser refresh must never lose a game.
+
+- **Solo / hotseat**: `GameScreen` autosaves after every action to
+  `localStorage` (`src/persistence/savedGame.ts`: full `GameState` + action
+  log; a finished game clears it). A per-tab `sessionStorage` flag means a
+  refresh mid-game drops straight back in; a fresh visit shows **Resume Game**
+  on the menu. New `GameState` fields must stay JSON-serializable, and an
+  incompatible state shape needs a `SAVE_VERSION` bump in `savedGame.ts`.
+- **Cast**: the client remembers the joined room per tab
+  (`jambo:lastRoom` in `sessionStorage`) and rejoins with its reconnect token
+  on load (`src/multiplayer/client.ts`). The server holds a disconnected
+  player's seat for `PLAYER_RECONNECT_GRACE_MS` (5 min) and keeps the room
+  alive meanwhile (`src/multiplayer/roomLifecycle.ts`). Rooms live in server
+  memory, so a deploy/restart still ends in-progress Cast games.
+
 ## Immutable State — Critical Rule
 
 **Never mutate state.** Every function returns a new state object via spread operators.

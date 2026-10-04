@@ -32,6 +32,7 @@ import type { UserStatsSummary, DifficultyBreakdown } from '../persistence/userS
 import { getWinner, getFinalScores } from '../engine/endgame/EndgameManager.ts';
 import { useAuthSession } from './useAuthSession.ts';
 import { useLocalActionAudio } from './useAudioEvents.ts';
+import { saveLocalGame, setGameActiveInTab } from '../persistence/savedGame.ts';
 import { useMediaQuery, PHONE_MEDIA_QUERY } from './useMediaQuery.ts';
 import { useElementSize } from './useElementSize.ts';
 import { fitCardsToBox, fitMarketSlots } from './fitLayout.ts';
@@ -78,6 +79,23 @@ function isDevMode(): boolean {
 export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultiplayer = false }: { onBackToMenu?: () => void; aiDifficulty?: AIDifficulty; localMultiplayer?: boolean }) {
   const { state, dispatch, error, newGame, exportReplay, importReplay, replayActions, taggedActions } = useGameStore();
   useLocalActionAudio(taggedActions);
+
+  // Autosave after every action so a refresh can't lose the game
+  // (persistence/savedGame.ts). A finished game clears the save.
+  const startingPlayer = useGameStore((store) => store.startingPlayer);
+  useEffect(() => {
+    saveLocalGame({
+      mode: localMultiplayer ? 'multiplayer' : 'solo',
+      aiDifficulty,
+      state,
+      replayActions,
+      taggedActions,
+      startingPlayer,
+    });
+  }, [state, replayActions, taggedActions, startingPlayer, aiDifficulty, localMultiplayer]);
+  useEffect(() => {
+    setGameActiveInTab(true);
+  }, []);
   const [wareDialog, setWareDialog] = useState<DeckCardId | null>(null);
   const [showLog, setShowLog] = useState(() => getInitialShowLog());
   const [menuOpen, setMenuOpen] = useState(false);

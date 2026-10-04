@@ -154,3 +154,21 @@ overwrites tracked files.)
   mapped file exists, so a missing file can't go unnoticed again.
 - Shell gotcha: `pkill -f "<pattern>"` inside a Bash call can match that same
   call's command line and kill it (exit 144). Kill by port's pid instead.
+
+## 2026-10-04 — Refresh no longer kills a game
+- Solo/hotseat state lived only in the Zustand store. Autosave the full
+  `GameState` (not just the replay): a snapshot stays loadable across engine
+  changes between deploys, while a replay can diverge. Validate on load with
+  `checkInvariants()` and discard anything that fails.
+- Two storages on purpose: the save in `localStorage` (survives closing the
+  tab → "Resume Game"), the "was mid-game" flag in `sessionStorage` (per tab →
+  a refresh skips the menu, but a second tab doesn't hijack the game).
+- **Server bug found on the way**: `removeConnectionFromRoom` deleted a room
+  as soon as `connections` hit 0, right after reserving the leaver's seat. In
+  AI Cast games the human is the *only* WebSocket (the TV uses SSE), so one
+  refresh destroyed the game server-side and the reconnect token was useless.
+  Rooms now live until every reservation expires (`roomLifecycle.ts`).
+- The Cast client already kept reconnect tokens per tab, but not *which*
+  room — after a refresh it had nothing to rejoin. It now remembers the room
+  and rejoins on socket open; "Room not found"/"Room is full" forgets it so a
+  dead room can't cause a retry loop.

@@ -225,6 +225,13 @@ Keyframes are named descriptively (`pilePulse`, `marketSlotFlash`,
   or utility they just started (engine `CANCEL_ACTION`, see
   `src/engine/cancelAction.ts` for exactly which cards and steps qualify).
   Label: "Cancel <card> and get your action back".
+- **Resume Game** (`.menu-action-resume` + `.menu-action-sub`) — takes the
+  primary slot on the main menu when an unfinished local game is saved, with a
+  one-line summary ("vs Hard AI · turn 12 · you 34g · AI 28g"); Play Solo
+  drops to a normal button. A refresh mid-game skips the menu entirely.
+- **Rejoining screen** — while a refreshed Cast tab reconnects to its room:
+  "Room 1234 / Rejoining your game…" with a Cancel, so the menu or code
+  entry never flashes.
 - **Coin captions** (`.coin-caption`) — "BUY"/"SELL" under the coin art in
   `CardPlayDialog`. The coins were already the buttons; nothing said so.
 - **Dialog / panel art** (`.dialog-card-art`, `.panel-source-art`,
@@ -438,6 +445,10 @@ existing set already covers the full identity; this pass's job was
 documenting it, fixing one duplication, and identifying the SFX gap.
 
 ## Changelog
+
+### 2026-10-04 — Refresh-proof games
+- Resume Game button and a Rejoining screen (see Components). A refresh no
+  longer returns to the menu in solo, hotseat, or Cast play.
 
 ### 2026-10-04 — Sound effects generated and playing in every mode
 - Closed the long-standing SFX gap: 6 clips generated with ElevenLabs (3 takes

@@ -16,13 +16,15 @@ import { FirstPlayerReveal } from './FirstPlayerReveal.tsx';
 import { TutorialOverlay } from './TutorialOverlay.tsx';
 import { AvatarBadge } from './AvatarBadge.tsx';
 import { useAuthSession } from './useAuthSession.ts';
-import { useWebSocketGame } from '../multiplayer/client.ts';
+import { useWebSocketGame, readLastRoom, forgetLastRoom } from '../multiplayer/client.ts';
 import type { WebSocketGameState } from '../multiplayer/client.ts';
 import type { AIDifficulty } from '../ai/difficulties/index.ts';
 import type { RoomMode } from '../multiplayer/types.ts';
 import { useGameStore } from '../hooks/useGameStore.ts';
 import { extractPublicState } from '../multiplayer/stateSplitter.ts';
 import { getCastSessionController } from '../cast/factory.ts';
+import { loadLocalGame, isGameActiveInTab, setGameActiveInTab, describeSavedGame } from '../persistence/savedGame.ts';
+import type { SavedGame } from '../persistence/savedGame.ts';
 
 type Route = 'local' | 'play';
 type Screen = 'menu' | 'solo' | 'multiplayer' | 'login' | 'settings' | 'castHost';
@@ -110,8 +112,16 @@ function RouterInner() {
   const ws = useWebSocketGame();
   const auth = useAuthSession();
   const [route, setRoute] = useState<Route>(getRoute);
-  const [screen, setScreen] = useState<Screen>('menu');
-  const [aiDifficulty, setAiDifficulty] = useState<AIDifficulty>('medium');
+  // A refresh mid-game in this tab drops straight back into the autosaved
+  // game; a fresh visit offers "Resume game" on the menu instead.
+  const [autoResume] = useState<SavedGame | null>(() => {
+    const saved = getRoute() === 'local' && isGameActiveInTab() ? loadLocalGame() : null;
+    if (saved) useGameStore.getState().restore(saved);
+    return saved;
+  });
+  const [screen, setScreen] = useState<Screen>(autoResume ? autoResume.mode : 'menu');
+  const [aiDifficulty, setAiDifficulty] = useState<AIDifficulty>(autoResume?.aiDifficulty ?? 'medium');
+  const [savedGame, setSavedGame] = useState<SavedGame | null>(() => autoResume ?? loadLocalGame());
   const [pendingMode, setPendingMode] = useState<'solo' | 'multiplayer' | null>(null);
   const [showPreGameSetup, setShowPreGameSetup] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
@@ -120,6 +130,24 @@ function RouterInner() {
   const [castRoomMode, setCastRoomMode] = useState<RoomMode | null>(null);
   const [castStartError, setCastStartError] = useState<string | null>(null);
   const newGame = useGameStore((store) => store.newGame);
+  const restoreGame = useGameStore((store) => store.restore);
+
+  const handleBackToMenu = useCallback(() => {
+    setGameActiveInTab(false);
+    setSavedGame(loadLocalGame());
+    setScreen('menu');
+  }, []);
+
+  const handleResume = useCallback(() => {
+    const saved = loadLocalGame();
+    if (!saved) {
+      setSavedGame(null);
+      return;
+    }
+    restoreGame(saved);
+    setAiDifficulty(saved.aiDifficulty);
+    setScreen(saved.mode);
+  }, [restoreGame]);
 
   useEffect(() => {
     const onHashChange = () => setRoute(getRoute());
@@ -206,6 +234,35 @@ function RouterInner() {
     );
   }
 
+  // While the remembered Cast room is being rejoined, say so instead of
+  // flashing the menu / code entry (and invite a mid-rejoin click elsewhere).
+  const rejoining = ws.roomCode !== null && ws.playerSlot === null && !ws.error && readLastRoom() !== null
+    && (route === 'play' || screen === 'menu');
+  if (rejoining) {
+    return (
+      <div className="main-menu-root">
+        <div className="main-menu-content dialog-pop">
+          <div className="main-menu-label">Room {ws.roomCode}</div>
+          <div className="main-menu-title" style={{ fontSize: 32 }}>Rejoining your game…</div>
+          <div className="main-menu-actions">
+            <button
+              className="menu-action menu-action-subtle"
+              onClick={() => { forgetLastRoom(); ws.resetRoomState(); }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // A refreshed Cast host (or player) tab rejoins its room automatically
+  // (multiplayer/client.ts); show the game as soon as its state arrives.
+  if (route === 'local' && screen === 'menu' && ws.playerSlot !== null && ws.publicState && ws.privateState) {
+    return <PlayerScreen ws={ws} />;
+  }
+
   if (route === 'play') {
     if (ws.playerSlot !== null && ws.publicState && ws.privateState) {
       return <PlayerScreen ws={ws} />;
@@ -225,6 +282,8 @@ function RouterInner() {
           onSelectOption={handleMenuSelect}
           onTutorial={() => setShowTutorial(true)}
           auth={auth}
+          resumeLabel={savedGame ? describeSavedGame(savedGame) : null}
+          onResume={handleResume}
         />
         {showPreGameSetup && pendingMode && (
           <PreGameSetupModal
@@ -248,6 +307,8 @@ function RouterInner() {
           onSelectOption={handleMenuSelect}
           onTutorial={() => setShowTutorial(true)}
           auth={auth}
+          resumeLabel={savedGame ? describeSavedGame(savedGame) : null}
+          onResume={handleResume}
         />
         <LoginModal onClose={() => setScreen('menu')} />
         <AvatarBadge avatarUrl={auth.avatarUrl} avatarLabel={auth.avatarLabel} />
@@ -257,11 +318,11 @@ function RouterInner() {
   }
 
   if (screen === 'solo') {
-    return <GameScreen onBackToMenu={() => setScreen('menu')} aiDifficulty={aiDifficulty} />;
+    return <GameScreen onBackToMenu={handleBackToMenu} aiDifficulty={aiDifficulty} />;
   }
 
   if (screen === 'multiplayer') {
-    return <GameScreen onBackToMenu={() => setScreen('menu')} aiDifficulty={aiDifficulty} localMultiplayer />;
+    return <GameScreen onBackToMenu={handleBackToMenu} aiDifficulty={aiDifficulty} localMultiplayer />;
   }
 
   if (screen === 'castHost' && castRoomMode) {

@@ -6,6 +6,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { WebSocketGameState } from '../multiplayer/client.ts';
+import { forgetLastRoom } from '../multiplayer/client.ts';
 import type { PublicGameState, PrivateGameState } from '../multiplayer/types.ts';
 import type { GameAction, DeckCardId, WareType, GameState } from '../engine/types.ts';
 import { getCard, isValidDeckCardId, ALL_DECK_CARD_IDS } from '../engine/cards/CardDatabase.ts';
@@ -144,6 +145,8 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
     ws.requestRematch();
   }, [ws]);
   const handleCastMainMenu = useCallback(() => {
+    // Leaving on purpose: don't auto-rejoin this room on the next page load
+    forgetLastRoom();
     window.location.href = `${window.location.origin}${window.location.pathname}`;
   }, []);
   const hasRequestedRematch = slot !== null && ws.rematchVotes.includes(slot);

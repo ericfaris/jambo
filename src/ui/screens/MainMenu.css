@@ -136,3 +136,18 @@
   opacity: 0.3;
   margin: 4px 0;
 }
+
+/* Resume an autosaved local game — takes the primary slot when present */
+.menu-action-resume {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.menu-action-sub {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-muted);
+  letter-spacing: 0.3px;
+}

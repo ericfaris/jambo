@@ -8,9 +8,12 @@ interface MainMenuProps {
   onSelectOption: (option: 'login' | 'solo' | 'multiplayer' | 'settings') => void;
   onTutorial?: () => void;
   auth: AuthSession;
+  /** Set when an unfinished local game is saved — shows "Resume game". */
+  resumeLabel?: string | null;
+  onResume?: () => void;
 }
 
-export function MainMenu({ onSelectOption, onTutorial, auth }: MainMenuProps) {
+export function MainMenu({ onSelectOption, onTutorial, auth, resumeLabel, onResume }: MainMenuProps) {
   const [statsSummary, setStatsSummary] = useState<UserStatsSummary | null>(null);
   const [statsError, setStatsError] = useState<string | null>(null);
 
@@ -63,7 +66,13 @@ export function MainMenu({ onSelectOption, onTutorial, auth }: MainMenuProps) {
         )}
 
         <div className="main-menu-actions">
-          <button className="menu-action menu-action-primary" onClick={() => onSelectOption('solo')}>
+          {resumeLabel && onResume && (
+            <button className="menu-action menu-action-primary menu-action-resume" onClick={onResume}>
+              Resume Game
+              <span className="menu-action-sub">{resumeLabel}</span>
+            </button>
+          )}
+          <button className={`menu-action${resumeLabel && onResume ? '' : ' menu-action-primary'}`} onClick={() => onSelectOption('solo')}>
             Play Solo
           </button>
           <button className="menu-action" onClick={() => onSelectOption('multiplayer')}>

@@ -19,6 +19,7 @@ import { getAiTelemetryEnabled, getAiTelemetrySampleRate, shouldSampleTelemetryG
 import { getValidActions } from '../engine/validation/actionValidator.ts';
 import { extractPublicState, extractPrivateState } from './stateSplitter.ts';
 import { detectAudioEvent } from './audioEvents.ts';
+import { PLAYER_RECONNECT_GRACE_MS, ROOM_IDLE_TIMEOUT_MS, isRoomAbandoned } from './roomLifecycle.ts';
 import type { GameState, GameAction } from '../engine/types.ts';
 import { CONSTANTS } from '../engine/types.ts';
 import type {
@@ -68,7 +69,6 @@ interface Room {
 }
 
 const rooms = new Map<string, Room>();
-const PLAYER_RECONNECT_GRACE_MS = 90_000;
 const castRoomStreams = new Map<string, Set<import('node:http').ServerResponse>>();
 const AI_TELEMETRY_ENABLED = getAiTelemetryEnabled();
 const AI_TELEMETRY_SAMPLE_RATE = getAiTelemetrySampleRate();
@@ -256,10 +256,12 @@ function removeConnectionFromRoom(
   broadcastRematchStatus(room);
   broadcastCastRoomSnapshot(room);
 
-  if (room.connections.length === 0) {
+  if (isRoomAbandoned(room.connections.length, room.reservedSlots, Date.now())) {
     closeCastRoomStreams(room.code);
     rooms.delete(room.code);
     console.log(`[Room ${room.code}] Deleted (empty)`);
+  } else if (room.connections.length === 0) {
+    console.log(`[Room ${room.code}] Empty — holding for reconnect (${PLAYER_RECONNECT_GRACE_MS / 1000}s)`);
   }
 }
 
@@ -720,13 +722,20 @@ function handleDisconnect(ws: WebSocket): void {
   }
 }
 
-// --- Room Cleanup (1 hour inactivity) ---
+// --- Room Cleanup (abandoned rooms, and 1 hour inactivity) ---
 
 setInterval(() => {
   const now = Date.now();
   for (const [code, room] of rooms) {
     clearExpiredReservations(room);
-    if (now - room.lastActivity > 60 * 60 * 1000) {
+    if (isRoomAbandoned(room.connections.length, room.reservedSlots, now)) {
+      // Everyone left and nobody came back within the reconnect window
+      closeCastRoomStreams(code);
+      rooms.delete(code);
+      console.log(`[Room ${code}] Deleted (reconnect window expired)`);
+      continue;
+    }
+    if (now - room.lastActivity > ROOM_IDLE_TIMEOUT_MS) {
       for (const conn of room.connections) {
         send(conn.ws, { type: 'ERROR', message: 'Room expired due to inactivity' });
         conn.ws.close();

@@ -27,6 +27,8 @@ interface GameStore {
   newGame: (seed?: number, startingPlayer?: 0 | 1) => void;
   exportReplay: () => string;
   importReplay: (payload: string) => void;
+  /** Put a saved game (see persistence/savedGame.ts) back into the store. */
+  restore: (saved: { state: GameState; replayActions: GameAction[]; taggedActions: TaggedAction[]; startingPlayer: 0 | 1 }) => void;
 }
 
 export const useGameStore = create<GameStore>((set) => ({
@@ -63,6 +65,10 @@ export const useGameStore = create<GameStore>((set) => ({
     const store = useGameStore.getState();
     const replay = createReplayLog(store.state, store.replayActions, store.startingPlayer);
     return exportReplayLog(replay);
+  },
+
+  restore: ({ state, replayActions, taggedActions, startingPlayer }) => {
+    set({ state, error: null, replayActions: [...replayActions], taggedActions: [...taggedActions], startingPlayer });
   },
 
   importReplay: (payload: string) => {

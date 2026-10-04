@@ -42,6 +42,34 @@ export interface WebSocketGameState {
   clearAudioEvent: () => void;
 }
 
+/** The room this tab last joined, so a refresh can rejoin it (per tab). */
+export const LAST_ROOM_STORAGE_KEY = 'jambo:lastRoom';
+
+export interface LastRoom { code: string; role: ConnectionRole }
+
+export function readLastRoom(): LastRoom | null {
+  try {
+    const raw = window.sessionStorage.getItem(LAST_ROOM_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<LastRoom>;
+    return typeof parsed.code === 'string' && parsed.role === 'player' ? { code: parsed.code, role: parsed.role } : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeLastRoom(room: LastRoom | null): void {
+  try {
+    if (room) window.sessionStorage.setItem(LAST_ROOM_STORAGE_KEY, JSON.stringify(room));
+    else window.sessionStorage.removeItem(LAST_ROOM_STORAGE_KEY);
+  } catch { /* storage unavailable — rejoin is best-effort */ }
+}
+
+/** Forget the remembered room, e.g. before deliberately leaving to the menu. */
+export function forgetLastRoom(): void {
+  writeLastRoom(null);
+}
+
 export function useWebSocketGame(): WebSocketGameState {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -114,6 +142,9 @@ export function useWebSocketGame(): WebSocketGameState {
         if (msg.castAccessToken) {
           setCastAccessToken(msg.castAccessToken);
         }
+        if (pendingJoin.current) {
+          writeLastRoom({ code: pendingJoin.current.code, role: pendingJoin.current.role });
+        }
         if (pendingJoin.current && msg.reconnectToken) {
           const key = getReconnectStorageKey(pendingJoin.current.code, pendingJoin.current.role);
           window.sessionStorage.setItem(key, msg.reconnectToken);
@@ -141,6 +172,13 @@ export function useWebSocketGame(): WebSocketGameState {
         setPlayerDisconnected(msg.playerSlot);
         break;
       case 'ERROR':
+        if (msg.message === 'Room not found' || msg.message.startsWith('Room is full')) {
+          // The remembered room is gone (expired, server restarted) or our
+          // seat was given up after the reconnect window — stop retrying it
+          writeLastRoom(null);
+          pendingJoin.current = null;
+          setRoomCode(null);
+        }
         setError(msg.message);
         break;
       case 'REMATCH_STATUS':
@@ -165,6 +203,19 @@ export function useWebSocketGame(): WebSocketGameState {
     ws.onopen = () => {
       setConnected(true);
       reconnectAttempt.current = 0;
+
+      // After a page refresh nothing is pending yet — rejoin the room this
+      // tab was in, with its stored reconnect token (keeps the same seat).
+      if (!pendingJoin.current) {
+        const last = readLastRoom();
+        if (last) {
+          const reconnectToken = window.sessionStorage.getItem(getReconnectStorageKey(last.code, last.role)) ?? undefined;
+          const cachedCastToken = window.sessionStorage.getItem(getCastTokenStorageKey(last.code));
+          if (cachedCastToken) setCastAccessToken((current) => current ?? cachedCastToken);
+          pendingJoin.current = { ...last, reconnectToken };
+          setRoomCode(last.code);
+        }
+      }
 
       // Re-join room on reconnect
       if (pendingJoin.current) {
