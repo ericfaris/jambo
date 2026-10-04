@@ -24,6 +24,8 @@ import { CastEndgameOverlay } from './CastEndgameOverlay.tsx';
 import { useCastRoomSync } from '../cast/useCastRoomSync.ts';
 import { getCastSessionController, isCastSdkEnabled } from '../cast/factory.ts';
 import { useAuthSession } from './useAuthSession.ts';
+import { fitCardsToBox } from './fitLayout.ts';
+import { useElementSize } from './useElementSize.ts';
 
 type AnimationSpeed = 'normal' | 'fast';
 const ANIMATION_SPEED_STORAGE_KEY = 'jambo.animationSpeed';
@@ -79,6 +81,7 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
   const { authUser, authError, avatarUrl, avatarLabel, logout: authLogout } = useAuthSession();
   const [telemetryEvents, setTelemetryEvents] = useState<string[]>([]);
   const menuRef = useRef<HTMLDivElement>(null);
+  const [boardRef, boardSize] = useElementSize<HTMLDivElement>();
   useAudioEvents(ws.audioEvent, ws.clearAudioEvent);
 
   const isCardActionValidationError = (message: string) => (
@@ -343,25 +346,69 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
     }
   }, [inPlayPhase, actionsDisabled, dispatch, validationState]);
 
+  // Phone layout: everything fits 100dvh. The board is measured and the
+  // utilities/hand cards are sized to fit it (see fitLayout.ts).
+  const SECTION_HEAD_PX = 20;
+  const BOARD_GAP_PX = 6;
+  const boardInnerW = Math.max(0, boardSize.width - 16);
+  const boardInnerH = Math.max(0, boardSize.height - 16);
+  const utilCount = myPublic.utilities.length;
+  const utilRowH = utilCount > 0 ? Math.min(Math.round(boardInnerH * 0.27), 200) : 26;
+  const utilFit = fitCardsToBox({ count: utilCount, width: boardInnerW, height: utilRowH, maxRows: 1, maxScale: 1.1 });
+  const handBoxH = Math.max(0, boardInnerH - 2 * SECTION_HEAD_PX - 3 * BOARD_GAP_PX - (utilCount > 0 ? utilFit.cardHeight : utilRowH));
+  const handFit = fitCardsToBox({ count: priv.hand.length, width: boardInnerW, height: handBoxH, maxRows: 4, maxScale: 1.4 });
+  const turnStatus = pub.phase === 'GAME_OVER'
+    ? 'Game over'
+    : isMyTurn
+      ? (pub.phase === 'DRAW' ? 'Your turn · Draw' : hasPendingInteraction ? 'Your move' : 'Your turn')
+      : "Opponent's turn";
+
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 10,
-      padding: '12px 0',
-      minHeight: '100vh',
-      maxWidth: 600,
-      margin: '0 auto',
-    }}>
+    <div className="player-shell">
+      {/* Top bar: gold · turn status · End Turn (avatar button is fixed top-right) */}
+      <div className="player-topbar">
+        <span className="player-gold" aria-label={`${myPublic.gold} gold`}>{myPublic.gold}g</span>
+        <div className={`player-turn-status${isMyTurn ? ' player-turn-status-active' : ''}`}>
+          <span>{turnStatus}</span>
+          <span style={{ fontWeight: 400, letterSpacing: 0.4, textTransform: 'none', color: 'var(--text-muted)' }}>
+            <span className={`connection-dot${ws.connected ? '' : ' connection-dot-offline'}`} aria-hidden="true" />
+            {ws.connected ? 'Connected' : 'Reconnecting...'}
+            {castEnabled && castSync.status !== 'disabled' && (
+              <span style={{ color: castSync.status === 'error' ? '#ff9977' : undefined }}
+                title={castSync.error ?? undefined}>
+                {' · TV '}{castSync.status}
+              </span>
+            )}
+          </span>
+        </div>
+        <div style={{ marginLeft: 'auto' }} />
+        {inPlayPhase && (
+          <button
+            className="end-turn-button"
+            disabled={actionsDisabled}
+            onClick={() => dispatch({ type: 'END_TURN' })}
+            aria-label={`End turn, ${pub.actionsLeft} actions left`}
+          >
+            End Turn
+            <div className="action-pips" aria-hidden="true">
+              {Array.from({ length: 5 }, (_, i) => (
+                <div key={i} className={`action-pip${i < pub.actionsLeft ? '' : ' action-pip-spent'}`} />
+              ))}
+            </div>
+          </button>
+        )}
+      </div>
+
       {/* Error */}
       {ws.error && !isCardActionValidationError(ws.error) && (
         <div style={{
           background: '#4a1a12',
           border: '1px solid #8a3a2a',
           borderRadius: 8,
-          padding: '8px 12px',
+          padding: '6px 12px',
           fontSize: 13,
           color: '#ff9977',
+          flexShrink: 0,
         }}
           onClick={ws.clearError}
         >
@@ -380,131 +427,80 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
         </ResolveMegaView>
       )}
 
-      <div style={{
-        borderRadius: 12,
-        padding: 6,
-        backgroundImage: 'linear-gradient(rgba(20,10,5,0.54), rgba(20,10,5,0.54)), url(/assets/panels/wood_1.png)',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
-      }}>
-        {/* Own utilities */}
-        <div style={{
-          position: 'relative',
-          width: '100%',
-          background: 'rgba(20,10,5,0.24)',
-          borderRadius: 10,
-          padding: '12px',
-        }}>
-          <div style={{ minWidth: 0, width: '100%' }}>
-            <UtilityArea
-              utilities={myPublic.utilities}
-              onActivate={(i) => {
-                const validation = validateActivateUtility(validationState, i);
-                if (!validation.valid) {
-                  const friendlyMessage = getFriendlyErrorMessage(validation.reason || 'Cannot activate utility');
-                  setCardError({ cardId: myPublic.utilities[i].cardId, message: friendlyMessage });
-                  return;
-                }
-                setCardError(null);
-                dispatch({ type: 'ACTIVATE_UTILITY', utilityIndex: i });
-              }}
-              disabled={actionsDisabled || !inPlayPhase || pub.actionsLeft <= 0}
-              cardError={cardError}
-              label="Your Utilities"
-              cardSize="default"
-              cardScale={1.25}
-              showHelperText={false}
-              overlapPx={57}
-              overlapOnDesktop
-              singleRow
-              hideScrollbar
-            />
-          </div>
+      {/* Play disabled hint */}
+      {actionsDisabled && pub.phase === 'PLAY' && playDisabledReason && (
+        <div className="disabled-hint" style={{ marginBottom: 0, flexShrink: 0 }}>
+          {playDisabledReason}
+        </div>
+      )}
 
-          {inPlayPhase && (
-            <button
-              disabled={actionsDisabled}
-              onClick={() => dispatch({ type: 'END_TURN' })}
-              style={{
-                background: 'linear-gradient(135deg, #c04030 0%, #a03020 50%, #c04030 100%)',
-                border: '2px solid #ff6b5a',
-                borderRadius: 8,
-                padding: '10px 16px',
-                color: 'white',
-                fontWeight: 700,
-                fontSize: 14,
-                cursor: actionsDisabled ? 'default' : 'pointer',
-                boxShadow: '0 0 20px rgba(192, 64, 48, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.2)',
-                animation: 'shimmer 2s ease-in-out infinite alternate',
-                transition: 'all var(--motion-fast) var(--anim-ease-standard)',
-                opacity: actionsDisabled ? 0.6 : 1,
-                flexShrink: 0,
-                position: 'absolute',
-                top: 10,
-                right: 10,
-                zIndex: 6,
-              }}
-            >
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                <div>End Turn</div>
-                <div style={{ display: 'flex', gap: 3 }}>
-                  {Array.from({ length: 5 }, (_, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: '50%',
-                        backgroundColor: i < pub.actionsLeft ? 'var(--gold)' : 'rgba(90,64,48,0.5)',
-                        border: '2px solid var(--gold)',
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
-            </button>
-          )}
+      <div ref={boardRef} className="player-board">
+        {/* Own utilities */}
+        <div className="player-board-section-head">
+          <div className="panel-section-title">Your Utilities</div>
+          {utilCount > 0 && <span className="ui-helper-text">{utilCount}/3</span>}
+        </div>
+        <div style={{ flexShrink: 0, height: utilCount > 0 ? utilFit.cardHeight : utilRowH }}>
+          <UtilityArea
+            utilities={myPublic.utilities}
+            onActivate={(i) => {
+              const validation = validateActivateUtility(validationState, i);
+              if (!validation.valid) {
+                const friendlyMessage = getFriendlyErrorMessage(validation.reason || 'Cannot activate utility');
+                setCardError({ cardId: myPublic.utilities[i].cardId, message: friendlyMessage });
+                return;
+              }
+              setCardError(null);
+              dispatch({ type: 'ACTIVATE_UTILITY', utilityIndex: i });
+            }}
+            disabled={actionsDisabled || !inPlayPhase || pub.actionsLeft <= 0}
+            cardError={cardError}
+            cardSize="default"
+            cardScale={utilFit.scale}
+            showHelperText={false}
+            overlapPx={utilFit.overlapPx}
+            overlapOnDesktop
+            gapPx={utilFit.gap}
+            singleRow
+            hideScrollbar
+          />
         </div>
 
-        {/* Play disabled hint */}
-        {actionsDisabled && pub.phase === 'PLAY' && playDisabledReason && (
-          <div className="disabled-hint">
-            {playDisabledReason}
-          </div>
-        )}
-
         {/* Hand */}
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 0, padding: '6px 8px 2px 14px' }}>
-            <div className="panel-section-title" style={{ fontSize: 15, marginBottom: 0 }}>
-              Your Hand ({priv.hand.length} cards)
-            </div>
-            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontFamily: 'var(--font-heading)', color: 'var(--gold)', fontWeight: 700, fontSize: 20, textShadow: '0 0 8px rgba(212,168,80,0.4)' }}>
-                {myPublic.gold}g
-              </span>
-            </div>
-          </div>
+        <div className="player-board-section-head">
+          <div className="panel-section-title">Your Hand · {priv.hand.length}</div>
+          {pub.phase === 'PLAY' && pub.currentPlayer === slot && (
+            <span className="ui-helper-text">{pub.actionsLeft} action{pub.actionsLeft === 1 ? '' : 's'} left</span>
+          )}
+        </div>
+        <div className="player-hand-box">
           <HandDisplay
             hand={priv.hand}
             onPlayCard={handlePlayCard}
             disabled={actionsDisabled || !inPlayPhase || pub.actionsLeft <= 0}
             cardError={cardError}
             useWoodBackground={false}
+            transparentBackground
             showBorder={false}
             showHelperText={false}
-            cardScale={1.25}
-            paddingTop={6}
-            paddingBottom={6}
-            paddingX={8}
-            paddingLeft={14}
-            layoutMode="twoRowAlternate"
-            fixedOverlapPx={75}
+            cardScale={handFit.scale}
+            paddingTop={0}
+            paddingBottom={0}
+            paddingX={0}
+            layoutMode="fitRows"
+            rows={handFit.rows}
+            fixedOverlapPx={handFit.overlapPx}
+            gapPx={handFit.gap}
             onMegaView={setMegaCardId}
           />
         </div>
       </div>
+
+      {cardError && (
+        <div className="player-toast" role="alert" key={`${cardError.cardId}-${cardError.message}`}>
+          {cardError.message}
+        </div>
+      )}
 
       {/* Ware dialog */}
       {wareDialog && (
@@ -538,31 +534,8 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
         />
       )}
 
-      {/* Connection indicator */}
-      <div style={{
-        position: 'fixed',
-        bottom: 8,
-        right: 12,
-        fontSize: 11,
-        color: ws.connected ? '#6a6' : '#a66',
-      }}>
-        {ws.connected ? 'Connected' : 'Reconnecting...'}
-      </div>
-      {castEnabled && castSync.status !== 'disabled' && (
-        <div style={{
-          position: 'fixed',
-          bottom: 8,
-          left: 12,
-          fontSize: 11,
-          color: castSync.status === 'error' ? '#ff9977' : 'var(--text-muted)',
-        }}>
-          Cast receiver sync: {castSync.status}
-          {castSync.error ? ` (${castSync.error})` : ''}
-        </div>
-      )}
-
       {/* Settings */}
-      <div ref={menuRef} style={{ position: 'fixed', top: 12, right: 16, zIndex: 50 }}>
+      <div ref={menuRef} style={{ position: 'fixed', top: 'max(12px, env(safe-area-inset-top))', right: 12, zIndex: 50 }}>
         <button
           onClick={() => setMenuOpen((previous) => !previous)}
           style={{

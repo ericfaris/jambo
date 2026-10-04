@@ -316,6 +316,63 @@
   </div>
 
   <div class="ds-section">
+    <h2>Components — 2026-10-03 polish pass</h2>
+
+    <h3 style="font-size:15px; color:var(--text-muted); margin-bottom:10px;">Buttons on linen surfaces (ink palette)</h3>
+    <p class="ds-note">Any <code>button</code> inside <code>.linen-texture</code> switches to ink colors automatically. Before this pass, default buttons here rendered cream-on-cream.</p>
+    <div class="ds-component-demo">
+      <div class="linen-texture" style="padding:16px; border-radius:12px; display:flex; gap:10px; flex-wrap:wrap;">
+        <button>Skip Draw Phase</button>
+        <button class="primary">Keep Card</button>
+        <button class="danger">Discard</button>
+        <button class="brown">Use Mask</button>
+        <button disabled>Disabled</button>
+      </div>
+    </div>
+
+    <h3 style="font-size:15px; color:var(--text-muted); margin: 24px 0 10px;">End Turn + action pips (signature control)</h3>
+    <div class="ds-component-demo">
+      <div class="ds-btn-row">
+        <button class="end-turn-button">End Turn<div class="action-pips"><div class="action-pip"></div><div class="action-pip"></div><div class="action-pip"></div><div class="action-pip action-pip-spent"></div><div class="action-pip action-pip-spent"></div></div></button>
+        <button class="end-turn-button" disabled>End Turn<div class="action-pips"><div class="action-pip"></div><div class="action-pip action-pip-spent"></div><div class="action-pip action-pip-spent"></div><div class="action-pip action-pip-spent"></div><div class="action-pip action-pip-spent"></div></div></button>
+      </div>
+    </div>
+
+    <h3 style="font-size:15px; color:var(--text-muted); margin: 24px 0 10px;">Buy / Sell coins with captions</h3>
+    <div class="ds-component-demo">
+      <div class="linen-texture" style="padding:12px 20px; border-radius:12px; display:flex; gap:28px; align-items:center;">
+        <div style="display:flex; flex-direction:column; align-items:center; gap:8px;"><img src="/assets/coins/coin_5.png" alt="5g" style="width:56px;height:56px"/><span class="coin-caption">Buy</span></div>
+        <div style="display:flex; flex-direction:column; align-items:center; gap:8px;"><img src="/assets/coins/coin_12.png" alt="12g" style="width:56px;height:56px"/><span class="coin-caption">Sell</span></div>
+      </div>
+    </div>
+
+    <h3 style="font-size:15px; color:var(--text-muted); margin: 24px 0 10px;">Phone player view — top bar &amp; toast</h3>
+    <p class="ds-note">The real screen fits 100dvh with no scrolling at any hand size — open <a href="/?player=1&hand=12&utils=3&phase=play" style="color:var(--gold)">/?player=1&amp;hand=12&amp;utils=3&amp;phase=play</a> in a phone-sized window to test it live.</p>
+    <div class="ds-component-demo" style="flex-direction:column; align-items:stretch; max-width:390px;">
+      <div class="player-topbar" style="padding-right:6px;">
+        <span class="player-gold">23g</span>
+        <div class="player-turn-status player-turn-status-active">
+          <span>Your turn</span>
+          <span style="font-weight:400; letter-spacing:0.4px; text-transform:none;"><span class="connection-dot"></span>Connected</span>
+        </div>
+        <div style="margin-left:auto"></div>
+        <button class="end-turn-button">End Turn<div class="action-pips"><div class="action-pip"></div><div class="action-pip"></div><div class="action-pip"></div><div class="action-pip"></div><div class="action-pip"></div></div></button>
+      </div>
+      <div class="player-topbar" style="padding-right:6px;">
+        <span class="player-gold">23g</span>
+        <div class="player-turn-status">
+          <span>Opponent's turn</span>
+          <span style="font-weight:400; letter-spacing:0.4px; text-transform:none;"><span class="connection-dot connection-dot-offline"></span>Reconnecting...</span>
+        </div>
+      </div>
+      <div class="player-board" style="height:90px; flex:none;">
+        <div class="player-board-section-head"><div class="panel-section-title">Your Hand · 7</div><span class="ui-helper-text">3 actions left</span></div>
+      </div>
+      <div class="player-toast" style="position:relative; left:auto; bottom:auto; transform:none; animation:none; margin-top:10px; align-self:center;">You do not have space in your market for this ware.</div>
+    </div>
+  </div>
+
+  <div class="ds-section">
     <h2>Card art sample</h2>
     <div class="ds-row">
       <img src="/assets/cards/card_back.png" alt="Card back" style="width:110px; border-radius:10px; border:2px solid var(--border);" />

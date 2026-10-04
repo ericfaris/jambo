@@ -205,9 +205,79 @@ Keyframes are named descriptively (`pilePulse`, `marketSlotFlash`,
   highlight + inset shadow + drop shadow) for wood-panel-style containers.
 - **Turn emphasis** (`.turn-emphasis-active`/`-inactive`) — gold glow +
   border on the active player's panel, dimmed opacity on the inactive one.
+- **Buttons on linen** — any `button` inside a `.linen-texture` surface
+  (dialogs, resolve panels) automatically switches to an **ink palette**:
+  default → `#3a2a1a` text / `#8a7560` 2px border; `.primary` → `#1f5a24`
+  on `#2e7d32`; `.danger` → `#8f2016` on `#b8322a`; `.brown` → `#6a3e14`;
+  no text-shadow; disabled 0.45 opacity. Never style a linen-surface button
+  inline to fix contrast — the context rule owns it.
+- **End Turn** (`.end-turn-button` + `.action-pips`/`.action-pip`/
+  `.action-pip-spent`) — the signature commit control. Red gradient
+  (`#c04030`→`#a03020`), `#ff6b5a` border, slow `endTurnShimmer` glow
+  (2s alternate; off under reduced motion and when disabled), press physics
+  (hover `scale(1.04)`, active `scale(0.97)`). Five gold pips under the
+  label show actions left; spent pips go `rgba(90,64,48,0.5)`. Shared by
+  `GameScreen` and `PlayerScreen` — previously two inline copies plus a
+  `<style>` tag injected at runtime from `GameScreen.tsx`.
+- **Coin captions** (`.coin-caption`) — "BUY"/"SELL" under the coin art in
+  `CardPlayDialog`. The coins were already the buttons; nothing said so.
+- **Dialog / panel art** (`.dialog-card-art`, `.panel-source-art`,
+  `.panel-source-art-compact`) — the card illustration at the top of the
+  draw, buy/sell and resolve dialogs. Full card on tall screens; on short
+  screens it becomes a cropped banner (`object-fit: cover`, focus 30% from
+  top) so the controls below never leave the viewport.
+- **Player toast** (`.player-toast`) — card-level validation errors are
+  repeated as a bottom-center toast (5s, slides up), because the red
+  overlay on a fitted phone card can be as small as ~45px wide. The overlay
+  text now scales `clamp(10px, 3vw, 14px)` and clips instead of spilling.
+- **Resolution breadcrumbs** — `formatResolutionBreadcrumb()` never shows raw
+  enum codes any more ("WARE > SELECT > MULTIPLE" → "Choose a Ware Type",
+  "Utility > kettle > SELECT_CARD" → "Kettle > Select Card"). New types need
+  a `RESOLUTION_LABELS` entry or fall back to `humanizeToken()`.
 - **Action tags / recap** (`.center-row-action-tag`, `.center-row-recap`) —
   pill/rounded-rect labels over the center row announcing the last action,
   gold-bordered when it's the opponent's.
+
+## Layout — Phone player view (Cast mode `PlayerScreen`)
+
+**Rule: the phone player view never scrolls.** Everything renders inside
+`100dvh` at every hand size (the official rules have no hand limit — a
+20-card hand must still fit), on phones down to 360×640.
+
+```
+.player-shell            100dvh, flex column, safe-area padding, overflow hidden
+├─ .player-topbar        50px: .player-gold · .player-turn-status (turn + .connection-dot
+│                        + TV sync) · .end-turn-button; right 54px reserved for the
+│                        fixed avatar/settings button (they used to overlap)
+├─ .disabled-hint        optional one-liner
+└─ .player-board         flex:1, wood panel; measured with useElementSize()
+   ├─ .player-board-section-head   "Your Utilities" · n/3
+   ├─ utilities row      height = min(27% of board, 200px), 1 row, fitted
+   ├─ .player-board-section-head   "Your Hand · n" · "k actions left"
+   └─ .player-hand-box   flex:1 → HandDisplay layoutMode="fitRows"
+```
+
+Card sizing is done by `fitCardsToBox()` (`src/ui/fitLayout.ts`): for 1…
+`maxRows` rows it computes the largest card that fits the box by height and
+by width (side by side with an 8px gap, tightening the gap, then overlapping
+up to **55%** of a card), and picks the layout with the largest **visible**
+card area (`(width − overlap) × width`) — so a big-but-buried single row
+loses to two rows of slightly smaller cards. Hands cap at scale 1.4,
+utilities at 1.1; floor 0.3 (a 24-card hand on a 360×640 phone still
+fits). Unit-tested for 1–24 cards across three real phone box sizes
+(`tests/ui/fitLayout.test.ts`).
+
+Dialogs layered on top (draw, buy/sell, resolve panels) keep their controls
+on screen via the cropped-banner art classes above.
+
+**Dev preview**: `/?player=1` renders `PlayerScreen` from the local store
+with no server (like `/?tv=1`). Staging params: `hand=N`, `utils=N` (≤3),
+`phase=play`. Cards are moved out of the deck, so invariants hold and the
+game stays playable.
+
+**Known gap (not this pass):** the solo `GameScreen` (full board — both
+markets, center row, hand) still scrolls on phones and its center row clips
+horizontally below ~420px wide. Fitting it is a layout redesign of its own.
 
 ## Backgrounds & Texture
 
@@ -281,6 +351,10 @@ through `getEffectiveVolume()`.
 
 - **Contrast**: default theme is already high-contrast by nature (dark wood
   + cream text); a `data-contrast="high"` mode exists for further brightening.
+- **Linen contrast** (2026-10-03): default buttons on linen were cream on
+  `#e8e4df` (1.07:1) and `.primary` green `#4caf50` 2.2:1. Ink palette on
+  linen: default 10.9:1, primary 6.5:1, danger 7.0:1, brown 7.2:1,
+  coin caption 7.0:1 (≥5.9:1 even over the primary button's green tint).
 - **Focus**: every interactive element gets a 2px gold `outline` with 2px
   offset on `:focus-visible`.
 - **Reduced motion**: `prefers-reduced-motion: reduce` disables every
@@ -302,6 +376,31 @@ existing set already covers the full identity; this pass's job was
 documenting it, fixing one duplication, and identifying the SFX gap.
 
 ## Changelog
+
+### 2026-10-03 — Polish pass: phone player view fits the screen, linen contrast, End Turn component
+- **Phone player view never scrolls** (user priority for this pass). Before:
+  fixed 1.25× cards in a hard-coded two-row layout — 8+ cards overflowed to
+  849px on a 667px phone, the hand clipped off the right edge, and the
+  avatar button sat on top of End Turn. Now: `.player-shell` (100dvh) +
+  top bar + measured board, with `fitCardsToBox()` sizing utilities and hand
+  (see Layout). Verified 0px overflow at 360×640, 360×740, 375×667, 390×844
+  for hands of 0–20 and 0–3 utilities, and for every reachable resolve /
+  draw / buy-sell dialog.
+- **Top bar** replaces the floating gold/End-Turn/connection bits: gold,
+  turn status, connection dot (was a fixed "Connected" label over the
+  cards), TV-sync status (was a fixed label over the cards).
+- **Linen-surface buttons** get an ink palette via a context rule — fixes
+  unreadable (1.07:1) Skip Draw Phase / Decline / Pass and low-contrast primary/danger.
+- **End Turn** promoted to `.end-turn-button` (+ `.action-pips`), shared by
+  both screens; removed `GameScreen.tsx`'s runtime-injected `shimmer`
+  keyframes; shimmer now respects reduced motion.
+- **Buy/Sell captions** under the coin buttons; dialog/panel art crops to a
+  banner on short screens; card-error toast + scaled overlay text;
+  human-readable resolution breadcrumbs.
+- Added `/?player=1` dev preview, `HandDisplay` `fitRows` mode,
+  `UtilityArea` `gapPx`, `useElementSize()`. Tests: `fitLayout`,
+  `devPlayerPreview`, breadcrumb humanization.
+- Showcase: new "Components — 2026-10-03 polish pass" section.
 
 ### 2026-09-24 — Initial `DESIGN.md`, showcase page, linen-texture consolidation
 - Wrote this document from scratch (none existed before) by reading

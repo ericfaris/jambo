@@ -49,17 +49,44 @@ export function formatResolutionBreadcrumb(pr: PendingResolution): string {
     case 'CROCODILE_USE':
       return `Crocodile > ${pr.step === 'SELECT_UTILITY' ? 'Select Utility' : 'Resolve Utility'}`;
     case 'UTILITY_EFFECT':
-      return `Utility > ${pr.utilityDesign} > ${pr.step}`;
+      return `${humanizeToken(pr.utilityDesign)} > ${humanizeToken(pr.step)}`;
     case 'AUCTION':
       if (pr.revealedCards && pr.revealedCards.length > 0) return 'Auction > Cards > Bidding';
       return `Auction > ${isAuctionBidding(pr) ? 'Bidding' : 'Select Wares'}`;
     case 'DRAFT':
-      return `Draft > ${pr.draftMode}`;
+      return `Draft > ${humanizeToken(pr.draftMode)}`;
     case 'WARE_TRADE':
       return `Shaman > ${pr.step === 'SELECT_GIVE' ? 'Select Give Type' : 'Select Receive Type'}`;
     default:
-      return pr.type.replace(/_/g, ' > ');
+      return RESOLUTION_LABELS[pr.type] ?? humanizeToken(pr.type);
   }
+}
+
+/** Plain-language breadcrumb for resolution types without step detail. */
+const RESOLUTION_LABELS: Partial<Record<PendingResolution['type'], string>> = {
+  WARE_SELECT_MULTIPLE: 'Choose a Ware Type',
+  CARRIER_WARE_SELECT: 'Carrier > Choose a Ware Type',
+  WARE_THEFT_SINGLE: 'Steal a Ware',
+  UTILITY_REPLACE: 'Replace a Utility',
+  BINARY_CHOICE: 'Make a Choice',
+  OPPONENT_CHOICE: "Opponent's Choice",
+  DECK_PEEK: 'Look at the Deck',
+  DISCARD_PICK: 'Pick from Discard',
+  WARE_SELL_BULK: 'Sell Wares',
+  WARE_RETURN: 'Return Wares',
+  SUPPLIES_DISCARD: 'Supplies > Discard',
+  DRAW_MODIFIER: 'Draw Phase',
+  TURN_MODIFIER: 'This Turn',
+};
+
+/** 'SELECT_WARE_TYPE' / 'leopard_statue' → 'Select Ware Type' / 'Leopard Statue'. */
+export function humanizeToken(token: string): string {
+  return token
+    .toLowerCase()
+    .split('_')
+    .filter(Boolean)
+    .map((word) => word[0].toUpperCase() + word.slice(1))
+    .join(' ');
 }
 
 const CARD_ID_PATTERN = /\b[a-z]+(?:_[a-z0-9]+)*_\d+\b/g;

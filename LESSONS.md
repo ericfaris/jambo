@@ -82,3 +82,26 @@ win and go to −1g. The AI benchmark's `stallReasons` in
 `reports/ai-benchmark/*.json` pinpointed it; always read them when `stalls`
 is non-zero. (And `git checkout` those report files afterwards — the bench
 overwrites tracked files.)
+
+## 2026-10-03 — Phone player view must never scroll (UI polish pass)
+- **Size cards from the measured box, don't hard-code a scale.** The Cast
+  `PlayerScreen` used fixed `cardScale=1.25` + a two-row layout, which only
+  looked right at 5 cards on one phone. `fitCardsToBox()` (`src/ui/fitLayout.ts`)
+  plus a `ResizeObserver`-measured board now fits 0–24 cards at 360×640+.
+  Choose layouts by *visible* area `(w − overlap) × w`, not raw card width,
+  or the solver picks one huge, mostly-buried row.
+- **Gotcha: overlap can go negative.** When cards fit edge-to-edge but not
+  with the gap, `(n·w − W)/(n−1)` is negative → the gap was applied and the row
+  overflowed by a few px. Tighten the gap first; clamp overlap at 0. The
+  1–24-card × 3-box test sweep caught it. A `minScale` floor also silently
+  reintroduced overflow for 16+ cards; keep the floor low (0.3).
+- **Gotcha: flex `gap` stacks with negative-margin overlap.** `UtilityArea`
+  applied both; pass `gapPx=0` whenever `overlapPx > 0`.
+- **Buttons on linen were unreadable** (cream on cream, 1.07:1). Fixed with a
+  context rule (`.linen-texture button…`) instead of per-button inline color.
+- **`/?player=1` dev preview** renders `PlayerScreen` from the local store
+  (`hand=N&utils=N&phase=play`) — much faster than standing up the WS server
+  and joining a room to test phone layouts. Stage by moving cards out of the
+  deck so `checkInvariants()` still passes.
+- Still open: solo `GameScreen` on phones scrolls and its center row clips
+  below ~420px (see DESIGN.md › Layout).

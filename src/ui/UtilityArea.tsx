@@ -17,6 +17,8 @@ interface UtilityAreaProps {
   hideScrollbar?: boolean;
   /** Show empty placeholder slots up to this count. */
   maxSlots?: number;
+  /** Gap between non-overlapping cards (defaults: 0 on mobile, 8 on desktop). */
+  gapPx?: number;
 }
 
 function UtilityAreaComponent({
@@ -33,6 +35,7 @@ function UtilityAreaComponent({
   singleRow = false,
   hideScrollbar = false,
   maxSlots,
+  gapPx,
 }: UtilityAreaProps) {
   const [isMobile, setIsMobile] = useState(false);
 
@@ -61,7 +64,7 @@ function UtilityAreaComponent({
       )}
       <div style={{
         display: 'flex',
-        gap: isMobile ? 0 : 8,
+        gap: gapPx ?? (isMobile ? 0 : 8),
         flexWrap: (isMobile || singleRow) ? 'nowrap' : 'wrap',
         overflowX: (isMobile || singleRow) ? 'auto' : 'visible',
         overflowY: 'visible',
@@ -129,6 +132,7 @@ function UtilityAreaComponent({
                 borderRadius: 8,
                 zIndex: 1000,
                 animation: 'cardErrorFadeOut 5s linear forwards',
+                overflow: 'hidden',
               }}>
                 {cardError.message}
               </div>

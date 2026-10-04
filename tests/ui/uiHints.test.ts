@@ -74,3 +74,25 @@ describe('log redaction', () => {
     expect(formatLogRecap({ ...entry, player: 0 }, ['You', 'Opponent'], 1)).toBe('You: Drew Scale');
   });
 });
+
+describe('formatResolutionBreadcrumb — never shows raw enum codes', () => {
+  const RAW = /[A-Z]{2,}_[A-Z]|[a-z]+_[a-z]+|\b[A-Z]{4,}\b/;
+
+  it('humanizes utility design and step ids', async () => {
+    const { humanizeToken } = await import('../../src/ui/uiHints.ts');
+    expect(humanizeToken('SELECT_WARE_TYPE')).toBe('Select Ware Type');
+    expect(humanizeToken('leopard_statue')).toBe('Leopard Statue');
+  });
+
+  it.each([
+    { type: 'WARE_SELECT_MULTIPLE', sourceCard: 'basket_maker_1', count: 2 },
+    { type: 'BINARY_CHOICE', sourceCard: 'carrier_1', options: ['a', 'b'] },
+    { type: 'UTILITY_EFFECT', sourceCard: 'leopard_statue_1', utilityDesign: 'leopard_statue', step: 'SELECT_WARE_TYPE' },
+    { type: 'DRAFT', sourceCard: 'ape_1', draftMode: 'cards' },
+    { type: 'DECK_PEEK', sourceCard: 'psychic_1' },
+  ])('$type reads as plain language', (pr) => {
+    const crumb = formatResolutionBreadcrumb(pr as unknown as Parameters<typeof formatResolutionBreadcrumb>[0]);
+    expect(crumb).not.toMatch(RAW);
+    expect(crumb.length).toBeGreaterThan(3);
+  });
+});

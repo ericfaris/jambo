@@ -1,6 +1,7 @@
 import { memo, useState, useEffect } from 'react';
 import type { DeckCardId } from '../engine/types.ts';
 import { CardFace } from './CardFace.tsx';
+import { splitIntoRows } from './fitLayout.ts';
 
 interface HandDisplayProps {
   hand: DeckCardId[];
@@ -18,8 +19,12 @@ interface HandDisplayProps {
   paddingLeft?: number;
   paddingRight?: number;
   paddingTop?: number;
-  layoutMode?: 'fan' | 'grid3' | 'twoRowAlternate';
+  layoutMode?: 'fan' | 'grid3' | 'twoRowAlternate' | 'fitRows';
   fixedOverlapPx?: number;
+  /** fitRows only: row count from fitCardsToBox(). Cards fill rows in hand order. */
+  rows?: number;
+  /** fitRows only: gap between cards when fixedOverlapPx is 0. */
+  gapPx?: number;
 }
 
 /** Max overlap as a fraction of card width — keeps each card's art readable. */
@@ -27,7 +32,7 @@ export const MAX_READABLE_OVERLAP_RATIO = 0.5;
 /** Hand size at which the fan stops squeezing and scrolls sideways. */
 export const SCROLL_HAND_SIZE = 12;
 
-function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaView, useWoodBackground = true, transparentBackground = false, showBorder = true, showHelperText = true, cardScale = 1, paddingBottom = 14, paddingX = 14, paddingLeft, paddingRight, paddingTop = 14, layoutMode = 'fan', fixedOverlapPx }: HandDisplayProps) {
+function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaView, useWoodBackground = true, transparentBackground = false, showBorder = true, showHelperText = true, cardScale = 1, paddingBottom = 14, paddingX = 14, paddingLeft, paddingRight, paddingTop = 14, layoutMode = 'fan', fixedOverlapPx, rows = 1, gapPx = 8 }: HandDisplayProps) {
   const [isMobile, setIsMobile] = useState(false);
 
   // Detect mobile screen size
@@ -82,7 +87,8 @@ function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaVie
   const spacing = overlapAmount > 0 ? -overlapAmount : minGap;
   const isGrid3 = layoutMode === 'grid3';
   const isTwoRowAlternate = layoutMode === 'twoRowAlternate';
-  const scrollsSideways = !isGrid3 && !isTwoRowAlternate && hand.length >= SCROLL_HAND_SIZE;
+  const isFitRows = layoutMode === 'fitRows';
+  const scrollsSideways = !isGrid3 && !isTwoRowAlternate && !isFitRows && hand.length >= SCROLL_HAND_SIZE;
 
   const renderCardTile = (cardId: DeckCardId, index: number, marginLeft: number, zIndex: number) => (
     <div
@@ -119,6 +125,7 @@ function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaVie
           borderRadius: 8,
           zIndex: 1000,
           animation: 'cardErrorFadeOut 5s linear forwards',
+                overflow: 'hidden',
         }}>
           {cardError.message}
         </div>
@@ -140,6 +147,9 @@ function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaVie
     });
   }
 
+  const fitSpacing = overlapAmount > 0 ? -overlapAmount : gapPx;
+  const fitRowList = isFitRows ? splitIntoRows(indexedCards, rows) : [];
+
   const resolvedPaddingLeft = paddingLeft ?? paddingX;
   const resolvedPaddingRight = paddingRight ?? paddingX;
 
@@ -160,21 +170,21 @@ function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaVie
             }),
         border: showBorder ? '1px dashed var(--border)' : 'none',
         borderRadius: 10,
-        minHeight: 200,
-        overflowX: isGrid3 ? 'hidden' : (isMobile || isTwoRowAlternate || scrollsSideways ? 'auto' : 'hidden'),
-        overflowY: isGrid3 ? 'auto' : 'hidden',
+        minHeight: isFitRows ? undefined : 200,
+        overflowX: isFitRows ? 'visible' : isGrid3 ? 'hidden' : (isMobile || isTwoRowAlternate || scrollsSideways ? 'auto' : 'hidden'),
+        overflowY: isFitRows ? 'visible' : isGrid3 ? 'auto' : 'hidden',
         display: isGrid3 ? 'grid' : 'flex',
         gridTemplateColumns: isGrid3 ? 'repeat(3, minmax(0, 1fr))' : undefined,
-        flexDirection: isTwoRowAlternate ? 'column' : undefined,
+        flexDirection: isTwoRowAlternate || isFitRows ? 'column' : undefined,
         // 'safe center' centers when the row fits and falls back to start when it scrolls
-        justifyContent: isGrid3 ? undefined : (isMobile || isTwoRowAlternate ? 'flex-start' : scrollsSideways ? 'safe center' : 'center'),
+        justifyContent: isFitRows ? 'center' : isGrid3 ? undefined : (isMobile || isTwoRowAlternate ? 'flex-start' : scrollsSideways ? 'safe center' : 'center'),
         justifyItems: isGrid3 ? 'center' : undefined,
-        alignItems: 'flex-start',
-        gap: isGrid3 || isTwoRowAlternate ? 10 : undefined,
+        alignItems: isFitRows ? 'stretch' : 'flex-start',
+        gap: isFitRows ? 8 : isGrid3 || isTwoRowAlternate ? 10 : undefined,
         scrollbarWidth: 'thin',
         scrollbarColor: 'rgba(90,64,48,0.3) transparent',
         WebkitOverflowScrolling: 'touch',
-        touchAction: isGrid3 ? 'auto' : 'pan-x',
+        touchAction: isGrid3 || isFitRows ? 'auto' : 'pan-x',
       } as any}
     >
       {showHelperText && !disabled && !!onPlayCard && hand.length > 0 && (
@@ -203,7 +213,13 @@ function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaVie
           No cards in hand
         </div>
       )}
-      {isTwoRowAlternate ? (
+      {isFitRows ? (
+        fitRowList.map((row, rowIndex) => (
+          <div key={rowIndex} className="hand-fit-row">
+            {row.map((entry, i) => renderCardTile(entry.cardId, entry.index, i === 0 ? 0 : fitSpacing, entry.index))}
+          </div>
+        ))
+      ) : isTwoRowAlternate ? (
         <>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>
             {topRow.map((entry, rowIndex) => renderCardTile(entry.cardId, entry.index, rowIndex === 0 ? 0 : spacing, entry.index))}
@@ -241,13 +257,15 @@ function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaVie
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: 'white',
-                fontSize: 14,
+                fontSize: 'clamp(10px, 3vw, 14px)',
+                lineHeight: 1.2,
                 fontWeight: 600,
                 textAlign: 'center',
-                padding: 8,
+                padding: 6,
                 borderRadius: 8,
                 zIndex: 1000,
                 animation: 'cardErrorFadeOut 5s linear forwards',
+                overflow: 'hidden',
               }}>
                 {cardError.message}
               </div>

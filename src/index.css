@@ -684,3 +684,301 @@ button.brown:hover:not(:disabled) {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--gold-dim);
 }
+
+/* ---------------------------------------------------------------------------
+   Phone player view (Cast-mode PlayerScreen) — fits 100dvh, never scrolls.
+   See DESIGN.md › Layout › Phone player view.
+   --------------------------------------------------------------------------- */
+.hand-fit-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.player-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  height: 100vh;
+  height: 100dvh;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: max(8px, env(safe-area-inset-top)) 8px max(8px, env(safe-area-inset-bottom));
+  overflow: hidden;
+}
+
+.player-topbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 50px;
+  /* the fixed 42px avatar/settings button sits top-right */
+  padding: 0 54px 0 6px;
+  flex-shrink: 0;
+}
+
+.player-gold {
+  font-family: var(--font-heading);
+  color: var(--gold);
+  font-weight: 700;
+  font-size: 26px;
+  line-height: 1;
+  text-shadow: 0 0 10px rgba(212, 168, 80, 0.35);
+  font-variant-numeric: tabular-nums;
+}
+
+.player-turn-status {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.2;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  font-weight: 700;
+}
+
+.player-turn-status > span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.player-turn-status-active {
+  color: var(--text);
+}
+
+.connection-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-right: 5px;
+  vertical-align: 1px;
+  background: var(--accent-green);
+  box-shadow: 0 0 6px rgba(106, 138, 64, 0.8);
+}
+
+.connection-dot-offline {
+  background: var(--accent-red);
+  box-shadow: 0 0 6px rgba(192, 64, 48, 0.8);
+}
+
+.player-board {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 12px;
+  background-image:
+    linear-gradient(rgba(20, 10, 5, 0.54), rgba(20, 10, 5, 0.54)),
+    url('/assets/panels/wood_1.png');
+  background-size: cover;
+  background-position: center;
+}
+
+.player-board-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  height: 20px;
+  padding: 0 4px;
+  flex-shrink: 0;
+}
+
+.player-board-section-head .panel-section-title {
+  margin-bottom: 0;
+  font-size: 13px;
+}
+
+.player-hand-box {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+/* End Turn — the signature commit control. Shared by GameScreen + PlayerScreen. */
+@keyframes endTurnShimmer {
+  from { box-shadow: 0 0 16px rgba(192, 64, 48, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.2); }
+  to   { box-shadow: 0 0 24px rgba(255, 107, 90, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.35); }
+}
+
+.end-turn-button {
+  background: linear-gradient(135deg, #c04030 0%, #a03020 50%, #c04030 100%);
+  border: 2px solid #ff6b5a;
+  border-radius: 10px;
+  padding: 8px 18px;
+  color: #fff;
+  font-weight: 700;
+  font-size: 15px;
+  box-shadow: 0 0 16px rgba(192, 64, 48, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  animation: endTurnShimmer 2s ease-in-out infinite alternate;
+  transition: transform var(--motion-fast) var(--anim-ease-emphasis), filter var(--motion-fast) var(--anim-ease-standard);
+  flex-shrink: 0;
+}
+
+.end-turn-button:hover:not(:disabled) {
+  background: linear-gradient(135deg, #c04030 0%, #a03020 50%, #c04030 100%);
+  border-color: #ff8a7c;
+  color: #fff;
+  transform: scale(1.04);
+  filter: brightness(1.08);
+}
+
+.end-turn-button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.end-turn-button:disabled {
+  opacity: 0.55;
+  animation: none;
+}
+
+.action-pips {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.action-pip {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 2px solid var(--gold);
+  background: var(--gold);
+  transition: background-color var(--motion-base) var(--anim-ease-standard);
+}
+
+.action-pip-spent {
+  background: rgba(90, 64, 48, 0.5);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .end-turn-button {
+    animation: none;
+  }
+}
+
+/* Resolve panels: on short screens the source-card art becomes a cropped
+   banner so the choices below it stay on screen without scrolling. */
+.panel-source-art {
+  max-height: 34vh;
+  max-height: 34dvh;
+  object-fit: cover;
+  object-position: center 30%;
+}
+
+.panel-source-art-compact {
+  max-height: 22vh;
+  max-height: 22dvh;
+  object-fit: contain;
+}
+
+@media (min-height: 900px) {
+  .panel-source-art {
+    max-height: none;
+  }
+}
+
+/* Card-level validation errors, repeated as a readable toast above the board */
+.player-toast {
+  position: fixed;
+  left: 50%;
+  bottom: max(14px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 60;
+  max-width: min(92vw, 420px);
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: #4a1a12;
+  border: 1px solid #8a3a2a;
+  color: #ffd2c4;
+  font-size: 14px;
+  line-height: 1.3;
+  text-align: center;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  animation: slideUp 0.2s var(--anim-ease-standard), cardErrorFadeOut 5s linear forwards;
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Buttons on linen (card-stock) surfaces. The base button palette is tuned
+   for dark wood; on the cream linen panels cream text vanished (~1.2:1) and
+   the green/red/brown variants fell under 3:1. Same shapes, ink colors.
+   --------------------------------------------------------------------------- */
+.linen-texture button {
+  text-shadow: none;
+}
+
+.linen-texture button:not(.primary):not(.danger):not(.brown) {
+  color: #3a2a1a;
+  background: rgba(60, 40, 20, 0.06);
+  border: 2px solid #8a7560;
+  font-weight: 700;
+}
+
+.linen-texture button:not(.primary):not(.danger):not(.brown):hover:not(:disabled) {
+  color: #5a3a12;
+  background: rgba(184, 138, 56, 0.18);
+  border-color: var(--gold-dim);
+}
+
+.linen-texture button.primary {
+  color: #1f5a24;
+  background: rgba(46, 139, 46, 0.14);
+  border-color: #2e7d32;
+}
+
+.linen-texture button.primary:hover:not(:disabled) {
+  color: #174a1b;
+  background: rgba(46, 139, 46, 0.26);
+}
+
+.linen-texture button.danger {
+  color: #8f2016;
+  background: rgba(210, 50, 40, 0.1);
+  border-color: #b8322a;
+}
+
+.linen-texture button.danger:hover:not(:disabled) {
+  color: #7a180f;
+  background: rgba(210, 50, 40, 0.2);
+}
+
+.linen-texture button.brown {
+  color: #6a3e14;
+  border-color: #8b5a2b;
+}
+
+.linen-texture button.brown:hover:not(:disabled) {
+  color: #5a3210;
+}
+
+.linen-texture button:disabled {
+  opacity: 0.45;
+}
+
+/* Dialog card art: full card on tall screens, cropped banner on short ones,
+   so the Draw/Keep/Buy/Sell controls are always on screen. */
+.dialog-card-art {
+  max-height: calc(100vh - 230px);
+  max-height: calc(100dvh - 230px);
+  object-fit: cover;
+  object-position: center 30%;
+}
+
+.coin-caption {
+  margin-top: -4px;
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #5a4632;
+}

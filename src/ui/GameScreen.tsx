@@ -686,45 +686,16 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
             marginTop: 16,
           }}>
             <button
+              className="end-turn-button"
               onClick={() => dispatch({ type: 'END_TURN' })}
-              style={{
-                background: 'linear-gradient(135deg, #c04030 0%, #a03020 50%, #c04030 100%)',
-                border: '2px solid #ff6b5a',
-                borderRadius: 8,
-                padding: '12px 24px',
-                color: 'white',
-                fontWeight: 700,
-                fontSize: 16,
-                cursor: 'pointer',
-                boxShadow: '0 0 20px rgba(192, 64, 48, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.2)',
-                animation: 'shimmer 2s ease-in-out infinite alternate',
-                transition: 'all var(--motion-fast) var(--anim-ease-standard)',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.boxShadow = '0 0 30px rgba(192, 64, 48, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.3)';
-                e.currentTarget.style.transform = 'scale(1.05)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.boxShadow = '0 0 20px rgba(192, 64, 48, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.2)';
-                e.currentTarget.style.transform = 'scale(1)';
-              }}
+              style={{ padding: '12px 28px', fontSize: 16 }}
+              aria-label={`End turn, ${state.actionsLeft} actions left`}
             >
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                <div>End Turn</div>
-                <div style={{ display: 'flex', gap: 3 }}>
-                  {Array.from({ length: 5 }, (_, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        width: 10,
-                        height: 10,
-                        borderRadius: '50%',
-                        backgroundColor: i < state.actionsLeft ? 'var(--gold)' : 'rgba(90,64,48,0.5)',
-                        border: '2px solid var(--gold)',
-                      }}
-                    />
-                  ))}
-                </div>
+              End Turn
+              <div className="action-pips" aria-hidden="true">
+                {Array.from({ length: 5 }, (_, i) => (
+                  <div key={i} className={`action-pip${i < state.actionsLeft ? '' : ' action-pip-spent'}`} />
+                ))}
               </div>
             </button>
           </div>
@@ -1231,23 +1202,4 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
 
     </div>
   );
-}
-
-// Add shimmering animation CSS
-const shimmerKeyframes = `
-  @keyframes shimmer {
-    0% {
-      box-shadow: 0 0 20px rgba(192, 64, 48, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-    }
-    100% {
-      box-shadow: 0 0 25px rgba(255, 107, 90, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.4);
-    }
-  }
-`;
-
-// Inject the keyframes into the document head
-if (typeof document !== 'undefined') {
-  const style = document.createElement('style');
-  style.textContent = shimmerKeyframes;
-  document.head.appendChild(style);
 }

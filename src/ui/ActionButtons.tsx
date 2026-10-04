@@ -55,7 +55,7 @@ export function CardPlayDialog({ cardId, onBuy, onSell, onCancel }: CardPlayDial
         className="dialog-pop linen-texture"
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: 380,
+          width: 'min(380px, calc(100vw - 16px))',
           borderRadius: 14,
           padding: 8,
           border: '2px solid #a89880',
@@ -68,6 +68,7 @@ export function CardPlayDialog({ cardId, onBuy, onSell, onCancel }: CardPlayDial
         <img
           src={`/assets/cards/${card.designId}.png`}
           alt={card.name}
+          className="dialog-card-art"
           style={{
             width: '100%',
             borderRadius: 10,
@@ -83,6 +84,7 @@ export function CardPlayDialog({ cardId, onBuy, onSell, onCancel }: CardPlayDial
               style={{ width: 56, height: 56 }}
               draggable={false}
             />
+            <span className="coin-caption">Buy</span>
           </div>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 180 }}>
             {card.wares.types.map((wareType, i) => (
@@ -107,6 +109,7 @@ export function CardPlayDialog({ cardId, onBuy, onSell, onCancel }: CardPlayDial
               style={{ width: 56, height: 56 }}
               draggable={false}
             />
+            <span className="coin-caption">Sell</span>
           </div>
         </div>
       </div>
@@ -177,7 +180,7 @@ export function DrawModal({ state, dispatch, disabled, disabledReason, onClose, 
         className="dialog-pop linen-texture"
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: 380,
+          width: 'min(380px, calc(100vw - 16px))',
           borderRadius: 14,
           padding: 8,
           border: '2px solid #a89880',
@@ -191,6 +194,7 @@ export function DrawModal({ state, dispatch, disabled, disabledReason, onClose, 
           <img
             src="/assets/cards/card_back.png"
             alt="Card back"
+            className="dialog-card-art"
             style={{
               width: '100%',
               borderRadius: 10,
@@ -203,6 +207,7 @@ export function DrawModal({ state, dispatch, disabled, disabledReason, onClose, 
             <img
               src={`/assets/cards/${getCard(state.drawnCard!).designId}.png`}
               alt={getCard(state.drawnCard!).name}
+              className="dialog-card-art"
               style={{
                 width: '100%',
                 borderRadius: 10,

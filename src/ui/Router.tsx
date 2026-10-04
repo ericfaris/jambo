@@ -8,6 +8,7 @@ import { GameScreen } from './GameScreen.tsx';
 import { CastLobby } from './CastLobby.tsx';
 import { PlayerScreen } from './PlayerScreen.tsx';
 import { TVScreen } from './TVScreen.tsx';
+import { DevPlayerPreview, isDevPlayerMode } from './DevPlayerPreview.tsx';
 import { MainMenu } from './screens/MainMenu.tsx';
 import { LoginModal } from './screens/LoginModal.tsx';
 import { PreGameSetupModal } from './screens/PreGameSetupModal.tsx';
@@ -95,6 +96,11 @@ export function Router() {
   // Dev mode: ?tv=1 renders the TV view with local game state (no server needed)
   if (isDevTVMode()) {
     return <DevTVPreview />;
+  }
+
+  // Dev mode: ?player=1 renders the phone PlayerScreen with local game state
+  if (isDevPlayerMode()) {
+    return <DevPlayerPreview />;
   }
 
   return <RouterInner />;

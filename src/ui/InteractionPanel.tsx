@@ -394,6 +394,7 @@ function PanelShell({ title, breadcrumb, children, sourceCardId, onMegaView, com
             <img
               src={`/assets/cards/${sourceCard.designId}.png`}
               alt={sourceCard.name}
+              className={compactSourceCard ? 'panel-source-art-compact' : 'panel-source-art'}
               style={{ width: '100%', borderRadius: 10, display: 'block' }}
               draggable={false}
             />
