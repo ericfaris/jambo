@@ -3,18 +3,18 @@
 ARG APP_VERSION=0.0.0
 ARG VITE_CAST_APP_ID=
 
-FROM node:20-alpine AS build
+FROM node:24-alpine AS build
 WORKDIR /app
 ARG VITE_CAST_APP_ID
 ENV VITE_CAST_APP_ID=$VITE_CAST_APP_ID
 
 COPY package*.json ./
-RUN npm ci && npm install --no-save @rollup/rollup-linux-x64-musl@4.57.1
+RUN npm ci && npm install --no-save @rollup/rollup-linux-x64-musl@4.64.0
 
 COPY . .
 RUN npm run build
 
-FROM node:20-alpine AS runtime
+FROM node:24-alpine AS runtime
 RUN apk update && apk upgrade --no-cache
 LABEL version=$APP_VERSION
 WORKDIR /app
