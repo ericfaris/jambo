@@ -469,7 +469,7 @@ function ResolutionContent({ state, pr, dispatch, viewerPlayer, onMegaView }: { 
     case 'BINARY_CHOICE':
       return <BinaryChoicePanel options={pr.options} onChoice={(c) => resolve(dispatch, { type: 'BINARY_CHOICE', choice: c })} blocked={(c) => binaryChoiceBlocked(state, pr, c)} />;
     case 'OPPONENT_CHOICE':
-      return <BinaryChoicePanel options={pr.options} onChoice={(c) => resolve(dispatch, { type: 'OPPONENT_CHOICE', choice: c })} />;
+      return <BinaryChoicePanel options={pr.options} onChoice={(c) => resolve(dispatch, { type: 'OPPONENT_CHOICE', choice: c })} blocked={(c) => binaryChoiceBlocked(state, pr, c)} />;
     case 'AUCTION':
       return <AuctionPanel pr={pr} state={state} viewerPlayer={viewerPlayer} dispatch={dispatch} onMegaView={onMegaView} />;
     case 'DECK_PEEK':

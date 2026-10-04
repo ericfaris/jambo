@@ -45,9 +45,15 @@ export function resolveOpponentChoice(
   let next = state;
 
   if (choice === 0) {
-    // Opponent gives 2g to active player
+    // Opponent gives 2g to active player. Rulebook: "If a player has no gold
+    // and wants to take an action that costs gold, he may not take the
+    // action" — an opponent who can't pay 2g must let the active player draw
+    // (paying "what they have", even 0, used to cancel the Cheetah for free).
     const opGold = next.players[opponent].gold;
-    const transfer = Math.min(opGold, 2); // Can't give more than they have
+    if (opGold < 2) {
+      throw new Error(`Cannot give 2g with only ${opGold}g — choose to let the opponent draw 2 cards`);
+    }
+    const transfer = 2;
     next = withPlayer(next, opponent, { gold: opGold - transfer });
     next = withPlayer(next, cp, { gold: next.players[cp].gold + transfer });
 

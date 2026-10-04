@@ -52,10 +52,13 @@ export function checkEndgameTrigger(state: GameState): GameState {
   if (currentGold >= CONSTANTS.ENDGAME_GOLD_THRESHOLD) {
     const finalTurnPlayer: 0 | 1 = currentPlayer === 0 ? 1 : 0;
 
+    // "His opponent takes one last turn" — the turn that starts now IS the
+    // final turn. (This used to be false here, and the branch that flipped it
+    // can't run in a 2-player game, so the UI never showed "FINAL TURN!".)
     const endgame: EndgameState = {
       triggerPlayer: currentPlayer,
       finalTurnPlayer,
-      isFinalTurn: false,
+      isFinalTurn: true,
     };
 
     return {

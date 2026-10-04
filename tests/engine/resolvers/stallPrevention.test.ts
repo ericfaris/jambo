@@ -800,19 +800,32 @@ describe('Throne (WARE_THEFT_SWAP): resolver guard auto-resolves when there is n
 });
 
 describe('Cheetah (OPPONENT_CHOICE): handles opponent with 0g gracefully', () => {
-  it('transfers 0g when opponent has no gold (choice 0 = give gold)', () => {
+  it('an opponent who cannot pay 2g must let the active player draw (rulebook: no gold, no gold-costing action)', () => {
     let s = toPlayPhase(createTestState());
     s = withHand(s, 0, ['cheetah_1']);
     s = withGold(s, 0, 20);
-    s = withGold(s, 1, 0);
+    s = withGold(s, 1, 1);
 
     const s2 = act(s, { type: 'PLAY_CARD', cardId: 'cheetah_1' });
     expect(s2.pendingResolution?.type).toBe('OPPONENT_CHOICE');
 
-    // Opponent chooses to give gold — but has 0g, so 0 transferred
-    const s3 = resolve(s2, { type: 'OPPONENT_CHOICE', choice: 0 });
+    // "Give 2g" with only 1g is refused (it used to transfer what they had — even 0 — cancelling the Cheetah)
+    expect(() => resolve(s2, { type: 'OPPONENT_CHOICE', choice: 0 })).toThrow(/Cannot give 2g/);
+    // ...but the other option always works, so the decision never stalls
+    const handBefore = s2.players[0].hand.length;
+    const s3 = resolve(s2, { type: 'OPPONENT_CHOICE', choice: 1 });
     expect(s3.pendingResolution).toBeNull();
-    expect(gold(s3, 0)).toBe(20); // active player unchanged
-    expect(gold(s3, 1)).toBe(0);  // opponent still 0g
+    expect(s3.players[0].hand.length).toBe(handBefore + 2);
+    expect(gold(s3, 1)).toBe(1);
+  });
+
+  it('an opponent with 2g+ may pay exactly 2g', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['cheetah_1']);
+    s = withGold(s, 0, 20);
+    s = withGold(s, 1, 5);
+    const s3 = resolve(act(s, { type: 'PLAY_CARD', cardId: 'cheetah_1' }), { type: 'OPPONENT_CHOICE', choice: 0 });
+    expect(gold(s3, 0)).toBe(22);
+    expect(gold(s3, 1)).toBe(3);
   });
 });

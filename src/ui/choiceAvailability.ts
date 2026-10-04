@@ -41,5 +41,10 @@ export function binaryChoiceBlocked(state: GameState, pr: PendingResolution, cho
   if (pr.type === 'BINARY_CHOICE' && isDesign(pr.sourceCard, 'supplies') && choice === 0) {
     return state.players[state.currentPlayer].gold < 1 ? 'Needs 1g' : null;
   }
+  // Cheetah: the opponent chooses; "Give 2g" needs 2g (rulebook: no gold, no gold-costing action)
+  if (pr.type === 'OPPONENT_CHOICE' && choice === 0) {
+    const payer = state.currentPlayer === 0 ? 1 : 0;
+    return state.players[payer].gold < 2 ? 'Needs 2g' : null;
+  }
   return null;
 }

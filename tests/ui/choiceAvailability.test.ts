@@ -29,6 +29,14 @@ describe('choice availability (fuzz finding: UI offered options the engine rejec
     expect(binaryChoiceBlocked(withGold(s, 0, 1), supplies, 0)).toBeNull();
   });
 
+  it('Cheetah: the opponent\'s "give 2g" option is blocked under 2g', () => {
+    const cheetah: PendingResolution = { type: 'OPPONENT_CHOICE', sourceCard: 'cheetah_1', options: ['Give 2g to opponent', 'Let opponent draw 2 cards'] };
+    const s = withPending(withGold(createTestState(), 1, 1), cheetah); // player 1 is the payer
+    expect(binaryChoiceBlocked(s, cheetah, 0)).toBe('Needs 2g');
+    expect(binaryChoiceBlocked(s, cheetah, 1)).toBeNull();
+    expect(binaryChoiceBlocked(withGold(s, 1, 2), cheetah, 0)).toBeNull();
+  });
+
   it('Shaman give step: only wares you actually have are pickable', () => {
     const s = withPending(withMarket(createTestState(), 0, ['tea', 'tea']), { type: 'WARE_TRADE', sourceCard: 'shaman_1', step: 'SELECT_GIVE' });
     const pr = s.pendingResolution!;

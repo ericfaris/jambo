@@ -184,8 +184,12 @@ export function getRandomInteractionResponse(state: GameState, rng: RngFn): Inte
     case 'BINARY_CHOICE':
       return { type: 'BINARY_CHOICE', choice: rng() < 0.5 ? 0 : 1 };
 
-    case 'OPPONENT_CHOICE':
+    case 'OPPONENT_CHOICE': {
+      // Cheetah: paying 2g is only legal with at least 2g
+      const payer = state.currentPlayer === 0 ? 1 : 0;
+      if (state.players[payer].gold < 2) return { type: 'OPPONENT_CHOICE', choice: 1 };
       return { type: 'OPPONENT_CHOICE', choice: rng() < 0.5 ? 0 : 1 };
+    }
 
     case 'AUCTION': {
       // Ware selection step: pick ware types from supply

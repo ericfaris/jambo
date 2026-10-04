@@ -15,6 +15,51 @@ Source: Rio Grande Games English rules (2004) — https://web.archive.org/web/20
 - **Not enough room** for wares gained from people/animal cards: take what fits, leave the rest in the supply.
 - **No hand limit.**
 
+## Rules audit — 2026-10-04
+
+Checked against the full official rulebook text (Rio Grande English rules,
+2004, archive link above) and the Universal Head rules summary (v1.1). The
+rulebook has no per-card texts, and no public transcription of the printed
+cards was found, so card effects were checked for (a) doing exactly what the
+in-game card text says and (b) obeying the rulebook's general rules. Each
+rule is an executable test in `tests/engine/officialRules.test.ts` and
+`tests/engine/rulebook.test.ts` (quoting the rulebook).
+
+**Verified:** setup (20g, 5 cards, 6 of each ware); card counts (40 ware,
+22 utility, 29 people, 14 animal, 5 small stands = 110 + 2 large stands);
+draw phase (1 action per draw, keep ends phase 1, keep only the last card,
+all 5 actions on drawing → no phase 2, may bypass); 1 action per card; +1g
+for 2+ unused actions; ware buy/sell legality (all wares in supply, enough
+gold incl. the 6th-space fee, enough room, must own all wares to sell);
+6th space 2g every fill; small stands 6g first in game, then 3g; utilities
+(usable the turn played, 1 action per use, once per turn per card, reset at
+end of turn, max 3, 4th replaces even a used one, duplicates allowed and each
+usable); people/animals discarded after use; Guard costs no action and
+negates for both, both discarded; no hand limit; reshuffle on exhaustion;
+endgame (≥60g at end of own turn only; opponent's one last turn; tie or more
+→ opponent wins).
+
+**Fixed in this audit:**
+- **Cheetah** — an opponent with under 2g could choose "give 2g" and pay what
+  they had (even 0), cancelling the Cheetah. Rulebook: *"If a player has no
+  gold and wants to take an action that costs gold, he may not take the
+  action."* That option now requires 2g (UI shows it disabled: "Needs 2g").
+- **Endgame banner** — `endgame.isFinalTurn` was never true during the
+  opponent's last turn, so the board/TV said "Endgame triggered!" instead of
+  "FINAL TURN!". Rules outcome was already correct.
+
+**Known deviation (minor):** *"he can choose which to take and which to leave
+in the supply"* — when wares from a people/animal card don't all fit, the
+engine keeps them in the order received. Only matters for a Traveling
+Merchant win of two different wares with exactly one usable space.
+
+**Open interpretations (no official card text to settle them):**
+- Utilities: the rulebook says a utility may be used *"anytime during his
+  turns"*; the engine allows them in phase 2 only (Mask of Transformation is
+  the exception — its text says "Before drawing").
+- Wise Man from Afar's ±2g applies to ware-card buys/sells; whether it also
+  applies to Dancer / Portuguese sales is untested against the printed card.
+
 ## Ware Types (6)
 
 | Code | Ware     |

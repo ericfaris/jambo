@@ -216,3 +216,15 @@ overwrites tracked files.)
   server, 123 drop/rejoins, ~9,200 bad messages: no desync, no overlap, no
   stall, rematch OK. Its first "stall" was the fuzzer not offering Scale's
   drawn cards — widen candidates to every id the phone can see.
+
+## 2026-10-04 — Official rules audit
+- The full Rio Grande rulebook is recoverable from the Internet Archive via
+  the `id_` URL form (`web.archive.org/web/<ts>id_/<url>`) → `pdftotext
+  -layout` works (the PDF has a text layer). Printed card texts are NOT
+  online anywhere I could find (reviews, BGG-derived repos, German reviews);
+  audit cards by "engine == displayed text" + general rules instead.
+- Encoding each rule as a test quoting the rulebook found two real bugs the
+  fuzzers couldn't (they only check self-consistency): Cheetah let a broke
+  opponent "pay" 0g, and `isFinalTurn` was never true (wrong banner). An old
+  test had encoded the Cheetah bug as intended behaviour — tests written from
+  the implementation, not the rules, lock bugs in.
