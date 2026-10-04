@@ -414,9 +414,9 @@
 
   <div class="ds-section">
     <h2>Sound</h2>
-    <p class="ds-note">Background music (playing already — 5-track shuffled playlist) and the SFX map (6 events wired end-to-end server → client, files not yet generated — see DESIGN.md).</p>
+    <p class="ds-note">Background music (5-track shuffled playlist) and the 6 sound effects, which play in every mode (solo, pass-and-play, Cast). Generated with ElevenLabs on 2026-10-04; prompts and picks are in DESIGN.md.</p>
     <div id="audio-bgm"></div>
-    <h3 style="font-size:14px; color:var(--text-muted); margin: 16px 0 8px;">SFX events (Cast mode)</h3>
+    <h3 style="font-size:14px; color:var(--text-muted); margin: 16px 0 8px;">Sound effects</h3>
     <div id="audio-sfx"></div>
   </div>
 </div>
@@ -548,7 +548,7 @@ const sfxEl = document.getElementById('audio-sfx');
 sfxEvents.forEach(([event, file, fires]) => {
   const row = document.createElement('div');
   row.className = 'ds-audio-row';
-  row.innerHTML = `<span class="ds-tag ds-tag-missing">missing</span> <code>${event}</code> → <code>/audio/sfx/${file}</code> — ${fires}`;
+  row.innerHTML = `<span class="ds-tag">sfx</span> <code>${event}</code> — ${fires} <audio controls preload="none" src="/audio/sfx/${file}" style="height:28px;"></audio>`;
   sfxEl.appendChild(row);
 });
 </script>

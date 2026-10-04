@@ -367,27 +367,43 @@ guard against double-playback:
 - `Sun_In_Our_Hands.mp3`
 - `Sun_on_the_Courtyard.mp3`
 
-**SFX (`useAudioEvents.ts`, Cast/multiplayer mode)** — the server
-(`multiplayer/server.ts:detectAudioEvent`) already maps game actions to 6
-named events and broadcasts them to both the Player and TV screens, and the
-client hook already has the file-path table wired:
+**Sound effects** — 6 short clips in `public/audio/sfx/`, played in **every
+mode**. `detectAudioEvent()` (`src/multiplayer/audioEvents.ts`) maps a game
+action to an event; the Cast server broadcasts it to phones + TV, and the
+solo/hotseat `GameScreen` plays it locally via `useLocalActionAudio()`
+(`src/ui/useAudioEvents.ts`) for every applied action, human or AI. Played at
+50% of the user's volume (`SFX_BASE_VOLUME`), never when muted.
 
-| Event | Fires on | Expected file |
+| Event | Fires on | File | Length | Peak | Sound |
+|---|---|---|---|---|---|
+| `card-draw` | `DRAW_CARD` / `KEEP_CARD` | `card-draw.mp3` | 0.47s | -6 dB | soft paper swish |
+| `coin` | playing a ware card (buy or sell) | `coin.mp3` | 0.94s | -3 dB | brass coins clinking onto a pile |
+| `card-play` | playing a people/utility card | `card-play.mp3` | 0.50s | -4 dB | card tapped onto a wooden table |
+| `attack` | playing an animal card | `attack.mp3` | 1.44s | -2 dB | short big-cat growl |
+| `turn-end` | `END_TURN` | `turn-end.mp3` | 1.23s | -2 dB | single deep djembe hit |
+| `guard` | Guard played as a reaction | `guard.mp3` | 0.73s | -1.5 dB | spear shaft on a hide shield |
+
+Mix intent: table sounds (draw, play) sit low so a busy turn never gets
+noisy; the confrontations (attack, guard) and the turn boundary are loudest.
+
+**How they were made** (ElevenLabs `eleven_text_to_sound_v2`, flow "Jambo
+SFX", 3 takes each, 2026-10-04). Register: warm, organic, hand-made market —
+paper, brass, wood, hide, drum; never synth/sci-fi. Prompts:
+
+| Event | Prompt | Take used |
 |---|---|---|
-| `card-draw` | `DRAW_CARD` / `KEEP_CARD` / `DRAW_ACTION` | `/audio/sfx/card-draw.mp3` |
-| `coin` | Playing a ware card | `/audio/sfx/coin.mp3` |
-| `card-play` | Playing a non-ware, non-animal card | `/audio/sfx/card-play.mp3` |
-| `attack` | Playing an animal card | `/audio/sfx/attack.mp3` |
-| `turn-end` | `END_TURN` | `/audio/sfx/turn-end.mp3` |
-| `guard` | Guard reaction played | `/audio/sfx/guard.mp3` |
+| card-draw | Single paper playing card sliding off a deck, crisp soft swish, close-mic | c, cut to the swish (0.24–0.66s) |
+| coin | A few brass coins dropped onto a pile of coins, bright metallic clink, close-mic | b |
+| card-play | Thick playing card slapped down onto a wooden table, firm soft tap, close-mic | b |
+| attack | Short aggressive big cat snarl, quick throaty growl, close-mic | a |
+| turn-end | Two soft djembe drum hits, warm deep wooden resonance, short | c (one hit + tail) |
+| guard | Wooden spear shaft striking a taut hide shield, solid thud with a leather slap | b |
 
-**Known gap (not fixed this pass):** none of the 6 `public/audio/sfx/*.mp3`
-files exist yet — the hook fails silently (`audio.play().catch(() => {})`)
-so this is invisible in normal play, but Cast-mode SFX are currently no-ops.
-An attempt to generate them via ElevenLabs during this pass hit the
-account's credit quota (0 credits remaining) — **follow-up**: re-run the
-generation (prompts and mapping above are ready to go) once quota renews, or
-source 6 short clips manually into `public/audio/sfx/`.
+Takes were chosen from waveform/spectrogram + loudness analysis (duds at
+-48/-55 LUFS, multi-hit or 4–7s takes rejected), then: leading silence
+removed, trimmed, faded out, peak-normalized to the levels above, mono
+44.1 kHz VBR MP3 (`-q:a 4`). Regenerating one: same prompt, then the same
+trim/fade/peak treatment; keep each under ~1.5s.
 
 Volume/mute are user-controlled and persisted via `audioSettings.ts`
 (`localStorage`, keys `jambo.volume`/`jambo.muted`), read by both hooks
@@ -414,7 +430,7 @@ through `getEffectiveVolume()`.
 
 | File | Role | Status |
 |---|---|---|
-| `public/audio/sfx/{coin,card-play,card-draw,turn-end,attack,guard}.mp3` | Cast-mode SFX | **Not generated** — ElevenLabs quota exhausted; follow-up needed |
+| `public/audio/sfx/{coin,card-play,card-draw,turn-end,attack,guard}.mp3` | Sound effects, all modes (see Sound) | Generated 2026-10-04 (ElevenLabs), 3–15 KB each |
 | `design-system.html` | Static showcase page, tokens/components rendered live from `src/index.css` | Added this pass |
 
 No new illustrated art, fonts, or background music were generated — the
@@ -422,6 +438,14 @@ existing set already covers the full identity; this pass's job was
 documenting it, fixing one duplication, and identifying the SFX gap.
 
 ## Changelog
+
+### 2026-10-04 — Sound effects generated and playing in every mode
+- Closed the long-standing SFX gap: 6 clips generated with ElevenLabs (3 takes
+  each), best take picked per event, trimmed/faded/peak-balanced (see Sound).
+- They were Cast-only; solo and pass-and-play now play them too, via the
+  shared `detectAudioEvent()` mapping. Tests assert the mapping and that every
+  file exists and stays small.
+- Showcase: the Sound section has a play control per effect.
 
 ### 2026-10-04 — Cancel a just-started card or utility
 - New `.panel-cancel-x` on resolve panels, backed by a `CANCEL_ACTION` engine

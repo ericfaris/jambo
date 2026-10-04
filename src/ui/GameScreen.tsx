@@ -31,6 +31,7 @@ import { fetchUserStatsSummary, fetchDifficultyBreakdown, recordCompletedGame } 
 import type { UserStatsSummary, DifficultyBreakdown } from '../persistence/userStatsApi.ts';
 import { getWinner, getFinalScores } from '../engine/endgame/EndgameManager.ts';
 import { useAuthSession } from './useAuthSession.ts';
+import { useLocalActionAudio } from './useAudioEvents.ts';
 import { useMediaQuery, PHONE_MEDIA_QUERY } from './useMediaQuery.ts';
 import { useElementSize } from './useElementSize.ts';
 import { fitCardsToBox, fitMarketSlots } from './fitLayout.ts';
@@ -76,6 +77,7 @@ function isDevMode(): boolean {
 
 export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultiplayer = false }: { onBackToMenu?: () => void; aiDifficulty?: AIDifficulty; localMultiplayer?: boolean }) {
   const { state, dispatch, error, newGame, exportReplay, importReplay, replayActions, taggedActions } = useGameStore();
+  useLocalActionAudio(taggedActions);
   const [wareDialog, setWareDialog] = useState<DeckCardId | null>(null);
   const [showLog, setShowLog] = useState(() => getInitialShowLog());
   const [menuOpen, setMenuOpen] = useState(false);

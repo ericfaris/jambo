@@ -137,3 +137,20 @@ overwrites tracked files.)
   carries `@rolldown/binding-linux-x64-musl` itself. `build.rollupOptions` →
   `rolldownOptions`; `__dirname` in vite.config → `import.meta.dirname`.
 - Proved the 0.2s TS 7 check is real by planting a type error.
+
+## 2026-10-04 — Sound effects
+- Generate 3 takes per SFX and pick by measurement, not by ear: ~1 in 9 takes
+  was a near-silent dud (-48/-55 LUFS), and "short" prompts still returned
+  2–7s clips. ffmpeg `ebur128` + `showwavespic`/`showspectrumpic` contact
+  sheets made the picks obvious (single transient vs. multi-hit vs. ringing).
+- Don't `loudnorm` sub-second clips — its integrated measurement is unreliable
+  that short and the true-peak cap left transients 8 dB apart. Peak-normalize
+  each clip to a chosen level instead (mix intent in DESIGN.md › Sound).
+- Trim the lead-in: generated swishes often swell late, which makes the sound
+  lag the click by ~300ms.
+- SFX were Cast-only for months because the files never existed *and* solo
+  never called the player. `detectAudioEvent()` now lives in
+  `src/multiplayer/audioEvents.ts` and drives both paths; a test asserts every
+  mapped file exists, so a missing file can't go unnoticed again.
+- Shell gotcha: `pkill -f "<pattern>"` inside a Bash call can match that same
+  call's command line and kill it (exit 144). Kill by port's pid instead.

@@ -16,9 +16,9 @@ import { getAiActionByDifficulty } from '../ai/difficulties/index.ts';
 import { getAiActionDescription } from '../ai/aiActionDescriptions.ts';
 import { extractAiTurnFeatures } from '../ai/telemetry/extract.ts';
 import { getAiTelemetryEnabled, getAiTelemetrySampleRate, shouldSampleTelemetryGame } from '../ai/telemetry/config.ts';
-import { getCard } from '../engine/cards/CardDatabase.ts';
 import { getValidActions } from '../engine/validation/actionValidator.ts';
 import { extractPublicState, extractPrivateState } from './stateSplitter.ts';
+import { detectAudioEvent } from './audioEvents.ts';
 import type { GameState, GameAction } from '../engine/types.ts';
 import { CONSTANTS } from '../engine/types.ts';
 import type {
@@ -260,28 +260,6 @@ function removeConnectionFromRoom(
     closeCastRoomStreams(room.code);
     rooms.delete(room.code);
     console.log(`[Room ${room.code}] Deleted (empty)`);
-  }
-}
-
-// --- Audio Event Detection ---
-
-function detectAudioEvent(action: GameAction): AudioEvent | null {
-  switch (action.type) {
-    case 'DRAW_CARD':
-    case 'KEEP_CARD':
-      return 'card-draw';
-    case 'PLAY_CARD': {
-      if (action.wareMode) return 'coin';
-      const card = getCard(action.cardId);
-      if (card.type === 'animal') return 'attack';
-      return 'card-play';
-    }
-    case 'END_TURN':
-      return 'turn-end';
-    case 'GUARD_REACTION':
-      return action.play ? 'guard' : null;
-    default:
-      return null;
   }
 }
 
