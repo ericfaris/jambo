@@ -1,6 +1,6 @@
-# Project name fixes the container name to jambo2-app-1 regardless of the
+# Project name fixes the container name to jambo-app-1 regardless of the
 # directory the compose file lives in.
-name: jambo2
+name: jambo
 
 services:
   app:
@@ -12,7 +12,7 @@ services:
         # it only as a runtime env below would NOT reach the browser code, so it
         # must be passed here too.
         VITE_CAST_APP_ID: ${VITE_CAST_APP_ID:-4E18430D}
-    image: ericfaris/jambo2:latest
+    image: ericfaris/jambo:latest
     restart: unless-stopped
     # Run as the host user (uid:gid 1000) so nothing runs as root.
     user: "1000:1000"

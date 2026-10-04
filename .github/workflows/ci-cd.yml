@@ -1,6 +1,6 @@
 name: CI/CD
 
-# jambo2 is self-hosted on the local Docker lab (built with
+# jambo is self-hosted on the local Docker lab (built with
 # `docker compose up -d --build` on the host and exposed via Cloudflare
 # Tunnel at https://jambo.mooseflip.com). There is no registry push or
 # remote deploy — this workflow verifies the app builds/tests and that the
@@ -89,7 +89,7 @@ jobs:
         run: |
           curl -sf -X POST http://127.0.0.1:7891/api/deploy \
             -H 'Content-Type: application/json' \
-            -d '{"repo":"jambo2","containerName":"jambo2-app-1"}' \
+            -d '{"repo":"jambo","containerName":"jambo-app-1"}' \
             -o deploy-result.json
           cat deploy-result.json
           jq -e '.deployStatus == "done"' deploy-result.json

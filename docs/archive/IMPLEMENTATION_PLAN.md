@@ -34,7 +34,7 @@
 ## 2. Project Structure
 
 ```
-jambo2/
+jambo/
 ├── docs/                          # Design documents (existing)
 ├── public/
 │   ├── assets/
