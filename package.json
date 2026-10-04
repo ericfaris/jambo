@@ -18,6 +18,7 @@
     "ai:bench:medium": "tsx scripts/ai-benchmark.ts medium",
     "ai:bench:long": "tsx scripts/ai-benchmark.ts long",
     "ai:telemetry:smoke": "tsx scripts/ai-telemetry-smoke.ts",
+    "ai:profile": "tsx scripts/ai-turn-profile.ts",
     "version:bump": "tsx scripts/bump-version.ts patch",
     "version:minor": "tsx scripts/bump-version.ts minor",
     "version:major": "tsx scripts/bump-version.ts major"

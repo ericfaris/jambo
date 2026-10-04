@@ -347,6 +347,12 @@ function getWareHandReadinessScore(
   return score;
 }
 
+/** How many more wares the market needs before this ware card can sell. */
+export function countMissingWares(wares: WareCardWares, marketCounts: Record<WareType, number>): number {
+  const needed = getNeededByType(wares, marketCounts);
+  return WARE_TYPES.reduce((sum, type) => sum + needed[type], 0);
+}
+
 export function countCurrentlySellableWareCards(player: PlayerState, marketCounts: Record<WareType, number>): number {
   let sellable = 0;
   for (const cardId of player.hand) {

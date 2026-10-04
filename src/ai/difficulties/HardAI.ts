@@ -1,4 +1,4 @@
-import type { GameAction, GameState, UtilityDesignId, WareType } from '../../engine/types.ts';
+import type { DeckCardId, GameAction, GameState, PlayerState, UtilityDesignId, WareType } from '../../engine/types.ts';
 
 import { getCard } from '../../engine/cards/CardDatabase.ts';
 import { getPendingResponder, getResponder, isAuctionBidding } from '../../engine/responder.ts';
@@ -10,6 +10,7 @@ import { createRng } from '../../utils/rng.ts';
 import { determinizeForPlayer, createDeterminizeRng } from '../determinize.ts';
 import {
   countCurrentlySellableWareCards,
+  countMissingWares,
   getAuctionMaxBidFor,
   getCardEconomyValue,
   getCardPressureBonus,
@@ -37,6 +38,53 @@ function createHardRng(state: GameState): () => number {
 }
 
 export { getPendingResponder };
+
+// Gold-equivalent value of what a player holds besides gold. Without these,
+// a card in hand scored ~0.2g and a ware on the market ~0g, so every draw or
+// buy looked like a loss next to the +1g idle bonus — the AI would skip its
+// draw and end turn with 5 actions left for 15 turns straight while a human
+// churned through the deck and caught up (game log 2026-10-04).
+const WARE_ASSET_GOLD = 1.5;   // ~buy cost; sells for ~3.3–4g each, but only with a matching card
+const CARD_ASSET_GOLD = 1.5;   // a card is a future action's worth of value
+const MAX_VALUED_HAND = 6;     // cards past this rarely get played in time
+const STAND_ASSET_GOLD = 3;    // +3 slots for the rest of the game (its timing bonus is in standPlayBonus)
+const STAND_UNLOCK_WEIGHT = 3; // the unlocked buy is usually followed by a sale the stand also made room for
+
+/**
+ * Gold-equivalent of one hand card. A ware card that can sell against the
+ * market right now (or is one ware short) is worth part of its profit, so
+ * digging for a matching card and buying wares to complete a sale both show
+ * up as gains — the buy-and-sell engine a strong player runs.
+ */
+function getCardAssetGold(player: PlayerState, cardId: DeckCardId, marketCounts: Record<WareType, number>): number {
+  const card = getCard(cardId);
+  if (card.type === 'ware' && card.wares) {
+    const missing = countMissingWares(card.wares, marketCounts);
+    const profit = Math.max(0, card.wares.sellPrice - card.wares.types.length * WARE_ASSET_GOLD);
+    if (missing === 0) return CARD_ASSET_GOLD + profit * 0.5;
+    if (missing === 1) return CARD_ASSET_GOLD + profit * 0.2;
+    return CARD_ASSET_GOLD;
+  }
+  if (card.type === 'utility' && player.utilities.length >= 3) return CARD_ASSET_GOLD * 0.5;
+  return CARD_ASSET_GOLD;
+}
+
+/**
+ * Non-gold assets in gold-equivalent. They only pay off if there's time to
+ * cash them in, so they fade as either player nears the 60g finish.
+ */
+export function getAssetValueGold(state: GameState, player: 0 | 1): number {
+  const p = state.players[player];
+  const counts: Record<WareType, number> = { trinkets: 0, hides: 0, tea: 0, silk: 0, fruit: 0, salt: 0 };
+  let wares = 0;
+  for (const slot of p.market) { if (slot) { counts[slot] += 1; wares += 1; } }
+  // A drawn-but-undecided card is ours to keep — count it so a draw isn't scored as a wasted action
+  const cards = state.drawnCard !== null && state.currentPlayer === player ? [...p.hand, state.drawnCard] : p.hand;
+  const cardValues = cards.map(id => getCardAssetGold(p, id, counts)).sort((x, y) => y - x).slice(0, MAX_VALUED_HAND);
+  const leader = Math.max(state.players[0].gold, state.players[1].gold);
+  const timeLeft = Math.min(1, Math.max(0.4, (60 - leader) / 25));
+  return (wares * WARE_ASSET_GOLD + p.smallMarketStands * STAND_ASSET_GOLD + cardValues.reduce((sum, v) => sum + v, 0)) * timeLeft;
+}
 
 export function evaluateBoard(state: GameState, perspective: 0 | 1): number {
   const me = perspective;
@@ -68,6 +116,10 @@ export function evaluateBoard(state: GameState, perspective: 0 | 1): number {
   let score = 0;
   score += myGold * 6.5;
   score -= oppGold * 4.0;
+  if (state.phase !== 'GAME_OVER') {
+    score += getAssetValueGold(state, me) * 6.5;
+    score -= getAssetValueGold(state, opp) * 4.0;
+  }
   score += myCapacity * 0.8;
   score -= oppCapacity * 0.5;
   score += (myMarketFilled - oppMarketFilled) * 0.5;
@@ -127,6 +179,41 @@ function scoreStateDelta(before: GameState, after: GameState, perspective: 0 | 1
   return evaluateBoard(after, perspective) - evaluateBoard(before, perspective);
 }
 
+/**
+ * A Small Market Stand opens up the game — but only when the room gets used.
+ * Its play bonus is the value of the best buy it unlocks: simulate the
+ * stand, then score every buy that wasn't possible before (e.g. a 6-ware
+ * Grand Market, or any 3-ware card once fewer than 3 slots are free).
+ * Building into a market that still has room just burns gold. Kept out of
+ * evaluateBoard so it never makes selling (emptying the market) look worse.
+ */
+export function standPlayBonus(state: GameState, me: 0 | 1, standCardId: DeckCardId): number {
+  let afterStand: GameState;
+  try {
+    afterStand = processAction(state, { type: 'PLAY_CARD', cardId: standCardId });
+  } catch {
+    return 0;
+  }
+  const playableBefore = new Set(
+    getValidActions(state)
+      .filter(a => a.type === 'PLAY_CARD' && a.wareMode === 'buy')
+      .map(a => (a.type === 'PLAY_CARD' ? a.cardId : '')),
+  );
+  const base = evaluateBoard(afterStand, me);
+  let best = 0;
+  for (const action of getValidActions(afterStand)) {
+    if (action.type !== 'PLAY_CARD' || action.wareMode !== 'buy' || playableBefore.has(action.cardId)) continue;
+    try {
+      const afterBuy = processAction(afterStand, action);
+      const gain = evaluateBoard(afterBuy, me) - base + tacticalActionBonus(afterStand, action, me);
+      if (gain > best) best = gain;
+    } catch {
+      continue;
+    }
+  }
+  return best * STAND_UNLOCK_WEIGHT;
+}
+
 export function tacticalActionBonus(state: GameState, action: GameAction, me: 0 | 1): number {
   const opponent: 0 | 1 = me === 0 ? 1 : 0;
 
@@ -175,6 +262,7 @@ export function tacticalActionBonus(state: GameState, action: GameAction, me: 0 
       if (card.designId === 'portuguese') return state.players[me].market.filter(w => w !== null).length * 1.5 + combo;
       return 3 + pressure + combo;
     }
+    if (card.type === 'stand') return standPlayBonus(state, me, action.cardId);
     if (card.type === 'utility') {
       if (state.players[me].utilities.length >= 3) return -8;
       return (getUtilityPlayPriority(state, me, card.designId as UtilityDesignId) - 58) * 0.45;

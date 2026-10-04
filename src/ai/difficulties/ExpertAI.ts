@@ -37,7 +37,7 @@ function scoreStateDelta(before: GameState, after: GameState, perspective: 0 | 1
 
 // Main action selection parameters
 const ROLLOUT_COUNT = 30;
-const ROLLOUT_DEPTH = 16;
+const ROLLOUT_MAX_ACTIONS = 80;
 const TOP_K = 10;
 const HARD_WEIGHT = 0.4;
 const ROLLOUT_WEIGHT = 0.6;
@@ -46,10 +46,9 @@ const ROLLOUT_WEIGHT = 0.6;
 const INTERACTION_ROLLOUT_COUNT = 16;
 
 /**
- * Endgame-aware rollout policy. Extends MediumAI with one critical rule:
- * always take a sell that triggers the 60g endgame if one is available.
- * This makes rollouts simulate realistic futures instead of sitting on
- * sellable wares that would end the game.
+ * Endgame-aware rollout policy: always take a sell that triggers the 60g
+ * endgame if one is available, otherwise play the greedy 1-ply main-phase
+ * move (MediumAI handles interactions and reactions).
  */
 function getRolloutAction(state: GameState, rng: () => number): GameAction | null {
   if (!state.pendingResolution && !state.pendingGuardReaction && !state.pendingWareCardReaction) {
@@ -72,23 +71,65 @@ function getRolloutAction(state: GameState, rng: () => number): GameAction | nul
       if (bestTrigger) return bestTrigger;
     }
   }
+  if (!state.pendingResolution && !state.pendingGuardReaction && !state.pendingWareCardReaction) {
+    return getGreedyAction(state, rng);
+  }
   return getMediumAiAction(state, rng);
 }
 
 /**
+ * Greedy 1-ply rollout policy: pick the main-phase action with the best
+ * board-eval delta + tactical bonus (small noise breaks ties and diversifies
+ * rollouts). Unlike Medium's fixed priorities it sequences a turn sensibly —
+ * Wise Man before the sale, not after; no stand or buy that the eval says
+ * loses value — so lines that set up a profit actually get credited.
+ */
+function getGreedyAction(state: GameState, rng: () => number): GameAction | null {
+  const me = state.currentPlayer;
+  const actions = getValidActions(state);
+  if (actions.length === 0) return null;
+  const base = evaluateBoard(state, me);
+  let best: GameAction | null = null;
+  let bestScore = Number.NEGATIVE_INFINITY;
+  for (const action of actions) {
+    let next: GameState;
+    try {
+      next = processAction(state, action);
+    } catch {
+      continue;
+    }
+    const score = evaluateBoard(next, me) - base + tacticalActionBonus(state, action, me) + rng() * 2;
+    if (score > bestScore) {
+      bestScore = score;
+      best = action;
+    }
+  }
+  return best ?? getMediumAiAction(state, rng);
+}
+
+/**
  * Run a single Monte Carlo rollout from a given state using an endgame-aware
- * rollout policy. Simulates `depth` actions (both players), then evaluates
- * the resulting board from `perspective`.
+ * rollout policy, then evaluate the board from `perspective`.
+ *
+ * Every rollout stops at the same point in the turn structure — the start of
+ * `perspective`'s next turn (or game over) — not after a fixed number of
+ * actions. A fixed action budget let an early END_TURN "see" further into
+ * the next turn (its sells) than a line that spent actions now, which biased
+ * Expert toward passing with actions unused for the +1g bonus.
+ * `maxActions` is only a safety cap.
  */
 function monteCarloRollout(
   state: GameState,
   perspective: 0 | 1,
-  depth: number,
+  maxActions: number,
   rng: () => number
 ): number {
   let current = state;
-  for (let i = 0; i < depth; i++) {
+  const startTurn = state.turn;
+  for (let i = 0; i < maxActions; i++) {
     if (current.phase === 'GAME_OVER') break;
+    if (current.turn > startTurn && current.currentPlayer === perspective && current.phase === 'DRAW'
+      && !current.pendingResolution && !current.pendingGuardReaction && !current.pendingWareCardReaction) break;
     const rolloutRng = createRng(Math.floor(rng() * 0x7fffffff));
     const action = getRolloutAction(current, rolloutRng);
     if (!action) break;
@@ -122,7 +163,7 @@ function averageRolloutScore(
   for (let r = 0; r < rollouts; r++) {
     const rolloutRng = createRng(Math.floor(rng() * 0x7fffffff) + r);
     const world = determinizeForPlayer(state, perspective, rolloutRng);
-    total += monteCarloRollout(world, perspective, ROLLOUT_DEPTH, rolloutRng);
+    total += monteCarloRollout(world, perspective, ROLLOUT_MAX_ACTIONS, rolloutRng);
   }
   return total / rollouts;
 }
@@ -255,9 +296,36 @@ export function getExpertAiAction(state: GameState, rng: () => number = createEx
     return getHardWareCardReaction(state);
   }
 
-  // Action selection: top-K filtering by 1-ply score, then MC rollout evaluation
+  const blended = scoreExpertCandidates(state, rng);
+  if (blended.length === 0) return null;
+  if (blended.length === 1) return blended[0].action;
+
+  const topScore = Math.max(...blended.map(s => s.score));
+
+  // Prefer ware plays if near top — MC rollouts have variance that can marginally
+  // underscore sells; this correction ensures sells aren't missed when nearly optimal
+  const wareNearTop = pickWareNearTop(blended, topScore);
+  if (wareNearTop) return wareNearTop;
+
+  const best = blended.filter(s => s.score === topScore).map(s => s.action);
+  return pick(best, rng);
+}
+
+export interface ExpertCandidate {
+  action: GameAction;
+  /** 1-ply Hard-style score (immediate delta + tactical) */
+  hScore: number;
+  /** Final blended score (1-ply + rollout delta); equals hScore when rollouts were skipped */
+  score: number;
+}
+
+/**
+ * Score the current player's main-phase candidates: top-K by 1-ply score,
+ * then Monte Carlo rollouts. Exported for tests and diagnostics.
+ */
+export function scoreExpertCandidates(state: GameState, rng: () => number = createExpertRng(state)): ExpertCandidate[] {
   const validActions = getValidActions(state);
-  if (validActions.length === 0) return null;
+  if (validActions.length === 0) return [];
 
   const me = state.currentPlayer;
 
@@ -272,13 +340,12 @@ export function getExpertAiAction(state: GameState, rng: () => number = createEx
 
   // Phase 2: Take top-K candidates for rollout evaluation
   const topK = hardScored.slice(0, TOP_K).filter(s => Number.isFinite(s.hScore));
-  if (topK.length === 0) return null;
 
   // If only one viable candidate, skip rollouts
-  if (topK.length === 1) return topK[0].action;
+  if (topK.length <= 1) return topK.map(({ action, hScore }) => ({ action, hScore, score: hScore }));
 
   // Phase 3: Run MC rollouts for each top-K candidate, compute blended score
-  const blended: { action: GameAction; score: number }[] = [];
+  const blended: ExpertCandidate[] = [];
   for (const { action, hScore: hS } of topK) {
     try {
       const next = processAction(state, action);
@@ -287,19 +354,11 @@ export function getExpertAiAction(state: GameState, rng: () => number = createEx
       const baselineEval = evaluateBoard(world, me);
       const rolloutDelta = rolloutAvg - baselineEval;
       const finalScore = HARD_WEIGHT * hS + ROLLOUT_WEIGHT * rolloutDelta;
-      blended.push({ action, score: finalScore });
+      blended.push({ action, hScore: hS, score: finalScore });
     } catch {
-      blended.push({ action, score: Number.NEGATIVE_INFINITY });
+      blended.push({ action, hScore: hS, score: Number.NEGATIVE_INFINITY });
     }
   }
 
-  const topScore = Math.max(...blended.map(s => s.score));
-
-  // Prefer ware plays if near top — MC rollouts have variance that can marginally
-  // underscore sells; this correction ensures sells aren't missed when nearly optimal
-  const wareNearTop = pickWareNearTop(blended, topScore);
-  if (wareNearTop) return wareNearTop;
-
-  const best = blended.filter(s => s.score === topScore).map(s => s.action);
-  return pick(best, rng);
+  return blended;
 }

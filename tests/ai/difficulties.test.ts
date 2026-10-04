@@ -48,10 +48,13 @@ describe('AI difficulties baseline', () => {
 
     expect(easy).toEqual({ type: 'RESOLVE_INTERACTION', response: { type: 'BINARY_CHOICE', choice: 0 } });
     expect(medium).toEqual({ type: 'RESOLVE_INTERACTION', response: { type: 'BINARY_CHOICE', choice: 0 } });
-    expect(hard).toEqual({ type: 'RESOLVE_INTERACTION', response: { type: 'BINARY_CHOICE', choice: 0 } });
-    // Expert uses MC rollout evaluation for interactions — may choose differently from Hard
-    expect(expert?.type).toBe('RESOLVE_INTERACTION');
-    expect((expert as { type: string; response: { type: string } } | null)?.response?.type).toBe('BINARY_CHOICE');
+    // Hard and Expert score the outcomes (2 wares vs 2 cards, opponent gets the other) — either is a
+    // legitimate pick, so only require a valid choice rather than pinning one
+    for (const smart of [hard, expert]) {
+      expect(smart?.type).toBe('RESOLVE_INTERACTION');
+      expect(validateAction(state, smart!).valid).toBe(true);
+      expect((smart as { type: string; response: { type: string } } | null)?.response?.type).toBe('BINARY_CHOICE');
+    }
   });
 
   it('is deterministic when injected with seeded rng', () => {
