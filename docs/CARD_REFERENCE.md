@@ -53,12 +53,12 @@ in the supply"* — when wares from a people/animal card don't all fit, the
 engine keeps them in the order received. Only matters for a Traveling
 Merchant win of two different wares with exactly one usable space.
 
-**Open interpretations (no official card text to settle them):**
-- Utilities: the rulebook says a utility may be used *"anytime during his
-  turns"*; the engine allows them in phase 2 only (Mask of Transformation is
-  the exception — its text says "Before drawing").
-- Wise Man from Afar's ±2g applies to ware-card buys/sells; whether it also
-  applies to Dancer / Portuguese sales is untested against the printed card.
+**House rules (decided 2026-10-04):**
+- Utilities are used in phase 2 only; Mask of Transformation is the only one
+  usable before drawing (its own text says "Before drawing"), even though the
+  rulebook says utilities work *"anytime during his turns"*.
+- Wise Man from Afar's +2g sell bonus also applies to Dancer and Portuguese
+  sales, once per sale (the printed card doesn't mention them).
 
 ## Ware Types (6)
 
@@ -166,6 +166,7 @@ People cards have one-time effects and are discarded after use. People cards **c
 ### Wise Man from Afar (x2)
 - **Cost:** 1 action
 - **Effect:** For the rest of this turn: ware buys cost 2g less, ware sells earn 2g more. Modifier resets at end of turn.
+- **House rule (2026-10-04):** the +2g also applies to a Dancer sale and to a Portuguese sale — **once per sale**, not per ware (a Portuguese sale of 4 wares earns 8g + 2g = 10g; selling nothing earns nothing). The printed card doesn't mention them.
 
 ### Portuguese (x2)
 - **Cost:** 1 action

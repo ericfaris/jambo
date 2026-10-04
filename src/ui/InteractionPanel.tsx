@@ -720,6 +720,10 @@ function WareCashPanel({ state, pr, dispatch, onMegaView }: { state: GameState; 
       <div>
         <div className="ui-prompt-text">
           Select 3 wares to return ({selectedWares.length}/3 selected).
+          {pr.selectedCard && getCard(pr.selectedCard).wares && (
+            <> You'll receive {getCard(pr.selectedCard).wares!.sellPrice + state.turnModifiers.sellBonus}g
+              {state.turnModifiers.sellBonus > 0 ? ` (incl. +${state.turnModifiers.sellBonus}g Wise Man)` : ''}.</>
+          )}
         </div>
         <div className="ui-helper-text" style={{ marginBottom: 8, opacity: 0.9 }}>
           You currently have {player.market.filter(w => w !== null).length} ware(s) in market.
@@ -755,14 +759,18 @@ function WareSellBulkPanel({ state, pr, dispatch }: { state: GameState; pr: Extr
     );
   }
 
+  // Wise Man's +2g applies once per sale, when at least one ware is sold
+  const wiseBonus = selected.length > 0 ? state.turnModifiers.sellBonus : 0;
+  const sellTotal = selected.length * pr.pricePerWare + wiseBonus;
+
   return (
     <div>
       <div className="ui-prompt-text">
-        Select wares to sell at {pr.pricePerWare}g each ({selected.length} selected = {selected.length * pr.pricePerWare}g):
+        Select wares to sell at {pr.pricePerWare}g each ({selected.length} selected = {sellTotal}g{wiseBonus ? `, incl. +${wiseBonus}g Wise Man` : ''}):
       </div>
       <MarketDisplay market={player.market} onSlotClick={toggleSlot} selectedSlots={selected} />
       <button className="primary" disabled={selected.length === 0} onClick={() => { resolve(dispatch, { type: 'SELL_WARES', wareIndices: selected }); setSelected([]); }} style={{ margin: '8px auto 0', display: 'block' }}>
-        Sell ({selected.length * pr.pricePerWare}g)
+        Sell ({sellTotal}g)
       </button>
     </div>
   );

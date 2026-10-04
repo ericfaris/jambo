@@ -77,7 +77,8 @@ export function resolveWareCashConversion(
 
     // Get the selected ware card's sell price (gold earned)
     const selectedCard = getCard(pending.selectedCard!);
-    const goldEarned = selectedCard.wares!.sellPrice;
+    // Wise Man from Afar's sell bonus applies to the Dancer's sale too (house rule, 2026-10-04)
+    const goldEarned = selectedCard.wares!.sellPrice + state.turnModifiers.sellBonus;
 
     // Remove card from hand, discard it
     const newHand = state.players[activePlayer].hand.filter(c => c !== pending.selectedCard);

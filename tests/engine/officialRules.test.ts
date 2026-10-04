@@ -213,3 +213,51 @@ describe('game end', () => {
 // order received. Only matters for a Traveling Merchant win of two different
 // wares with exactly one usable space; marketRules.test.ts pins current
 // behaviour (keeps what fits, the rest returns to the supply, nothing is lost).
+
+describe('house rules (decided 2026-10-04)', () => {
+  it('Wise Man\'s +2g applies to a Dancer sale', () => {
+    let s = play(['wise_man_1', 'dancer_1', 'ware_3k_1']);
+    s = withMarket(s, 0, ['tea', 'salt', 'silk']);
+    s = act(s, { type: 'PLAY_CARD', cardId: 'wise_man_1' });
+    s = act(s, { type: 'PLAY_CARD', cardId: 'dancer_1' });
+    s = resolve(s, { type: 'SELECT_CARD', cardId: 'ware_3k_1' });
+    s = resolve(s, { type: 'SELECT_WARES', wareIndices: [0, 1, 2] });
+    expect(gold(s, 0)).toBe(20 + getCard('ware_3k_1').wares!.sellPrice + 2);
+  });
+
+  it('Wise Man\'s +2g applies once per Portuguese sale, not per ware', () => {
+    let s = play(['wise_man_1', 'portuguese_1']);
+    s = withMarket(s, 0, ['tea', 'salt', 'silk', 'fruit']);
+    s = act(s, { type: 'PLAY_CARD', cardId: 'wise_man_1' });
+    s = act(s, { type: 'PLAY_CARD', cardId: 'portuguese_1' });
+    s = resolve(s, { type: 'SELL_WARES', wareIndices: [0, 1, 2, 3] });
+    expect(gold(s, 0)).toBe(20 + 4 * 2 + 2);
+  });
+
+  it('a Portuguese "sale" of nothing is rejected, so it can\'t farm the Wise Man bonus', () => {
+    let s = play(['wise_man_1', 'portuguese_1']);
+    s = withMarket(s, 0, ['tea']);
+    s = act(s, { type: 'PLAY_CARD', cardId: 'wise_man_1' });
+    s = act(s, { type: 'PLAY_CARD', cardId: 'portuguese_1' });
+    expect(() => resolve(s, { type: 'SELL_WARES', wareIndices: [] })).toThrow(/at least 1 ware/);
+  });
+
+  it('without Wise Man, Dancer and Portuguese pay their normal amounts', () => {
+    let s = play(['portuguese_1']);
+    s = withMarket(s, 0, ['tea', 'salt']);
+    s = act(s, { type: 'PLAY_CARD', cardId: 'portuguese_1' });
+    s = resolve(s, { type: 'SELL_WARES', wareIndices: [0, 1] });
+    expect(gold(s, 0)).toBe(24);
+  });
+
+  it('only Mask of Transformation can be used before drawing', () => {
+    let s = createTestState(31);
+    s = withHand(s, 0, ['guard_1']);
+    s = withUtility(s, 0, 'weapons_1', 'weapons');
+    s = withUtility(s, 0, 'mask_of_transformation_1', 'mask_of_transformation');
+    s = { ...s, discardPile: [s.deck[0], ...s.discardPile], deck: s.deck.slice(1) };
+    expect(s.phase).toBe('DRAW');
+    expect(validateAction(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 }).valid).toBe(false); // Weapons
+    expect(validateAction(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 1 }).valid).toBe(true);  // Mask
+  });
+});

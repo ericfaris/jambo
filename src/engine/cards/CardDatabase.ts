@@ -426,7 +426,7 @@ const PEOPLE_DESIGNS: { design: CardDesignTemplate; copies: number }[] = [
       designId: 'wise_man',
       name: 'Wise Man from Afar',
       type: 'people',
-      description: 'This turn: buy wares 2g cheaper, sell wares 2g more.',
+      description: 'This turn: buy wares 2g cheaper, sell wares 2g more (Dancer and Portuguese sales too).',
       interactionType: 'TURN_MODIFIER',
       flowSteps: ['Apply turn modifier: buy -2g, sell +2g', 'Lasts until end of turn'],
       validation: [],

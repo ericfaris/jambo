@@ -228,3 +228,7 @@ overwrites tracked files.)
   opponent "pay" 0g, and `isFinalTurn` was never true (wrong banner). An old
   test had encoded the Cheetah bug as intended behaviour — tests written from
   the implementation, not the rules, lock bugs in.
+
+## 2026-10-04 — Rules audit house rules settled
+- Owner decisions: only Mask of Transformation is usable before drawing (engine already did this); Wise Man's +2g sell bonus also applies to Dancer and Portuguese, **once per sale** (not per ware — per-ware would make Portuguese+Wise Man +2g/ware, far too strong).
+- Portuguese already rejects an empty selection, so the bonus can't be farmed by "selling" nothing. Show the bonus in the panel's sale total so the price the player sees matches what they get.

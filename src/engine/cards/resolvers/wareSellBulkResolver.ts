@@ -46,7 +46,10 @@ export function resolveWareSellBulk(
   }
 
   // Calculate gold earned: flat rate per ware
-  const goldEarned = wareIndices.length * pending.pricePerWare;
+  // Wise Man from Afar's "+2g per sale" applies once per Portuguese sale
+  // (house rule, 2026-10-04) — only when something is actually sold
+  const bonus = wareIndices.length > 0 ? state.turnModifiers.sellBonus : 0;
+  const goldEarned = wareIndices.length * pending.pricePerWare + bonus;
 
   // Remove wares from market and return to supply
   const newMarket = [...market];
@@ -72,7 +75,7 @@ export function resolveWareSellBulk(
       turn: state.turn,
       player: activePlayer,
       action: 'PORTUGUESE_SELL',
-      details: `Sold ${wareIndices.length} wares at ${pending.pricePerWare}g each, earned ${goldEarned}g`,
+      details: `Sold ${wareIndices.length} wares at ${pending.pricePerWare}g each${bonus ? ` (+${bonus}g Wise Man)` : ''}, earned ${goldEarned}g`,
     }],
   };
 }

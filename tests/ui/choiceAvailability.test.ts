@@ -61,3 +61,13 @@ describe('choice availability (fuzz finding: UI offered options the engine rejec
     expect(html).not.toContain('Continue');
   });
 });
+
+describe('Wise Man shown in sale totals', () => {
+  it('Portuguese panel total includes the +2g once', () => {
+    let s = withPending(withMarket(createTestState(), 0, ['tea', 'salt']), { type: 'WARE_SELL_BULK', sourceCard: 'portuguese_1', pricePerWare: 2 });
+    s = { ...s, turnModifiers: { buyDiscount: 2, sellBonus: 2 } };
+    const html = renderToStaticMarkup(createElement(InteractionPanel, { state: s, dispatch: () => {} }));
+    expect(html).toContain('Select wares to sell at 2g each');
+    expect(html).toContain('0 selected = 0g'); // nothing selected yet → no bonus
+  });
+});

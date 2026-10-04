@@ -264,7 +264,7 @@ Each costs 1 action:
 - **Shaman (x2)**: Trade all of 1 ware type for same count of different type from supply
 - **Psychic (x2)**: Look at top 6 deck cards, take 1, replace rest in order
 - **Tribal Elder (x2)**: Choose: opponent discards to 3, OR you draw to 5
-- **Wise Man from Afar (x2)**: This turn: buys cost 2g less, sells earn 2g more
+- **Wise Man from Afar (x2)**: This turn: buys cost 2g less, sells earn 2g more — house rule: also +2g once per Dancer or Portuguese sale
 - **Portuguese (x2)**: Return any wares from market to supply, get 2g per ware
 - **Basket Maker (x2)**: Pay 2g, take 2 of same ware type from supply
 - **Traveling Merchant (x2)**: Select 2 ware types from supply to auction; winner pays bid and receives both wares
