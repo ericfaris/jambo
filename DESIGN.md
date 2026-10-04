@@ -275,9 +275,49 @@ with no server (like `/?tv=1`). Staging params: `hand=N`, `utils=N` (≤3),
 `phase=play`. Cards are moved out of the deck, so invariants hold and the
 game stays playable.
 
-**Known gap (not this pass):** the solo `GameScreen` (full board — both
-markets, center row, hand) still scrolls on phones and its center row clips
-horizontally below ~420px wide. Fitting it is a layout redesign of its own.
+## Layout — Phone solo / hotseat board (`GameScreen` ≤ 640px)
+
+Same rule as the Cast player view: **never scrolls**, 100dvh, down to
+360×640. `useMediaQuery(PHONE_MEDIA_QUERY)` (`(max-width: 640px)`) swaps
+GameScreen's main area for a phone layout; desktop is untouched, and every
+overlay (dialogs, resolve panels, settings, endgame) is shared. The game-log
+sidebar is hidden on phones.
+
+```
+.player-shell.phone-game
+├─ .player-topbar        your gold (+delta) · "You · your turn" / hand count or
+│                        Wise Man modifiers · End Turn
+├─ .phone-opp-wrap       OpponentArea compact: name · gold · cards, market
+│  [data-center-target=top]   (fitMarketSlots, ≤26px, wraps), .utility-chips,
+│                        AI chatter as .speech-pill
+├─ CenterRow compact     piles at 0.62× (60×79), slim phase box, recap over it
+├─ .disabled-hint
+└─ .player-board         [data-center-target=bottom]
+   ├─ Your Market n/total   fitMarketSlots (≤30px, wraps to 2 rows past ~10)
+   ├─ Your Utilities n/3    fitted row; share of board height 24% → 20% → 16%
+   │                        as the hand passes 8 / 12 cards
+   └─ Your Hand · n         .player-hand-box, measured, fitCardsToBox(fitRows)
+```
+
+`fitMarketSlots()` keeps a market on one row while slots stay ≥ 24px, then
+wraps (a market can reach 21 slots). At the legibility floor (scale 0.3,
+42px cards — e.g. 20 cards + two 21-slot markets on 360×640)
+`fitCardsToBox()` holds the size and overlaps past 55% instead of
+overflowing. Both screens measure the hand box directly
+(`useElementSize`) and only fall back to an estimate before first paint.
+
+New phone components:
+- **`.utility-chips` / `.utility-chip`** (`UtilityChips` in
+  `UtilityArea.tsx`) — the opponent's utilities as 26px pills: round art
+  thumb + name; used ones dimmed + struck through; tap to zoom.
+- **`.speech-pill`** (`SpeechBubble compact`) — AI chatter as a cream pill
+  hanging off the opponent strip; the 240px bubble art covered the whole
+  center row on phones.
+- **Compact center row** (`CenterRow compact`, `.center-row-compact`).
+- **Adaptive card captions** (`CardFace`) — below 100px rendered width the
+  caption drops the description and ellipsizes the name; below 70px pips are
+  9px and coins 12px. Named sizes on desktop (140/120/96) render exactly as
+  before.
 
 ## Backgrounds & Texture
 
@@ -376,6 +416,19 @@ existing set already covers the full identity; this pass's job was
 documenting it, fixing one duplication, and identifying the SFX gap.
 
 ## Changelog
+
+### 2026-10-04 — Phone solo/hotseat board fits the screen
+- `GameScreen` gets a phone layout (≤640px): top bar, compact opponent strip
+  (wrapping market, utility chips, speech pill), compact center row, fitted
+  board. Before: 1048px page on an 894px phone and the center row clipped
+  the deck off-screen below ~420px. Verified 0px overflow at 360×640,
+  375×667, 390×844 for 5/10/20-card hands, 3 utilities each side, and 6/12/21
+  slot markets; hotseat checked on 375×667; desktop unchanged.
+- `fitCardsToBox` overlaps past the cap at the legibility floor instead of
+  overflowing; new `fitMarketSlots`; both screens size the hand from the
+  measured hand box; utilities yield height to big hands.
+- `CardFace` captions adapt to rendered width (no more full descriptions
+  spilling out of 45px cards).
 
 ### 2026-10-03 — Polish pass: phone player view fits the screen, linen contrast, End Turn component
 - **Phone player view never scrolls** (user priority for this pass). Before:

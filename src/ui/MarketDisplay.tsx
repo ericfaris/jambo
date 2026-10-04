@@ -21,9 +21,11 @@ interface MarketDisplayProps {
   borderless?: boolean;
   /** Use dashed borders on slots. */
   dashedBorder?: boolean;
+  /** Tight single-row phone variant: no wrap, no outer padding. */
+  compact?: boolean;
 }
 
-function MarketDisplayComponent({ market, onSlotClick, selectedSlots, flashSlots, flashVariant = 'normal', label, columns, slotSize = 48, tokenSize, borderless, dashedBorder }: MarketDisplayProps) {
+function MarketDisplayComponent({ market, onSlotClick, selectedSlots, flashSlots, flashVariant = 'normal', label, columns, slotSize = 48, tokenSize, borderless, dashedBorder, compact = false }: MarketDisplayProps) {
   const isInteractive = !!onSlotClick;
 
   const sixthSpace = getSixthSpaceIndex(market);
@@ -43,18 +45,19 @@ function MarketDisplayComponent({ market, onSlotClick, selectedSlots, flashSlots
       <div style={{
         display: columns ? 'grid' : 'flex',
         gridTemplateColumns: columns ? `repeat(${columns}, auto)` : undefined,
-        gap: 6,
-        flexWrap: columns ? undefined : 'wrap',
+        gap: compact ? 4 : 6,
+        flexWrap: columns || compact ? undefined : 'wrap',
         background: 'transparent',
         borderRadius: 10,
-        padding: '10px 10px 10px 0',
+        padding: compact ? 0 : '10px 10px 10px 0',
         boxShadow: 'none',
       }}>
         {market.map((ware, i) => (
           <div key={i} className={flashSlots?.includes(i) ? `market-slot-flash market-slot-flash-${flashVariant}` : undefined} style={{
             width: slotSize,
             height: slotSize,
-            borderRadius: 8,
+            borderRadius: compact ? 6 : 8,
+            flexShrink: 0,
             border: borderless ? 'none' : dashedBorder ? '2px dashed var(--border)' : `2px solid ${selectedSlots?.includes(i) ? 'var(--gold)' : 'var(--border)'}`,
             background: dashedBorder ? (ware ? 'transparent' : 'rgba(255,255,255,0.06)') : borderless ? 'transparent' : selectedSlots?.includes(i) ? 'rgba(212,168,80,0.15)' : 'var(--surface)',
             display: 'flex',

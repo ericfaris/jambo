@@ -1,6 +1,8 @@
 import { memo, useEffect, useState } from 'react';
 import type { UtilityState } from '../engine/types.ts';
 import { CardFace } from './CardFace.tsx';
+import { getCard } from '../engine/cards/CardDatabase.ts';
+import type { DeckCardId } from '../engine/types.ts';
 
 interface UtilityAreaProps {
   utilities: UtilityState[];
@@ -159,3 +161,32 @@ function UtilityAreaComponent({
 }
 
 export const UtilityArea = memo(UtilityAreaComponent);
+
+/**
+ * Read-only utility list as compact chips (phone opponent strip). Tap a chip
+ * to zoom the card; used utilities are dimmed and struck through.
+ */
+export function UtilityChips({ utilities, onMegaView }: { utilities: UtilityState[]; onMegaView?: (cardId: DeckCardId) => void }) {
+  if (utilities.length === 0) {
+    return <span className="utility-chip-empty">No utilities</span>;
+  }
+  return (
+    <div className="utility-chips">
+      {utilities.map((u) => {
+        const name = getCard(u.cardId).name;
+        return (
+          <button
+            key={u.cardId}
+            type="button"
+            className={`utility-chip${u.usedThisTurn ? ' utility-chip-used' : ''}`}
+            onClick={onMegaView ? () => onMegaView(u.cardId) : undefined}
+            aria-label={`${name}${u.usedThisTurn ? ' (used this turn)' : ''} — zoom in`}
+          >
+            <img src={`/assets/cards/${u.designId}.png`} alt="" draggable={false} />
+            <span>{name}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}

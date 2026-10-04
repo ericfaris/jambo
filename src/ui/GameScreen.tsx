@@ -31,6 +31,9 @@ import { fetchUserStatsSummary, fetchDifficultyBreakdown, recordCompletedGame } 
 import type { UserStatsSummary, DifficultyBreakdown } from '../persistence/userStatsApi.ts';
 import { getWinner, getFinalScores } from '../engine/endgame/EndgameManager.ts';
 import { useAuthSession } from './useAuthSession.ts';
+import { useMediaQuery, PHONE_MEDIA_QUERY } from './useMediaQuery.ts';
+import { useElementSize } from './useElementSize.ts';
+import { fitCardsToBox, fitMarketSlots } from './fitLayout.ts';
 
 type AnimationSpeed = 'normal' | 'fast';
 const ANIMATION_SPEED_STORAGE_KEY = 'jambo.animationSpeed';
@@ -98,6 +101,9 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   const [telemetryEvents, setTelemetryEvents] = useState<string[]>([]);
   const [uxDebugCounts, setUxDebugCounts] = useState({ longPending: 0, blockedPlay: 0, blockedDraw: 0 });
   const menuRef = useRef<HTMLDivElement>(null);
+  const isPhone = useMediaQuery(PHONE_MEDIA_QUERY);
+  const [phoneBoardRef, phoneBoardSize] = useElementSize<HTMLDivElement>();
+  const [phoneHandRef, phoneHandSize] = useElementSize<HTMLDivElement>();
   const replayInputRef = useRef<HTMLInputElement>(null);
   const pendingSecondsRef = useRef(0);
   const blockedPlaySecondsRef = useRef(0);
@@ -525,14 +531,183 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   }
 
   return (
-    <div className={showUxDebug ? 'ux-debug' : undefined} style={{
+    <div className={showUxDebug ? 'ux-debug' : undefined} style={isPhone ? { position: 'relative' } : {
       display: 'flex',
       gap: 16,
       padding: '16px 20px',
       minHeight: '100vh',
       position: 'relative',
     }}>
-      {/* Main game area */}
+      {isPhone ? (() => {
+        // Phone: fits 100dvh, never scrolls (DESIGN.md › Layout › Phone solo board).
+        const viewer = state.players[viewerPlayer];
+        const opponent = state.players[opponentPlayer];
+        const HEAD_PX = 20;
+        const GAP_PX = 6;
+        const innerW = Math.max(0, phoneBoardSize.width - 16);
+        const innerH = Math.max(0, phoneBoardSize.height - 16);
+        const oppMarket = fitMarketSlots(opponent.market.length, innerW, { maxSlot: 26, minSlot: 20 });
+        const myMarket = fitMarketSlots(viewer.market.length, innerW, { maxSlot: 30 });
+        const myMarketH = myMarket.rows * myMarket.slotSize + (myMarket.rows - 1) * 4;
+        const utilCount = viewer.utilities.length;
+        // Utilities yield height to big hands (no hand limit in the rules)
+        const utilShare = viewer.hand.length > 12 ? 0.16 : viewer.hand.length > 8 ? 0.2 : 0.24;
+        const utilRowH = utilCount > 0 ? Math.min(Math.round(innerH * utilShare), 150) : 22;
+        const utilFit = fitCardsToBox({ count: utilCount, width: innerW, height: utilRowH, maxRows: 1, maxScale: 1 });
+        const utilH = utilCount > 0 ? utilFit.cardHeight : utilRowH;
+        // Prefer the measured hand box; fall back to the estimate before first measure
+        const handH = phoneHandSize.height || Math.max(0, innerH - 3 * HEAD_PX - 5 * GAP_PX - myMarketH - utilH);
+        const handFit = fitCardsToBox({ count: viewer.hand.length, width: phoneHandSize.width || innerW, height: handH, maxRows: 4, maxScale: 1.3 });
+        const myGoldDelta = visualFeedback.goldDeltas[viewerPlayer];
+        const isMyTurnNow = state.currentPlayer === viewerPlayer;
+
+        return (
+          <div className="player-shell phone-game">
+            <div className="player-topbar">
+              <span key={`my-gold-${myGoldDelta}`} className={`player-gold${myGoldDelta !== 0 ? ' gold-pop gold-pop-soft' : ''}`} style={{ position: 'relative' }} aria-label={`${viewer.gold} gold`}>
+                {viewer.gold}g
+                {myGoldDelta !== 0 && (
+                  <span className="gold-delta-text gold-delta-text-soft" style={{
+                    position: 'absolute', top: -12, right: -26, fontSize: 12, fontWeight: 700,
+                    color: myGoldDelta > 0 ? 'var(--accent-green)' : 'var(--accent-red)',
+                  }}>
+                    {myGoldDelta > 0 ? `+${myGoldDelta}g` : `${myGoldDelta}g`}
+                  </span>
+                )}
+              </span>
+              <div className={`player-turn-status${isMyTurnNow ? ' player-turn-status-active' : ''}`}>
+                <span>{localMultiplayer ? `Player ${viewerPlayer + 1}` : 'You'}{isMyTurnNow ? ' · your turn' : ''}</span>
+                {(state.turnModifiers.buyDiscount > 0 || state.turnModifiers.sellBonus > 0) ? (
+                  <span style={{ color: 'var(--accent-green)', textTransform: 'none', letterSpacing: 0.4 }}>
+                    {state.turnModifiers.buyDiscount > 0 && `Buy −${state.turnModifiers.buyDiscount}g `}
+                    {state.turnModifiers.sellBonus > 0 && `Sell +${state.turnModifiers.sellBonus}g`}
+                  </span>
+                ) : (
+                  <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0.4 }}>{viewer.hand.length} cards in hand</span>
+                )}
+              </div>
+              <div style={{ marginLeft: 'auto' }} />
+              {state.phase === 'PLAY' && isMyTurnNow && (
+                <button
+                  className="end-turn-button"
+                  onClick={() => dispatch({ type: 'END_TURN' })}
+                  aria-label={`End turn, ${state.actionsLeft} actions left`}
+                >
+                  End Turn
+                  <div className="action-pips" aria-hidden="true">
+                    {Array.from({ length: 5 }, (_, i) => (
+                      <div key={i} className={`action-pip${i < state.actionsLeft ? '' : ' action-pip-spent'}`} />
+                    ))}
+                  </div>
+                </button>
+              )}
+            </div>
+
+            <div className={`phone-opp-wrap turn-emphasis ${state.currentPlayer === opponentPlayer ? 'turn-emphasis-active' : 'turn-emphasis-inactive'}`} data-center-target="top">
+              <OpponentArea
+                compact
+                player={opponent}
+                aiMessage={state.phase === 'GAME_OVER' ? '' : aiMessage}
+                onMessageHide={handleAiMessageHide}
+                goldDelta={visualFeedback.goldDeltas[opponentPlayer]}
+                marketFlashSlots={visualFeedback.marketFlashSlots[opponentPlayer]}
+                label={localMultiplayer ? `Player ${opponentPlayer + 1}` : 'Opponent (AI)'}
+                onMegaView={setMegaCardId}
+                slotSize={oppMarket.slotSize}
+                marketColumns={oppMarket.rows > 1 ? oppMarket.columns : undefined}
+              />
+            </div>
+
+            <CenterRow compact state={state} dispatch={dispatch} isLocalMode={true} showGlow={false} visualFeedback={visualFeedback} actorLabels={localMultiplayer ? ['Player 1', 'Player 2'] : ['You', 'Opponent']} hiddenPlayer={localMultiplayer ? null : 1} />
+
+            {playActionsDisabled && state.phase === 'PLAY' && playDisabledReason && (
+              <div className="disabled-hint" style={{ marginBottom: 0, flexShrink: 0 }}>
+                {playDisabledReason}
+              </div>
+            )}
+
+            <div ref={phoneBoardRef} className={`player-board turn-emphasis ${isMyTurnNow ? 'turn-emphasis-active' : 'turn-emphasis-inactive'}`} data-center-target="bottom">
+              <div className="player-board-section-head">
+                <div className="panel-section-title">{localMultiplayer ? `Player ${viewerPlayer + 1} Market` : 'Your Market'}</div>
+                <span className="ui-helper-text">{viewer.market.filter(Boolean).length}/{viewer.market.length}</span>
+              </div>
+              <div style={{ flexShrink: 0 }}>
+                <MarketDisplay
+                  market={viewer.market}
+                  flashSlots={visualFeedback.marketFlashSlots[viewerPlayer]}
+                  flashVariant="soft"
+                  slotSize={myMarket.slotSize}
+                  tokenSize={Math.round(myMarket.slotSize * 0.82)}
+                  columns={myMarket.rows > 1 ? myMarket.columns : undefined}
+                  compact
+                />
+              </div>
+              <div className="player-board-section-head">
+                <div className="panel-section-title">{localMultiplayer ? `Player ${viewerPlayer + 1} Utilities` : 'Your Utilities'}</div>
+                {utilCount > 0 && <span className="ui-helper-text">{utilCount}/3</span>}
+              </div>
+              <div style={{ flexShrink: 0, height: utilH }}>
+                <UtilityArea
+                  utilities={viewer.utilities}
+                  onActivate={(i) => {
+                    const validation = validateActivateUtility(state, i);
+                    if (!validation.valid) {
+                      const friendlyMessage = getFriendlyErrorMessage(validation.reason || 'Cannot activate utility');
+                      setCardError({ cardId: viewer.utilities[i].cardId, message: friendlyMessage });
+                      return;
+                    }
+                    setCardError(null);
+                    dispatch({ type: 'ACTIVATE_UTILITY', utilityIndex: i });
+                  }}
+                  disabled={playActionsDisabled}
+                  cardError={cardError}
+                  cardSize="default"
+                  cardScale={utilFit.scale}
+                  showHelperText={false}
+                  overlapPx={utilFit.overlapPx}
+                  overlapOnDesktop
+                  gapPx={utilFit.gap}
+                  singleRow
+                  hideScrollbar
+                />
+              </div>
+              <div className="player-board-section-head">
+                <div className="panel-section-title">{localMultiplayer ? `Player ${viewerPlayer + 1} Hand` : 'Your Hand'} · {viewer.hand.length}</div>
+                {state.phase === 'PLAY' && isMyTurnNow && (
+                  <span className="ui-helper-text">{state.actionsLeft} action{state.actionsLeft === 1 ? '' : 's'} left</span>
+                )}
+              </div>
+              <div ref={phoneHandRef} className="player-hand-box">
+                <HandDisplay
+                  hand={viewer.hand}
+                  onPlayCard={handlePlayCard}
+                  disabled={playActionsDisabled}
+                  cardError={cardError}
+                  useWoodBackground={false}
+                  transparentBackground
+                  showBorder={false}
+                  showHelperText={false}
+                  cardScale={handFit.scale}
+                  paddingTop={0}
+                  paddingBottom={0}
+                  paddingX={0}
+                  layoutMode="fitRows"
+                  rows={handFit.rows}
+                  fixedOverlapPx={handFit.overlapPx}
+                  gapPx={handFit.gap}
+                  onMegaView={setMegaCardId}
+                />
+              </div>
+            </div>
+            {cardError && (
+              <div className="player-toast" role="alert" key={`${cardError.cardId}-${cardError.message}`}>
+                {cardError.message}
+              </div>
+            )}
+          </div>
+        );
+      })() : (
+      /* Main game area (desktop) */
       <div style={{
         flex: 1,
         display: 'flex',
@@ -702,9 +877,10 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
         )}
         </div>
       </div>
+      )}
 
       {/* Right sidebar — Game log */}
-      {showLog && (
+      {showLog && !isPhone && (
         <div style={{
           width: 280,
           flexShrink: 0,

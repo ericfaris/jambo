@@ -103,5 +103,11 @@ overwrites tracked files.)
   (`hand=N&utils=N&phase=play`) — much faster than standing up the WS server
   and joining a room to test phone layouts. Stage by moving cards out of the
   deck so `checkInvariants()` still passes.
-- Still open: solo `GameScreen` on phones scrolls and its center row clips
-  below ~420px (see DESIGN.md › Layout).
+- 2026-10-04 follow-up: solo `GameScreen` got the same treatment behind a
+  `(max-width: 640px)` media query, reusing every overlay. Measure the hand
+  box itself rather than estimating it from the board — estimates drift
+  whenever a hint/banner line appears. And a fit solver needs an explicit
+  "at the floor, overlap harder" branch, or the worst case (20 cards + two
+  21-slot markets on 360×640) silently overflows. Stage extreme states in
+  Playwright via `await import('/src/hooks/useGameStore.ts')` +
+  `stagePreviewState()` instead of playing into them.

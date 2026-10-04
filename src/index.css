@@ -982,3 +982,142 @@ button.brown:hover:not(:disabled) {
   text-transform: uppercase;
   color: #5a4632;
 }
+
+/* ---------------------------------------------------------------------------
+   Phone solo/hotseat board (GameScreen ≤ 640px) — same no-scroll shell as the
+   Cast player view, plus a compact opponent strip and center row.
+   --------------------------------------------------------------------------- */
+.phone-game .player-board {
+  border: 1px solid rgba(122, 90, 62, 0.5);
+}
+
+.phone-opp-wrap {
+  flex-shrink: 0;
+  border-radius: 12px;
+  border: 1px solid rgba(122, 90, 62, 0.5);
+  background: rgba(20, 10, 5, 0.75);
+}
+
+.phone-opp {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+}
+
+.phone-opp-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  height: 18px;
+}
+
+.phone-opp-name {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-right: auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.utility-chips {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.utility-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 26px;
+  padding: 2px 10px 2px 2px;
+  border-radius: 999px;
+  border: 1px solid var(--border-light);
+  background: var(--surface-light);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  text-shadow: none;
+}
+
+.utility-chip img {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.utility-chip span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.utility-chip-used {
+  opacity: 0.55;
+}
+
+.utility-chip-used span {
+  text-decoration: line-through;
+}
+
+.utility-chip-empty {
+  font-size: 12px;
+  font-style: italic;
+  color: var(--text-muted);
+  line-height: 26px;
+}
+
+.center-row-compact {
+  flex-shrink: 0;
+  --center-row-action-tag-offset-y: -40px;
+}
+
+.center-row-compact .panel-section-title {
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+
+/* recap sits over the phase box instead of 146px below the row */
+.center-row-compact .center-row-recap {
+  top: 50%;
+  transform: translate(-50%, -50%);
+  max-width: min(60vw, 200px);
+  font-size: 12px;
+}
+
+/* AI chatter on phone: a pill hanging off the opponent strip's bottom edge */
+.speech-pill {
+  position: absolute;
+  right: 10px;
+  bottom: -13px;
+  z-index: 30;
+  max-width: 70%;
+  padding: 4px 12px;
+  border-radius: 999px 999px 999px 4px;
+  background: #f4ead7;
+  color: #1a1714;
+  border: 1px solid var(--gold-dim);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  animation: slideUp 0.2s var(--anim-ease-standard);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .speech-pill { animation: none; }
+}

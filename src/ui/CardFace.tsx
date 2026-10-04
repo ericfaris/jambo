@@ -93,6 +93,13 @@ export function CardFace({ cardId, onClick, selected, small, medium, large, extr
 
   if (hasImage) {
     const pad = small || medium ? 2 : large ? 4 : 3;
+    // Fitted phone layouts can render cards far below the named sizes; scale
+    // the caption chrome with the real width so it never swamps the art.
+    const compactFace = small || faceWidth < 100;
+    const tinyFace = faceWidth < 70;
+    const pipSize = tinyFace ? 9 : compactFace ? 16 : 20;
+    const coinSize = tinyFace ? 12 : compactFace ? 18 : 26;
+    const pipGap = tinyFace ? 2 : compactFace ? 3 : 4;
     return (<>
       <div
         title={tooltip}
@@ -152,18 +159,18 @@ export function CardFace({ cardId, onClick, selected, small, medium, large, extr
                 right: 0,
                 display: 'flex',
                 flexDirection: 'column',
-                gap: small ? 2 : 3,
-                padding: small ? 3 : 4,
+                gap: tinyFace ? 1 : compactFace ? 2 : 3,
+                padding: tinyFace ? 2 : compactFace ? 3 : 4,
                 background: 'rgba(0,0,0,0.35)',
                 cursor: 'pointer',
               }}
             >
-              <div style={{ display: 'flex', gap: small ? 3 : 4, justifyContent: 'center' }}>
+              <div style={{ display: 'flex', gap: pipGap, justifyContent: 'center' }}>
                 {card.wares.types.slice(0, 3).map((w, i) => (
                   <div key={i} style={{
-                    width: small ? 16 : 20,
-                    height: small ? 16 : 20,
-                    borderRadius: small ? 4 : 5,
+                    width: pipSize,
+                    height: pipSize,
+                    borderRadius: tinyFace ? 2 : compactFace ? 4 : 5,
                     background: WARE_COLORS[w],
                     border: '1.5px solid rgba(0,0,0,0.6)',
                   }} />
@@ -173,15 +180,15 @@ export function CardFace({ cardId, onClick, selected, small, medium, large, extr
                 <img
                   src={`/assets/coins/coin_${card.wares.buyPrice}.png`}
                   alt={`${card.wares.buyPrice}g`}
-                  style={{ width: small ? 18 : 26, height: small ? 18 : 26 }}
+                  style={{ width: coinSize, height: coinSize }}
                   draggable={false}
                 />
-                <div style={{ display: 'flex', gap: small ? 3 : 4 }}>
+                <div style={{ display: 'flex', gap: pipGap }}>
                   {card.wares.types.slice(3).map((w, i) => (
                     <div key={i} style={{
-                      width: small ? 16 : 20,
-                      height: small ? 16 : 20,
-                      borderRadius: small ? 4 : 5,
+                      width: pipSize,
+                      height: pipSize,
+                      borderRadius: tinyFace ? 2 : compactFace ? 4 : 5,
                       background: WARE_COLORS[w],
                       border: '1.5px solid rgba(0,0,0,0.6)',
                     }} />
@@ -190,7 +197,7 @@ export function CardFace({ cardId, onClick, selected, small, medium, large, extr
                 <img
                   src={`/assets/coins/coin_${card.wares.sellPrice}.png`}
                   alt={`${card.wares.sellPrice}g`}
-                  style={{ width: small ? 18 : 26, height: small ? 18 : 26 }}
+                  style={{ width: coinSize, height: coinSize }}
                   draggable={false}
                 />
               </div>
@@ -207,7 +214,7 @@ export function CardFace({ cardId, onClick, selected, small, medium, large, extr
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                padding: small ? 3 : 4,
+                padding: tinyFace ? 2 : compactFace ? 3 : 4,
                 background: 'rgba(0,0,0,0.35)',
                 cursor: 'pointer',
               }}
@@ -215,15 +222,15 @@ export function CardFace({ cardId, onClick, selected, small, medium, large, extr
               <img
                 src={`/assets/coins/coin_${card.wares.buyPrice}.png`}
                 alt={`${card.wares.buyPrice}g`}
-                style={{ width: small ? 18 : 26, height: small ? 18 : 26 }}
+                style={{ width: coinSize, height: coinSize }}
                 draggable={false}
               />
-              <div style={{ display: 'flex', gap: small ? 3 : 4 }}>
+              <div style={{ display: 'flex', gap: pipGap }}>
                 {card.wares.types.map((w, i) => (
                   <div key={i} style={{
-                    width: small ? 16 : 20,
-                    height: small ? 16 : 20,
-                    borderRadius: small ? 4 : 5,
+                    width: pipSize,
+                    height: pipSize,
+                    borderRadius: tinyFace ? 2 : compactFace ? 4 : 5,
                     background: WARE_COLORS[w],
                     border: '1.5px solid rgba(0,0,0,0.6)',
                   }} />
@@ -232,7 +239,7 @@ export function CardFace({ cardId, onClick, selected, small, medium, large, extr
               <img
                 src={`/assets/coins/coin_${card.wares.sellPrice}.png`}
                 alt={`${card.wares.sellPrice}g`}
-                style={{ width: small ? 18 : 26, height: small ? 18 : 26 }}
+                style={{ width: coinSize, height: coinSize }}
                 draggable={false}
               />
             </div>
@@ -247,20 +254,23 @@ export function CardFace({ cardId, onClick, selected, small, medium, large, extr
                 left: 0,
                 right: 0,
                 background: 'rgba(255,255,255,0.85)',
-                padding: small ? '2px 3px' : '3px 4px',
+                padding: compactFace ? '2px 3px' : '3px 4px',
                 cursor: 'pointer',
               }}
             >
               <div style={{
-                fontSize: small ? 7 : 8,
+                fontSize: compactFace ? 7 : 8,
                 fontWeight: 700,
                 color: '#1a1714',
                 lineHeight: 1,
                 textAlign: 'center',
+                whiteSpace: compactFace ? 'nowrap' : undefined,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
               }}>
                 {card.name}
               </div>
-              {!small && (
+              {!compactFace && (
                 <div style={{
                   fontSize: 7,
                   color: '#4a4540',

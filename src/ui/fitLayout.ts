@@ -92,8 +92,14 @@ export function fitCardsToBox({
   }
   if (!best) return empty;
   if (best.scale < minScale) {
+    // Below the legibility floor: hold the card size and stack/overlap harder
+    // (past maxOverlapRatio) rather than overflow the box.
     const w = Math.round(CARD_BASE_WIDTH * minScale);
-    return { ...best, scale: minScale, cardWidth: w, cardHeight: Math.round(w / aspect) };
+    const h = Math.round(w / aspect);
+    const rows = Math.max(1, Math.min(count, Math.floor((height + rowGap) / (h + rowGap))));
+    const perRow = Math.ceil(count / rows);
+    const overlapPx = perRow > 1 ? Math.max(0, Math.ceil((perRow * w - width) / (perRow - 1))) : 0;
+    return { rows, perRow, scale: minScale, cardWidth: w, cardHeight: h, overlapPx, gap: overlapPx > 0 ? 0 : gap };
   }
   return best;
 }
@@ -105,4 +111,20 @@ export function splitIntoRows<T>(items: T[], rows: number): T[][] {
   const out: T[][] = [];
   for (let i = 0; i < items.length; i += perRow) out.push(items.slice(i, i + perRow));
   return out;
+}
+
+/**
+ * Market slots on a phone: one row while slots stay ≥ `minSlot`, else wrap to
+ * two (or more) rows. A market can reach 21 slots (6 + 5 stands × 3).
+ */
+export function fitMarketSlots(count: number, width: number, { gap = 4, maxSlot = 32, minSlot = 24 } = {}): { columns: number; rows: number; slotSize: number } {
+  if (count <= 0 || width <= 0) return { columns: Math.max(count, 1), rows: 1, slotSize: maxSlot };
+  for (let rows = 1; rows <= 4; rows++) {
+    const columns = Math.ceil(count / rows);
+    const size = Math.floor((width - (columns - 1) * gap) / columns);
+    if (size >= minSlot || rows === 4) {
+      return { columns, rows, slotSize: Math.max(12, Math.min(maxSlot, size)) };
+    }
+  }
+  return { columns: count, rows: 1, slotSize: minSlot };
 }

@@ -4,9 +4,11 @@ interface SpeechBubbleProps {
   message: string;
   visible: boolean;
   onHide: () => void;
+  /** Phone: a small pill on the opponent strip instead of the 240px bubble art. */
+  compact?: boolean;
 }
 
-export function SpeechBubble({ message, visible, onHide }: SpeechBubbleProps) {
+export function SpeechBubble({ message, visible, onHide, compact = false }: SpeechBubbleProps) {
   useEffect(() => {
     if (visible) {
       const isTurnDone = message === "My turn is done, your move!";
@@ -17,6 +19,14 @@ export function SpeechBubble({ message, visible, onHide }: SpeechBubbleProps) {
   }, [visible, onHide, message]);
 
   if (!visible || !message) return null;
+
+  if (compact) {
+    return (
+      <div role="status" aria-live="polite" className="speech-pill">
+        {message}
+      </div>
+    );
+  }
 
   return (
     <div role="status" aria-live="polite" style={{

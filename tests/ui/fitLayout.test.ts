@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { fitCardsToBox, splitIntoRows, CARD_BASE_WIDTH } from '../../src/ui/fitLayout.ts';
+import { fitCardsToBox, fitMarketSlots, splitIntoRows, CARD_BASE_WIDTH } from '../../src/ui/fitLayout.ts';
 
 /** Total footprint of a fit result, as HandDisplay's fitRows mode renders it. */
 function footprint(r: ReturnType<typeof fitCardsToBox>, rowGap = 8) {
@@ -32,6 +32,15 @@ describe('fitCardsToBox — phone player view never scrolls', () => {
     }
   }
 
+  it('at the legibility floor, overlaps harder instead of overflowing', () => {
+    // 360×640 phone, 20 cards, two 21-slot markets: ~110px of hand height
+    const box = { width: 328, height: 110 };
+    const r = fitCardsToBox({ count: 20, ...box, maxRows: 4, maxScale: 1.3 });
+    expect(r.scale).toBeCloseTo(0.3);
+    expect(footprint(r).width).toBeLessThanOrEqual(box.width);
+    expect(r.overlapPx).toBeLessThan(r.cardWidth); // every card still peeks out
+  });
+
   it('caps small hands at maxScale instead of ballooning', () => {
     const r = fitCardsToBox({ count: 1, width: 1000, height: 1000, maxScale: 1.4 });
     expect(r.cardWidth).toBe(Math.floor(CARD_BASE_WIDTH * 1.4));
@@ -55,5 +64,18 @@ describe('splitIntoRows', () => {
     expect(splitIntoRows([1, 2, 3, 4, 5], 2)).toEqual([[1, 2, 3], [4, 5]]);
     expect(splitIntoRows([1, 2, 3], 1)).toEqual([[1, 2, 3]]);
     expect(splitIntoRows([], 3)).toEqual([]);
+  });
+});
+
+describe('fitMarketSlots', () => {
+  it('keeps the starting 6-slot market on one row at full size', () => {
+    expect(fitMarketSlots(6, 328)).toEqual({ columns: 6, rows: 1, slotSize: 32 });
+  });
+
+  it.each([6, 9, 12, 15, 18, 21])('%i slots fit 328px wide without shrinking below 24px', (n) => {
+    const r = fitMarketSlots(n, 328);
+    expect(r.columns * r.rows).toBeGreaterThanOrEqual(n);
+    expect(r.columns * r.slotSize + (r.columns - 1) * 4).toBeLessThanOrEqual(328);
+    expect(r.slotSize).toBeGreaterThanOrEqual(24);
   });
 });

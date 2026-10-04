@@ -82,6 +82,7 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
   const [telemetryEvents, setTelemetryEvents] = useState<string[]>([]);
   const menuRef = useRef<HTMLDivElement>(null);
   const [boardRef, boardSize] = useElementSize<HTMLDivElement>();
+  const [handBoxRef, handBoxSize] = useElementSize<HTMLDivElement>();
   useAudioEvents(ws.audioEvent, ws.clearAudioEvent);
 
   const isCardActionValidationError = (message: string) => (
@@ -353,10 +354,13 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
   const boardInnerW = Math.max(0, boardSize.width - 16);
   const boardInnerH = Math.max(0, boardSize.height - 16);
   const utilCount = myPublic.utilities.length;
-  const utilRowH = utilCount > 0 ? Math.min(Math.round(boardInnerH * 0.27), 200) : 26;
+  // Utilities yield height to big hands (no hand limit in the rules)
+  const utilShare = priv.hand.length > 12 ? 0.18 : priv.hand.length > 8 ? 0.22 : 0.27;
+  const utilRowH = utilCount > 0 ? Math.min(Math.round(boardInnerH * utilShare), 200) : 26;
   const utilFit = fitCardsToBox({ count: utilCount, width: boardInnerW, height: utilRowH, maxRows: 1, maxScale: 1.1 });
   const handBoxH = Math.max(0, boardInnerH - 2 * SECTION_HEAD_PX - 3 * BOARD_GAP_PX - (utilCount > 0 ? utilFit.cardHeight : utilRowH));
-  const handFit = fitCardsToBox({ count: priv.hand.length, width: boardInnerW, height: handBoxH, maxRows: 4, maxScale: 1.4 });
+  // Prefer the measured hand box; fall back to the estimate before first measure
+  const handFit = fitCardsToBox({ count: priv.hand.length, width: handBoxSize.width || boardInnerW, height: handBoxSize.height || handBoxH, maxRows: 4, maxScale: 1.4 });
   const turnStatus = pub.phase === 'GAME_OVER'
     ? 'Game over'
     : isMyTurn
@@ -473,7 +477,7 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
             <span className="ui-helper-text">{pub.actionsLeft} action{pub.actionsLeft === 1 ? '' : 's'} left</span>
           )}
         </div>
-        <div className="player-hand-box">
+        <div ref={handBoxRef} className="player-hand-box">
           <HandDisplay
             hand={priv.hand}
             onPlayCard={handlePlayCard}

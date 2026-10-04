@@ -18,9 +18,14 @@ interface CenterRowProps {
   actorLabels?: readonly [string, string];
   /** Player whose card identities must stay hidden in the recap (the AI in solo) */
   hiddenPlayer?: 0 | 1 | null;
+  /** Phone layout: smaller piles and phase box (~100px tall instead of ~180px) */
+  compact?: boolean;
 }
 
-export function CenterRow({ state, isLocalMode = true, showGlow = false, visualFeedback, actorLabels = ['Player 1', 'Player 2'], hiddenPlayer = null }: CenterRowProps) {
+export function CenterRow({ state, isLocalMode = true, showGlow = false, visualFeedback, actorLabels = ['Player 1', 'Player 2'], hiddenPlayer = null, compact = false }: CenterRowProps) {
+  const pileScale = compact ? 0.62 : 1;
+  const pileW = Math.round(96 * pileScale);
+  const pileH = Math.round(128 * pileScale);
   const phaseLabel = state.phase === 'DRAW'
     ? `Draw Phase (${state.drawsThisPhase}/5)`
     : state.phase === 'PLAY'
@@ -150,12 +155,12 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
     : undefined;
 
   return (
-    <div ref={rowRef} style={{
+    <div ref={rowRef} className={compact ? 'center-row-compact' : undefined} style={{
       display: 'flex',
       justifyContent: 'center',
       alignItems: 'center',
-      gap: 32,
-      padding: '12px 0',
+      gap: compact ? 14 : 32,
+      padding: compact ? '2px 0' : '12px 0',
       position: 'relative',
     }}>
       {visualFeedback?.trail && (
@@ -199,13 +204,13 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
       )}
 
       {/* Deck */}
-      <div ref={deckPileRef} key={`deck-${visualFeedback?.deckPulse ?? 0}`} className={deckPulseClass} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+      <div ref={deckPileRef} key={`deck-${visualFeedback?.deckPulse ?? 0}`} className={deckPulseClass} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: compact ? 3 : 6 }}>
         {state.deck.length > 0 ? (
-          <CardFace cardId={state.deck[0]} faceDown small />
+          <CardFace cardId={state.deck[0]} faceDown small scale={pileScale} />
         ) : (
           <div style={{
-            width: 96,
-            height: 128,
+            width: pileW,
+            height: pileH,
             borderRadius: 10,
             border: '2px dashed var(--border)',
             display: 'flex',
@@ -226,7 +231,7 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
       <div key={`phase-${visualFeedback?.phasePulse ?? 0}-${visualFeedback?.actionsPulse ?? 0}`} className={(visualFeedback?.phasePulse || visualFeedback?.actionsPulse) ? 'phase-pulse' : undefined} style={{
         background: phaseColor + '20',
         borderRadius: 10,
-        padding: '10px 24px',
+        padding: compact ? '6px 12px' : '10px 24px',
         border: `1px solid ${phaseColor}`,
         textAlign: 'center',
         transition: 'background 0.4s ease, border-color 0.4s ease',
@@ -235,10 +240,10 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
           borderRadius: 12,
         })
       }}>
-        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+        <div style={{ fontSize: compact ? 11 : 12, color: 'var(--text-muted)' }}>
           Turn {state.turn} &middot; {formatTurnOwner(actorLabels[state.currentPlayer])}
         </div>
-        <div style={{ fontWeight: 700, fontSize: 17, color: phaseColor, transition: 'color 0.4s ease' }}>
+        <div style={{ fontWeight: 700, fontSize: compact ? 15 : 17, color: phaseColor, transition: 'color 0.4s ease' }}>
           {phaseLabel}
         </div>
         {state.endgame && (
@@ -247,7 +252,7 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
           </div>
         )}
         {/* Action tokens */}
-        <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+        <div style={{ marginTop: compact ? 5 : 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
           <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Actions:</span>
           <div style={{ display: 'flex', gap: 4 }}>
             {Array.from({ length: CONSTANTS.MAX_ACTIONS }, (_, i) => i < state.actionsLeft).map((active, i) => (
@@ -271,7 +276,7 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: 6,
+        gap: compact ? 3 : 6,
         ...(showGlow && {
           boxShadow: '0 0 20px rgba(212, 168, 80, 0.4), inset 0 0 20px rgba(212, 168, 80, 0.1)',
           borderRadius: 12,
@@ -281,11 +286,11 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
       }}>
         <div key={`discard-card-${displayDiscardCard ?? 'empty'}-${state.discardPile.length}`} className="discard-soft-fade">
           {displayDiscardCard ? (
-            <CardFace cardId={displayDiscardCard} small />
+            <CardFace cardId={displayDiscardCard} small scale={pileScale} />
           ) : (
             <div style={{
-              width: 96,
-              height: 128,
+              width: pileW,
+              height: pileH,
               borderRadius: 10,
               border: '2px dashed var(--border)',
               display: 'flex',
