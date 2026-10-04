@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createInitialState } from '../../src/engine/GameState.ts';
 import { splitState, extractPublicState, extractPrivateState } from '../../src/multiplayer/stateSplitter.ts';
+import { redactHiddenCards } from '../../src/multiplayer/stateSplitter.ts';
 import type { GameState } from '../../src/engine/types.ts';
 
 function makeState(overrides?: Partial<GameState>): GameState {
@@ -190,5 +191,16 @@ describe('stateSplitter', () => {
       const pub = extractPublicState(state);
       expect(pub.waitingOnPlayer).toBeNull();
     });
+  });
+});
+
+describe('public log hides private card identities', () => {
+  it('redacts drawn / kept / picked cards but keeps public info', () => {
+    expect(redactHiddenCards({ turn: 1, player: 1, action: 'DRAW_CARD', details: 'Drew scale_1' }).details).toBe('Drew a card');
+    expect(redactHiddenCards({ turn: 1, player: 1, action: 'ACTIVATE_UTILITY', details: 'Well: paid 1g, drew ware_3k_2' }).details).toBe('Well: paid 1g, drew a card');
+    expect(redactHiddenCards({ turn: 1, player: 1, action: 'SCALE_EFFECT', details: 'Kept guard_1, gave well_2 to opponent' }).details).toBe('Kept a card, gave well_2 to opponent');
+    expect(redactHiddenCards({ turn: 1, player: 1, action: 'DECK_PEEK', details: 'Peeked at 6 cards, picked lion_1' }).details).toBe('Peeked at 6 cards, picked a card');
+    // Discards are face-up and stay visible
+    expect(redactHiddenCards({ turn: 1, player: 1, action: 'DISCARD_DRAWN', details: 'Discarded parrot_2' }).details).toBe('Discarded parrot_2');
   });
 });

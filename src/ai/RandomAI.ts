@@ -1,11 +1,12 @@
 import type { GameState, GameAction, InteractionResponse, WareType, WareCardWares } from '../engine/types.ts';
+import { isAuctionBidding } from '../engine/responder.ts';
 import { WARE_TYPES, CONSTANTS } from '../engine/types.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
 import { validateAction } from '../engine/validation/actionValidator.ts';
 import { processAction } from '../engine/GameEngine.ts';
 import { createRng } from '../utils/rng.ts';
 import {
-  getAuctionMaxBid,
+  getAuctionMaxBidFor,
   pickBestUtilityIndex,
   pickBestWareType,
   pickDiscardCardForValue,
@@ -188,7 +189,7 @@ export function getRandomInteractionResponse(state: GameState, rng: RngFn): Inte
 
     case 'AUCTION': {
       // Ware selection step: pick ware types from supply
-      if (pr.wares.length < 2) {
+      if (!isAuctionBidding(pr)) {
         const wareTypes: import('../engine/types.ts').WareType[] = ['trinkets', 'hides', 'tea', 'silk', 'fruit', 'salt'];
         const available = wareTypes.filter(wt => state.wareSupply[wt] > 0);
         if (available.length === 0) return { type: 'SELECT_WARE_TYPE', wareType: 'trinkets' }; // guard handles
@@ -197,7 +198,7 @@ export function getRandomInteractionResponse(state: GameState, rng: RngFn): Inte
       // Bidding rounds — use value-based bidding
       const bidAmount = pr.currentBid + 1;
       const bidder = state.players[pr.nextBidder];
-      const maxBid = getAuctionMaxBid(state, pr.nextBidder, pr.wares);
+      const maxBid = getAuctionMaxBidFor(state, pr.nextBidder, pr);
       // Only bid if we can afford it AND the price is within our valuation
       if (bidAmount <= maxBid && bidder.gold >= bidAmount) {
         return { type: 'AUCTION_BID', amount: bidAmount };
@@ -409,7 +410,7 @@ export function getFallbackInteractionResponses(state: GameState): InteractionRe
       ];
 
     case 'AUCTION': {
-      if (pr.wares.length < 2) {
+      if (!isAuctionBidding(pr)) {
         const available = WARE_TYPES.filter(w => state.wareSupply[w] > 0);
         return available.length > 0
           ? available.map(wareType => ({ type: 'SELECT_WARE_TYPE', wareType }))

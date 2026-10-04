@@ -81,19 +81,11 @@ export function resolveWareTrade(
     const player = state.currentPlayer;
     const newMarket = [...state.players[player].market];
 
-    // Remove all of giveType
+    // Swap each giveType ware for a receiveType ware in the same space, so the
+    // trade never fills a new (e.g. paid 6th) market space
     for (let i = 0; i < newMarket.length; i++) {
       if (newMarket[i] === giveType) {
-        newMarket[i] = null;
-      }
-    }
-
-    // Add receiveType to first empty slots
-    let placed = 0;
-    for (let i = 0; i < newMarket.length && placed < count; i++) {
-      if (newMarket[i] === null) {
         newMarket[i] = receiveType;
-        placed++;
       }
     }
 

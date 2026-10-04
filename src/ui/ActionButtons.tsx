@@ -4,6 +4,7 @@ import { getCard } from '../engine/cards/CardDatabase.ts';
 import { validateActivateUtility } from '../engine/validation/actionValidator.ts';
 import { WARE_COLORS } from './CardFace.tsx';
 import { HandReferenceStrip } from './HandReferenceStrip.tsx';
+import { buttonProps } from './a11y.ts';
 
 interface ActionButtonsProps {
   state: GameState;
@@ -75,7 +76,7 @@ export function CardPlayDialog({ cardId, onBuy, onSell, onCancel }: CardPlayDial
           draggable={false}
         />
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 28, padding: '2px 0' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={onBuy}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={onBuy} {...buttonProps(onBuy, `Buy for ${card.wares.buyPrice}g`)}>
             <img
               src={`/assets/coins/coin_${card.wares.buyPrice}.png`}
               alt={`${card.wares.buyPrice}g`}
@@ -99,7 +100,7 @@ export function CardPlayDialog({ cardId, onBuy, onSell, onCancel }: CardPlayDial
               />
             ))}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={onSell}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={onSell} {...buttonProps(onSell, `Sell for ${card.wares.sellPrice}g`)}>
             <img
               src={`/assets/coins/coin_${card.wares.sellPrice}.png`}
               alt={`${card.wares.sellPrice}g`}

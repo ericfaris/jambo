@@ -340,5 +340,29 @@ describe('Crocodile (Use opponent utility)', () => {
     // Opponent's utility discarded
     expect(utilities(s3, 1).length).toBe(0);
     expect(s3.discardPile).toContain('well_1');
+    expect(s3.discardPile).toContain('crocodile_1');
+  });
+
+  // Regression: an interactive borrowed utility replaces pendingResolution with
+  // its own UTILITY_EFFECT, so the Crocodile card itself used to be dropped from
+  // the game (110 → 109 cards) instead of being discarded.
+  it('discards the Crocodile itself after an interactive borrowed utility (Drums)', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['crocodile_1']);
+    s = withHand(s, 1, []); // no guard
+    s = withMarket(s, 0, ['silk', null, null, null, null, null]);
+    s = withUtility(s, 1, 'drums_1', 'drums');
+
+    const s2 = act(s, { type: 'PLAY_CARD', cardId: 'crocodile_1' });
+    // act() asserts the 110-card invariant on every step, including mid-effect
+    const s3 = resolve(s2, { type: 'SELECT_UTILITY', utilityIndex: 0 });
+    expect(s3.pendingResolution!.type).toBe('UTILITY_EFFECT');
+
+    const s4 = resolve(s3, { type: 'RETURN_WARE', wareIndex: 0 });
+    expect(s4.pendingResolution).toBeNull();
+    expect(utilities(s4, 1).length).toBe(0);
+    expect(s4.discardPile).toContain('drums_1');
+    expect(s4.discardPile).toContain('crocodile_1');
+    expect(hand(s4, 0)).not.toContain('crocodile_1');
   });
 });

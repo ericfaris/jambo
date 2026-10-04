@@ -1,6 +1,7 @@
 import type { DeckCardId, PendingResolution } from '../engine/types.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
 import { WARE_COLORS } from './CardFace.tsx';
+import { buttonProps } from './a11y.ts';
 
 interface HandReferenceStripProps {
   hand: DeckCardId[];
@@ -58,6 +59,7 @@ export function HandReferenceStrip({ hand, onMegaView }: HandReferenceStripProps
             <div
               key={cardId}
               onClick={() => onMegaView?.(cardId)}
+              {...buttonProps(onMegaView ? () => onMegaView(cardId) : undefined, `View ${card.name}`)}
               style={{
                 width: PEEK_WIDTH,
                 height: PEEK_HEIGHT,

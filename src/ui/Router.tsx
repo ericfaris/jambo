@@ -193,6 +193,7 @@ function RouterInner() {
         <FirstPlayerReveal
           firstPlayer={revealFirstPlayer}
           onComplete={handleRevealComplete}
+          localMultiplayer={pendingScreen === 'multiplayer'}
         />
         <AvatarBadge avatarUrl={auth.avatarUrl} avatarLabel={auth.avatarLabel} />
       </>

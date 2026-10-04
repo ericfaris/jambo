@@ -97,12 +97,35 @@ describe('Throne (Steal ware → Give ware)', () => {
 
     const s3 = resolve(s2, { type: 'SELECT_WARE', wareIndex: 0 });
     expect((s3.pendingResolution as any).step).toBe('GIVE');
-    expect(market(s3, 0).filter(w => w === 'silk').length).toBe(1);
+    expect((s3.pendingResolution as any).stolenWare).toBe('silk');
 
     const trinketIdx = market(s3, 0).indexOf('trinkets');
     const s4 = resolve(s3, { type: 'SELECT_WARE', wareIndex: trinketIdx });
     expect(s4.pendingResolution).toBeNull();
-    expect(market(s4, 1).filter(w => w === 'trinkets').length).toBe(1);
+    // Exchanged in place: each ware takes the other's slot
+    expect(market(s4, 0)[trinketIdx]).toBe('silk');
+    expect(market(s4, 1)[0]).toBe('trinkets');
+    expect(gold(s4, 0)).toBe(20);
+  });
+
+  // Official text: "exchange a ware from your market stand with one on your
+  // opponent's" — works with a full market, and costs no 6th-space fee.
+  it('exchanges even when both markets are full, with no 6th-space fee', () => {
+    let s = setupThrone();
+    s = withMarket(s, 0, ['trinkets', 'hides', 'tea', 'tea', 'fruit', 'salt']);
+    s = withMarket(s, 1, ['silk', 'silk', 'silk', 'salt', 'salt', 'salt']);
+    let s2 = act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 });
+    s2 = resolve(s2, { type: 'SELECT_WARE', wareIndex: 1 });
+    s2 = resolve(s2, { type: 'SELECT_WARE', wareIndex: 0 });
+    expect(market(s2, 0)[0]).toBe('silk');
+    expect(market(s2, 1)[1]).toBe('trinkets');
+    expect(gold(s2, 0)).toBe(20);
+  });
+
+  it('cannot be activated with no wares of your own to give', () => {
+    let s = setupThrone();
+    s = withMarket(s, 0, [null, null, null, null, null, null]);
+    expect(() => act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 })).toThrow(/no wares to exchange/);
   });
 });
 

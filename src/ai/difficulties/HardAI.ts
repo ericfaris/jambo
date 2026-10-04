@@ -1,6 +1,7 @@
 import type { GameAction, GameState, UtilityDesignId, WareType } from '../../engine/types.ts';
 
 import { getCard } from '../../engine/cards/CardDatabase.ts';
+import { getPendingResponder, getResponder, isAuctionBidding } from '../../engine/responder.ts';
 import { processAction } from '../../engine/GameEngine.ts';
 import { getValidActions } from '../../engine/validation/actionValidator.ts';
 import { getMediumAiAction } from './MediumAI.ts';
@@ -9,7 +10,7 @@ import { createRng } from '../../utils/rng.ts';
 import { determinizeForPlayer, createDeterminizeRng } from '../determinize.ts';
 import {
   countCurrentlySellableWareCards,
-  getAuctionMaxBid,
+  getAuctionMaxBidFor,
   getCardEconomyValue,
   getCardPressureBonus,
   getDefensiveAnimalPriority,
@@ -35,33 +36,7 @@ function createHardRng(state: GameState): () => number {
   return createRng(seed);
 }
 
-export function getPendingResponder(state: GameState): 0 | 1 {
-  const pr = state.pendingResolution;
-  if (!pr) return state.currentPlayer;
-
-  switch (pr.type) {
-    case 'AUCTION':
-      return pr.wares.length < 2 ? state.currentPlayer : pr.nextBidder;
-    case 'DRAFT':
-      return pr.currentPicker;
-    case 'OPPONENT_DISCARD':
-    case 'CARRIER_WARE_SELECT':
-      return pr.targetPlayer;
-    case 'UTILITY_KEEP':
-      return pr.step === 'ACTIVE_CHOOSE' ? state.currentPlayer : (state.currentPlayer === 0 ? 1 : 0);
-    case 'OPPONENT_CHOICE':
-      return state.currentPlayer === 0 ? 1 : 0;
-    default:
-      return state.currentPlayer;
-  }
-}
-
-function getResponder(state: GameState): 0 | 1 {
-  if (state.pendingGuardReaction) return state.pendingGuardReaction.targetPlayer;
-  if (state.pendingWareCardReaction) return state.pendingWareCardReaction.targetPlayer;
-  if (state.pendingResolution) return getPendingResponder(state);
-  return state.currentPlayer;
-}
+export { getPendingResponder };
 
 export function evaluateBoard(state: GameState, perspective: 0 | 1): number {
   const me = perspective;
@@ -386,7 +361,7 @@ export function getHardInteractionAction(state: GameState, rng: () => number): G
 
 export function getHardAuctionBidAction(state: GameState): GameAction | null {
   const pr = state.pendingResolution;
-  if (!pr || pr.type !== 'AUCTION' || pr.wares.length < 2) return null;
+  if (!pr || pr.type !== 'AUCTION' || !isAuctionBidding(pr)) return null;
 
   const me = pr.nextBidder;
   const bidAmount = pr.currentBid + 1;
@@ -397,7 +372,7 @@ export function getHardAuctionBidAction(state: GameState): GameAction | null {
   }
 
   // Use valuation-based ceiling from heuristics
-  const maxBid = getAuctionMaxBid(state, me, pr.wares);
+  const maxBid = getAuctionMaxBidFor(state, me, pr);
 
   if (bidAmount > maxBid) {
     return { type: 'RESOLVE_INTERACTION', response: { type: 'AUCTION_PASS' } };
@@ -441,7 +416,7 @@ export function getHardAuctionBidAction(state: GameState): GameAction | null {
 
 export function getHardAiAction(state: GameState, rng: () => number = createHardRng(state)): GameAction | null {
   // Special handling for auction bidding — use board evaluation
-  if (state.pendingResolution?.type === 'AUCTION' && state.pendingResolution.wares.length >= 2) {
+  if (state.pendingResolution?.type === 'AUCTION' && isAuctionBidding(state.pendingResolution)) {
     const auctionAction = getHardAuctionBidAction(state);
     if (auctionAction) return auctionAction;
   }

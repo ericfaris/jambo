@@ -3,7 +3,8 @@
 // Splits full GameState into public + private views for each player/TV.
 // ============================================================================
 
-import type { GameState, DeckCardId } from '../engine/types.ts';
+import { isAuctionBidding } from '../engine/responder.ts';
+import type { GameState, DeckCardId, GameLogEntry } from '../engine/types.ts';
 import type {
   PublicGameState,
   PublicPlayerState,
@@ -34,10 +35,22 @@ export function extractPublicState(state: GameState): PublicGameState {
     pendingWareCardReaction: state.pendingWareCardReaction,
     turnModifiers: state.turnModifiers,
     endgame: state.endgame,
-    log: state.log,
+    log: state.log.map(redactHiddenCards),
     pendingResolutionType: state.pendingResolution?.type ?? null,
     waitingOnPlayer: getWaitingPlayer(state),
   };
+}
+
+/**
+ * The public log goes to the TV and both phones, so card ids for cards that
+ * stay hidden (draws, kept cards, Psychic picks) become "a card".
+ */
+const HIDDEN_CARD_PATTERN = /\b(Drew|drew|Kept|picked)\s+[a-z]+(?:_[a-z0-9]+)*_\d+\b/g;
+
+export function redactHiddenCards(entry: GameLogEntry): GameLogEntry {
+  if (!entry.details) return entry;
+  const details = entry.details.replace(HIDDEN_CARD_PATTERN, '$1 a card');
+  return details === entry.details ? entry : { ...entry, details };
 }
 
 /**
@@ -148,7 +161,7 @@ function getWaitingPlayer(state: GameState): 0 | 1 | null {
     case 'AUCTION':
       // Traveling Merchant first requires the current player to pick 2 wares,
       // then bidding alternates by nextBidder.
-      if (pr.wares.length < 2) {
+      if (!isAuctionBidding(pr)) {
         return state.currentPlayer;
       }
       return pr.nextBidder;

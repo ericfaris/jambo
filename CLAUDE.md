@@ -202,7 +202,7 @@ Each costs 1 action:
 - **Play a Utility card** from hand (place face-up, max 3 in play)
 - **Activate a Utility** already in play (1 use per utility per turn)
 
-**End of turn**: 5-card hand limit enforced. If 2+ actions unused, earn +1g bonus.
+**End of turn**: If 2+ actions unused, earn +1g bonus. There is **no hand limit** (official rules: "players can have as many cards in their hands as they want").
 
 ### Card Types (110 cards, 51 unique designs)
 
@@ -214,7 +214,11 @@ Each costs 1 action:
 - Three different: buy 5g / sell 12g (12 copies)
 - All ware tokens are equal — prices are per-card, not per-type
 
-**Small Market Stand (5)** — 6g first, 3g each additional. Adds 3 market slots.
+**Small Market Stand (5)** — the first stand built *in the game* costs 6g; every later stand (either player) costs 3g. Adds 3 market slots.
+
+**6th space**: filling the 6th space of the large market stand costs 2g each time. Wares fill the large stand's free spaces, then small stands, then the 6th space (`MarketManager.getPlacementPlan`). Swaps (Throne, Shaman) exchange in place and never pay the fee.
+
+**Not enough room for wares from people/animal cards**: the player takes what fits; the rest stays in the supply (`placeWaresUpToCapacity`).
 
 **People Cards (29)** — 13 unique designs. One-time effects, discarded after use.
 - **Guard (x6)**: Reaction — cancel opponent's animal card (both discarded)

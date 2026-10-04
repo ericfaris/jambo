@@ -20,6 +20,7 @@ import { FEEDBACK_TIMINGS } from './animationTimings.ts';
 import { CastEndgameOverlay } from './CastEndgameOverlay.tsx';
 import { useCastRoomSync } from '../cast/useCastRoomSync.ts';
 import { isCastSdkEnabled } from '../cast/factory.ts';
+import { formatLogRecap } from './uiHints.ts';
 
 type AnimationSpeed = 'normal' | 'fast';
 const ANIMATION_SPEED_STORAGE_KEY = 'jambo.animationSpeed';
@@ -663,8 +664,7 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
   useEffect(() => {
     if (pub.log.length === 0) return;
     const latest = pub.log[pub.log.length - 1];
-    const recap = `P${latest.player + 1}: ${latest.action}${latest.details ? ` - ${latest.details}` : ''}`;
-    setLastActionRecap(recap);
+    setLastActionRecap(formatLogRecap(latest, ['Player 1', 'Player 2']));
     const timer = window.setTimeout(() => setLastActionRecap(null), 2500);
     return () => window.clearTimeout(timer);
   }, [pub.log.length]);

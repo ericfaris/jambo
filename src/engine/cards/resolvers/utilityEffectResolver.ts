@@ -10,7 +10,7 @@ import type {
   PlayerState,
 } from '../../types.ts';
 import { drawFromDeck, discardCard } from '../../deck/DeckManager.ts';
-import { addWareToMarket, getEmptySlots } from '../../market/MarketManager.ts';
+import { addWareToMarket, getPlacementCapacity } from '../../market/MarketManager.ts';
 import { takeFromSupply, returnToSupply } from '../../market/WareSupply.ts';
 
 function withPlayer(
@@ -165,7 +165,7 @@ function resolveBoat(
   if (pending.step === 'SELECT_WARE_TYPE') {
     // Guard: no market space or no available supply — auto-resolve
     const hasAnySupply = Object.values(state.wareSupply).some(v => v > 0);
-    if (getEmptySlots(state, cp).length < 1 || !hasAnySupply) {
+    if (getPlacementCapacity(state, cp) < 1 || !hasAnySupply) {
       let next: GameState = { ...state, pendingResolution: null };
       next = withLog(next, 'BOAT_EFFECT', 'Cannot receive ware (no market space or supply)');
       return next;
@@ -181,9 +181,9 @@ function resolveBoat(
       throw new Error(`No ${wareType} in supply`);
     }
 
-    // Check market space
-    if (getEmptySlots(state, cp).length < 1) {
-      throw new Error('No empty market slots');
+    // Check market space (the 6th large-stand space needs its 2g fee)
+    if (getPlacementCapacity(state, cp) < 1) {
+      throw new Error('No room on market stands');
     }
 
     let next = takeFromSupply(state, wareType, 1);
@@ -347,7 +347,7 @@ function resolveLeopardStatue(
 
   // Guard: insufficient gold, no market space, or no available supply — auto-resolve
   const hasAnySupply = Object.values(state.wareSupply).some(v => v > 0);
-  if (state.players[cp].gold < 2 || getEmptySlots(state, cp).length < 1 || !hasAnySupply) {
+  if (state.players[cp].gold < 2 || getPlacementCapacity(state, cp, state.players[cp].gold - 2) < 1 || !hasAnySupply) {
     let next: GameState = { ...state, pendingResolution: null };
     next = withLog(next, 'LEOPARD_STATUE_EFFECT', 'Cannot receive ware from Leopard Statue');
     return next;

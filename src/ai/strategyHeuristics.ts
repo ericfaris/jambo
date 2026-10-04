@@ -1,6 +1,7 @@
 import type {
   DeckCardId,
   GameState,
+  PendingAuction,
   PlayerState,
   UtilityDesignId,
   WareCardWares,
@@ -652,6 +653,40 @@ export function getAuctionMaxBid(state: GameState, playerIndex: 0 | 1, auctionWa
 
   // Absolute floor: always willing to bid at least 1g if we have market space
   return Math.max(1, maxBid);
+}
+
+/**
+ * Arabian Merchant: what the revealed deck cards are worth to this player.
+ * A card is worth ~1.5g on its own (Well pays 1g + an action for one); ware
+ * cards we could sell right away and Guards are worth more.
+ */
+export function getCardAuctionMaxBid(state: GameState, playerIndex: 0 | 1, cards: readonly DeckCardId[]): number {
+  const player = state.players[playerIndex];
+  const { counts } = countMarket(player);
+  let value = 0;
+  for (const cardId of cards) {
+    const card = getCard(cardId);
+    value += 1.5;
+    if (card.type === 'ware' && card.wares) {
+      const needed = getNeededByType(card.wares, counts);
+      const missing = WARE_TYPES.reduce((sum, type) => sum + needed[type], 0);
+      if (missing === 0) value += 2;
+      else if (missing <= 1) value += 1;
+    } else if (card.designId === 'guard') {
+      value += 1;
+    } else if (card.type === 'animal') {
+      value += 0.5;
+    }
+  }
+  const goldCap = Math.floor(player.gold * 0.4);
+  return Math.max(1, Math.min(Math.floor(value), goldCap));
+}
+
+/** Max bid for whichever kind of auction is pending. */
+export function getAuctionMaxBidFor(state: GameState, playerIndex: 0 | 1, pr: PendingAuction): number {
+  return pr.revealedCards && pr.revealedCards.length > 0
+    ? getCardAuctionMaxBid(state, playerIndex, pr.revealedCards)
+    : getAuctionMaxBid(state, playerIndex, pr.wares);
 }
 
 export function pickBestWareType(state: GameState, playerIndex: 0 | 1, candidates: readonly WareType[]): WareType {

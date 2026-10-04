@@ -19,16 +19,18 @@ export function SpeechBubble({ message, visible, onHide }: SpeechBubbleProps) {
   if (!visible || !message) return null;
 
   return (
-    <div style={{
+    <div role="status" aria-live="polite" style={{
       position: 'absolute',
       top: 60,
-      right: 80,
+      // Sit left of the opponent's gold / card-count block (bottom-right of the panel)
+      right: 'clamp(160px, 22vw, 260px)',
       zIndex: 2000,
+      pointerEvents: 'none',
       animation: 'speechBubbleFadeIn 0.3s ease-out',
     }}>
       <img
         src="/assets/bubble/speech_bubble.png"
-        alt="Speech bubble"
+        alt=""
         style={{
           width: 240,
           height: 'auto',

@@ -4,6 +4,17 @@
 
 ---
 
+## Market rules (official rulebook)
+
+Source: Rio Grande Games English rules (2004) — https://web.archive.org/web/20120207123446/http://www.riograndegames.com/uploads/Game/Game_120_gameRules.pdf
+(the rulebook has no per-card texts; those are printed on the cards).
+
+
+- **Large market stand:** 6 spaces. Five are free; **filling the 6th space costs 2g, every time**. Wares fill the free spaces, then small stands, then the 6th space.
+- **Small market stand:** the first one built in the game costs 6g; every later one (either player) costs 3g.
+- **Not enough room** for wares gained from people/animal cards: take what fits, leave the rest in the supply.
+- **No hand limit.**
+
 ## Ware Types (6)
 
 | Code | Ware     |
@@ -76,7 +87,7 @@ Every ware card can be used to **buy** (pay gold, receive wares from supply) **o
 ## Small Market Stand (5 in deck)
 
 - **Copies:** 5
-- **Cost:** 6g for first stand, 3g for each additional
+- **Cost:** 6g for the first stand built in the game (by either player); every later stand costs 3g
 - **Effect:** Adds 3 extra ware slots to your market (base 6 + 3 per stand)
 
 ---
@@ -119,12 +130,12 @@ People cards have one-time effects and are discarded after use. People cards **c
 ### Basket Maker (x2)
 - **Cost:** 1 action + 2g
 - **Effect:** Pay 2g. Choose 1 ware type. Take 2 of that type from supply and add to your market.
-- **Requirements:** 2g gold. 2 empty market slots. Supply has 2+ of chosen type.
+- **Requirements:** 2g gold. Room for at least 1 ware (with only 1 space, you take 1 and the other stays in the supply). Supply has 2+ of chosen type.
 
 ### Traveling Merchant (x2)
 - **Cost:** 1 action
-- **Effect:** Select 2 ware types from supply to put up for auction. Players alternate bidding (starting at 1g). First pass ends auction. Winner pays bid amount and receives both wares from supply.
-- **Requirements:** At least 1 ware type available in supply.
+- **Effect:** Select 2 ware types from supply to put up for auction. Players alternate bidding (starting at 1g). First pass ends auction. Winner pays bid amount and receives both wares from supply (only what fits on their stands; the rest goes back to the supply).
+- **Requirements:** At least 1 ware type available in supply, 2 empty market spaces, and 1g for the automatic opening bid.
 
 ### Arabian Merchant (x2)
 - **Cost:** 1 action
@@ -166,7 +177,7 @@ All animal cards cost **1 action** to play. Animal cards can be **negated by Gua
 - **Effect:** Both you and opponent discard all but 1 face-up utility card. Each player independently chooses which utility to keep.
 
 ### Elephant (x1)
-- **Effect:** Both players put all wares from their markets into a shared pool. Then draft 1 ware at a time, alternating picks (active player picks first), until all wares are distributed.
+- **Effect:** Both players put all wares from their markets into a shared pool. Then draft 1 ware at a time, alternating picks (active player picks first), until all wares are distributed. A pick that doesn't fit on the picker's stands goes back to the supply.
 
 ### Ape (x1)
 - **Effect:** Both players put all hand cards into a shared pool. Then draft 1 card at a time, alternating picks (active player picks first), until all cards are distributed.
@@ -190,7 +201,7 @@ Utility cards are placed in your play area (max 3 at a time). Each can be activa
 - **Activation:** Return 1 ware from your market to supply. Draw 1 card from deck to hand.
 
 ### Throne (x2)
-- **Activation:** Swap 1 ware from your market with 1 ware from opponent's market.
+- **Activation:** Exchange 1 ware from your market with 1 ware from opponent's market. The wares trade places, so this works with full markets and never fills a new (paid 6th) space.
 - **Requirements:** Both players have 1+ ware in market.
 
 ### Boat (x2)

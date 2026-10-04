@@ -90,3 +90,52 @@ describe('InteractionPanel auction continuity', () => {
     expect(biddingForOpponent).toContain('Current bid: 1g. Your turn.');
   });
 });
+
+describe('InteractionPanel Arabian Merchant card auction', () => {
+  function cardAuction(base: GameState, nextBidder: 0 | 1): GameState {
+    return {
+      ...base,
+      currentPlayer: 0,
+      pendingResolution: {
+        type: 'AUCTION',
+        sourceCard: 'arabian_merchant_1',
+        wares: [],
+        revealedCards: base.deck.slice(0, 3),
+        currentBid: 0,
+        currentBidder: 1,
+        nextBidder,
+        passed: [false, false],
+      },
+    };
+  }
+
+  it('shows the revealed cards and bid/pass to the bidder', () => {
+    const html = renderToStaticMarkup(createElement(InteractionPanel, { state: cardAuction(createTestState(), 0), dispatch: noopDispatch, viewerPlayer: 0 }));
+    expect(html).toContain('Arabian Merchant - Resolve');
+    expect(html).toContain('Auction for 3 cards');
+    expect(html).toContain('Bid 1g');
+    expect(html).toContain('Pass');
+    expect(html).not.toContain('Pick first ware');
+  });
+
+  it('shows a waiting message to the non-bidder', () => {
+    const html = renderToStaticMarkup(createElement(InteractionPanel, { state: cardAuction(createTestState(), 1), dispatch: noopDispatch, viewerPlayer: 0 }));
+    expect(html).toContain('Waiting for opponent bid');
+    expect(html).not.toContain('Bid 1g');
+  });
+});
+
+describe('Arabian Merchant panel layout', () => {
+  it('uses the compact source-card layout so Bid/Pass stay on screen', () => {
+    const base = createTestState();
+    const state: GameState = {
+      ...base,
+      pendingResolution: {
+        type: 'AUCTION', sourceCard: 'arabian_merchant_1', wares: [], revealedCards: base.deck.slice(0, 3),
+        currentBid: 0, currentBidder: 1, nextBidder: 0, passed: [false, false],
+      },
+    };
+    const html = renderToStaticMarkup(createElement(InteractionPanel, { state, dispatch: noopDispatch, viewerPlayer: 0 }));
+    expect(html).toContain('max-width:980px');
+  });
+});

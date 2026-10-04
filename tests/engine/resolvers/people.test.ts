@@ -437,48 +437,121 @@ describe('Supplies (Binary Choice → draw-until-ware)', () => {
   });
 });
 
-describe('Arabian Merchant market space restriction', () => {
-  it('cannot play Arabian Merchant with fewer than 2 empty market slots', () => {
+describe('Traveling Merchant market space restriction', () => {
+  it('cannot play Traveling Merchant with fewer than 2 empty market slots', () => {
     let s = toPlayPhase(createTestState());
-    s = withHand(s, 0, ['arabian_merchant_1']);
-    s = removeFromDeck(s, 'arabian_merchant_1');
+    s = withHand(s, 0, ['traveling_merchant_1']);
+    s = removeFromDeck(s, 'traveling_merchant_1');
     s = withGold(s, 0, 20);
     // Fill market completely — no empty slots
     s = withMarket(s, 0, ['trinkets', 'hides', 'tea', 'silk', 'fruit', 'salt']);
-    expect(() => act(s, { type: 'PLAY_CARD', cardId: 'arabian_merchant_1' })).toThrow(
+    expect(() => act(s, { type: 'PLAY_CARD', cardId: 'traveling_merchant_1' })).toThrow(
       /need at least 2 empty market slots/
     );
   });
 
-  it('cannot play Arabian Merchant with only 1 empty market slot', () => {
+  it('cannot play Traveling Merchant with only 1 empty market slot', () => {
     let s = toPlayPhase(createTestState());
-    s = withHand(s, 0, ['arabian_merchant_1']);
-    s = removeFromDeck(s, 'arabian_merchant_1');
+    s = withHand(s, 0, ['traveling_merchant_1']);
+    s = removeFromDeck(s, 'traveling_merchant_1');
     s = withGold(s, 0, 20);
     s = withMarket(s, 0, ['trinkets', 'hides', 'tea', 'silk', 'fruit', null]);
-    expect(() => act(s, { type: 'PLAY_CARD', cardId: 'arabian_merchant_1' })).toThrow(
+    expect(() => act(s, { type: 'PLAY_CARD', cardId: 'traveling_merchant_1' })).toThrow(
       /need at least 2 empty market slots/
     );
   });
 
   it('allowed with 2+ empty market slots', () => {
     let s = toPlayPhase(createTestState());
-    s = withHand(s, 0, ['arabian_merchant_1']);
-    s = removeFromDeck(s, 'arabian_merchant_1');
+    s = withHand(s, 0, ['traveling_merchant_1']);
+    s = removeFromDeck(s, 'traveling_merchant_1');
     s = withGold(s, 0, 20);
     s = withMarket(s, 0, ['trinkets', 'hides', 'tea', 'silk', null, null]);
-    const s2 = act(s, { type: 'PLAY_CARD', cardId: 'arabian_merchant_1' });
+    const s2 = act(s, { type: 'PLAY_CARD', cardId: 'traveling_merchant_1' });
     expect(s2.pendingResolution!.type).toBe('AUCTION');
   });
 
   it('does not appear in getValidActions with full market', () => {
     let s = toPlayPhase(createTestState());
-    s = withHand(s, 0, ['arabian_merchant_1']);
-    s = removeFromDeck(s, 'arabian_merchant_1');
+    s = withHand(s, 0, ['traveling_merchant_1']);
+    s = removeFromDeck(s, 'traveling_merchant_1');
     s = withGold(s, 0, 20);
     s = withMarket(s, 0, ['trinkets', 'hides', 'tea', 'silk', 'fruit', 'salt']);
     const actions = getValidActions(s);
-    const playActions = actions.filter(a => a.type === 'PLAY_CARD' && a.cardId === 'arabian_merchant_1');
+    const playActions = actions.filter(a => a.type === 'PLAY_CARD' && a.cardId === 'traveling_merchant_1');
     expect(playActions).toHaveLength(0);
+  });
+});
+
+describe('Arabian Merchant (card auction)', () => {
+  function setupArabian() {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['arabian_merchant_1']);
+    s = removeFromDeck(s, 'arabian_merchant_1');
+    s = withHand(s, 1, []);
+    s = withGold(s, 0, 20);
+    s = withGold(s, 1, 20);
+    return s;
+  }
+
+  it('reveals the top 3 deck cards and opens bidding with the active player', () => {
+    const s = setupArabian();
+    const top3 = s.deck.slice(0, 3);
+    const s2 = act(s, { type: 'PLAY_CARD', cardId: 'arabian_merchant_1' });
+    const pr = s2.pendingResolution;
+    expect(pr?.type).toBe('AUCTION');
+    if (pr?.type !== 'AUCTION') return;
+    expect(pr.revealedCards).toEqual(top3);
+    expect(pr.wares).toEqual([]);
+    expect(pr.currentBid).toBe(0);
+    expect(pr.nextBidder).toBe(0);
+  });
+
+  it('works even with a full market (cards, not wares)', () => {
+    let s = setupArabian();
+    s = withMarket(s, 0, ['trinkets', 'hides', 'tea', 'silk', 'fruit', 'salt']);
+    const s2 = act(s, { type: 'PLAY_CARD', cardId: 'arabian_merchant_1' });
+    expect(s2.pendingResolution?.type).toBe('AUCTION');
+  });
+
+  it('highest bidder pays and takes all 3 cards into hand', () => {
+    const s = setupArabian();
+    const top3 = s.deck.slice(0, 3);
+    let s2 = act(s, { type: 'PLAY_CARD', cardId: 'arabian_merchant_1' });
+    s2 = resolve(s2, { type: 'AUCTION_BID', amount: 1 }); // P0 bids 1
+    s2 = resolve(s2, { type: 'AUCTION_BID', amount: 2 }); // P1 raises to 2
+    s2 = resolve(s2, { type: 'AUCTION_PASS' });           // P0 passes → P1 wins
+    expect(s2.pendingResolution).toBeNull();
+    expect(gold(s2, 1)).toBe(18);
+    expect(gold(s2, 0)).toBe(20);
+    expect(hand(s2, 1)).toEqual(top3);
+    for (const c of top3) expect(s2.deck).not.toContain(c);
+    expect(s2.discardPile).toContain('arabian_merchant_1');
+  });
+
+  it('no bids → the revealed cards are discarded', () => {
+    const s = setupArabian();
+    const top3 = s.deck.slice(0, 3);
+    let s2 = act(s, { type: 'PLAY_CARD', cardId: 'arabian_merchant_1' });
+    s2 = resolve(s2, { type: 'AUCTION_PASS' });
+    expect(s2.pendingResolution).toBeNull();
+    for (const c of top3) {
+      expect(s2.discardPile).toContain(c);
+      expect(s2.deck).not.toContain(c);
+    }
+    expect(gold(s2, 0)).toBe(20);
+  });
+
+  it('cannot bid more gold than you have', () => {
+    let s = setupArabian();
+    s = withGold(s, 0, 1);
+    const s2 = act(s, { type: 'PLAY_CARD', cardId: 'arabian_merchant_1' });
+    expect(() => resolve(s2, { type: 'AUCTION_BID', amount: 2 })).toThrow(/cannot afford/);
+  });
+
+  it('cannot be played with an empty deck', () => {
+    let s = setupArabian();
+    s = { ...s, discardPile: [...s.deck, ...s.discardPile], deck: [] };
+    expect(() => act(s, { type: 'PLAY_CARD', cardId: 'arabian_merchant_1' })).toThrow(/draw deck is empty/);
   });
 });

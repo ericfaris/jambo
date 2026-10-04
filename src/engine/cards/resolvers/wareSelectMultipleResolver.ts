@@ -2,9 +2,9 @@
 // Ware Select Multiple Resolver - Basket Maker (pay 2g, choose type, get 2)
 // ============================================================================
 
-import type { GameState, PendingWareSelectMultiple, InteractionResponse } from '../../types.ts';
+import type { GameState, PendingWareSelectMultiple, InteractionResponse, WareType } from '../../types.ts';
 import { hasSupply, takeFromSupply } from '../../market/WareSupply.ts';
-import { addWareToMarket, getEmptySlots } from '../../market/MarketManager.ts';
+import { getPlacementCapacity, placeWaresUpToCapacity } from '../../market/MarketManager.ts';
 
 export function resolveWareSelectMultiple(
   state: GameState,
@@ -14,9 +14,9 @@ export function resolveWareSelectMultiple(
   const activePlayer = state.currentPlayer;
   const { count } = pending;
 
-  // Guard: can't afford or no market space — auto-resolve with no effect
-  const emptySlots = getEmptySlots(state, activePlayer);
-  if (state.players[activePlayer].gold < 2 || emptySlots.length < count) {
+  // Guard: can't afford or no room for even 1 ware — auto-resolve with no effect
+  const gold = state.players[activePlayer].gold;
+  if (gold < 2 || getPlacementCapacity(state, activePlayer, gold - 2) < 1) {
     return {
       ...state,
       pendingResolution: null,
@@ -61,18 +61,13 @@ export function resolveWareSelectMultiple(
     throw new Error(`Supply doesn't have ${count} ${wareType}`);
   }
 
-  // Execute: pay gold, take from supply, add to market
-  let newState = takeFromSupply(state, wareType, count);
-
-  for (let i = 0; i < count; i++) {
-    newState = addWareToMarket(newState, activePlayer, wareType);
-  }
-
-  const newPlayers = [...newState.players] as [typeof newState.players[0], typeof newState.players[1]];
-  newPlayers[activePlayer] = {
-    ...newPlayers[activePlayer],
-    gold: newPlayers[activePlayer].gold - 2,
-  };
+  // Execute: pay 2g, then take as many as fit (the rest stay in the supply)
+  const paidPlayers = [...state.players] as [typeof state.players[0], typeof state.players[1]];
+  paidPlayers[activePlayer] = { ...paidPlayers[activePlayer], gold: paidPlayers[activePlayer].gold - 2 };
+  let newState: GameState = { ...state, players: paidPlayers };
+  const placement = placeWaresUpToCapacity(newState, activePlayer, Array(count).fill(wareType) as WareType[]);
+  newState = takeFromSupply(placement.state, wareType, placement.placed.length);
+  const newPlayers = newState.players;
 
   return {
     ...newState,
@@ -82,7 +77,7 @@ export function resolveWareSelectMultiple(
       turn: state.turn,
       player: activePlayer,
       action: 'BASKET_MAKER',
-      details: `Paid 2g, received ${count} ${wareType}`,
+      details: `Paid 2g, received ${placement.placed.length} ${wareType}`,
     }],
   };
 }

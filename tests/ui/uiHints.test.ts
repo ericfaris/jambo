@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatResolutionBreadcrumb, getDrawDisabledReason, getPlayDisabledReason } from '../../src/ui/uiHints.ts';
+import { formatLogRecap, formatTurnOwner, formatResolutionBreadcrumb, getDrawDisabledReason, getPlayDisabledReason } from '../../src/ui/uiHints.ts';
 import { createTestState, toPlayPhase, act, withHand, removeFromDeck } from '../helpers/testHelpers.ts';
 
 describe('uiHints', () => {
@@ -43,5 +43,34 @@ describe('uiHints', () => {
     const breadcrumb = formatResolutionBreadcrumb(afterChoice.pendingResolution!);
     expect(breadcrumb).toContain('Tribal Elder');
     expect(breadcrumb).toContain('3');
+  });
+});
+
+describe('formatLogRecap', () => {
+  it('names the actor and replaces card ids with card names', () => {
+    expect(formatLogRecap({ player: 1, action: 'CROCODILE_CLEANUP', details: "Discarded opponent's well_1 after Crocodile use" }, ['You', 'Opponent']))
+      .toBe("Opponent: Discarded opponent's Well after Crocodile use");
+  });
+
+  it('never shows raw action codes', () => {
+    const text = formatLogRecap({ player: 0, action: 'END_TURN' }, ['You', 'Opponent']);
+    expect(text).toBe('You: End turn');
+    expect(text).not.toContain('END_TURN');
+  });
+});
+
+describe('formatTurnOwner', () => {
+  it('matches the board labels', () => {
+    expect(formatTurnOwner('You')).toBe('Your turn');
+    expect(formatTurnOwner('Opponent')).toBe("Opponent's turn");
+    expect(formatTurnOwner('Player 2')).toBe("Player 2's turn");
+  });
+});
+
+describe('log redaction', () => {
+  it("hides the AI's drawn card from the human in solo", () => {
+    const entry = { player: 1 as const, action: 'DRAW_CARD', details: 'Drew scale_1' };
+    expect(formatLogRecap(entry, ['You', 'Opponent'], 1)).toBe('Opponent: Drew a card');
+    expect(formatLogRecap({ ...entry, player: 0 }, ['You', 'Opponent'], 1)).toBe('You: Drew Scale');
   });
 });

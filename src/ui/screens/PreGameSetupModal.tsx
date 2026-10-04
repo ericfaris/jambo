@@ -123,7 +123,7 @@ export function PreGameSetupModal({ mode, aiDifficulty: initialDifficulty, onCan
                 selected={difficulty === 'expert'}
                 onClick={() => setDifficulty('expert')}
                 label="Expert"
-                description="2-ply look-ahead"
+                description="Simulates future turns"
               />
             </div>
           </div>

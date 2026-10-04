@@ -6,6 +6,7 @@ import { getCard } from '../engine/cards/CardDatabase.ts';
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { FEEDBACK_TIMINGS } from './animationTimings.ts';
+import { formatLogRecap, formatTurnOwner } from './uiHints.ts';
 
 interface CenterRowProps {
   state: GameState;
@@ -13,9 +14,13 @@ interface CenterRowProps {
   isLocalMode?: boolean;
   showGlow?: boolean;
   visualFeedback?: VisualFeedbackState;
+  /** Names for players 0 and 1 in the action recap ("You"/"Opponent", or seat names) */
+  actorLabels?: readonly [string, string];
+  /** Player whose card identities must stay hidden in the recap (the AI in solo) */
+  hiddenPlayer?: 0 | 1 | null;
 }
 
-export function CenterRow({ state, isLocalMode = true, showGlow = false, visualFeedback }: CenterRowProps) {
+export function CenterRow({ state, isLocalMode = true, showGlow = false, visualFeedback, actorLabels = ['Player 1', 'Player 2'], hiddenPlayer = null }: CenterRowProps) {
   const phaseLabel = state.phase === 'DRAW'
     ? `Draw Phase (${state.drawsThisPhase}/5)`
     : state.phase === 'PLAY'
@@ -66,8 +71,7 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
   useEffect(() => {
     if (state.log.length === 0) return;
     const latest = state.log[state.log.length - 1];
-    const recap = `P${latest.player + 1}: ${latest.action}${latest.details ? ` - ${latest.details}` : ''}`;
-    setLastActionRecap(recap);
+    setLastActionRecap(formatLogRecap(latest, actorLabels, hiddenPlayer));
 
     const timer = window.setTimeout(() => setLastActionRecap(null), 2500);
     return () => window.clearTimeout(timer);
@@ -232,7 +236,7 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
         })
       }}>
         <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-          Turn {state.turn} &middot; Player {state.currentPlayer + 1}
+          Turn {state.turn} &middot; {formatTurnOwner(actorLabels[state.currentPlayer])}
         </div>
         <div style={{ fontWeight: 700, fontSize: 17, color: phaseColor, transition: 'color 0.4s ease' }}>
           {phaseLabel}

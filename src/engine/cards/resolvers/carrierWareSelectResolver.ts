@@ -9,7 +9,7 @@ import type {
   InteractionResponse,
 } from '../../types.ts';
 import { takeFromSupply } from '../../market/WareSupply.ts';
-import { addWaresToMarket, getEmptySlots } from '../../market/MarketManager.ts';
+import { addWaresToMarket, getPlacementCapacity } from '../../market/MarketManager.ts';
 
 export function resolveCarrierWareSelect(
   state: GameState,
@@ -19,8 +19,7 @@ export function resolveCarrierWareSelect(
   const target = pending.targetPlayer;
 
   // Guard: no market space for target — auto-resolve
-  const emptySlots = getEmptySlots(state, target).length;
-  if (emptySlots === 0) {
+  if (getPlacementCapacity(state, target) === 0) {
     return {
       ...state,
       pendingResolution: null,
@@ -61,7 +60,7 @@ export function resolveCarrierWareSelect(
   }
 
   // Validate market space
-  const toAdd = Math.min(count, emptySlots);
+  const toAdd = Math.min(count, getPlacementCapacity(state, target));
   if (toAdd === 0) {
     throw new Error('No empty market slots');
   }

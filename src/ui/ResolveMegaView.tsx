@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { DeckCardId } from '../engine/types.ts';
 import { HandReferenceStrip } from './HandReferenceStrip.tsx';
@@ -10,8 +11,34 @@ interface ResolveMegaViewProps {
   hideHandStrip?: boolean;
 }
 
+/** Height reserved for the fixed HandReferenceStrip (45px peeks + padding + border). */
+export const HAND_STRIP_RESERVE_PX = 60;
+
 export function ResolveMegaView({ children, verticalAlign = 'top', hand, onMegaView, hideHandStrip }: ResolveMegaViewProps) {
   const showStrip = !hideHandStrip && hand && hand.length > 0;
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [moreBelow, setMoreBelow] = useState(false);
+
+  // Show a "More below" cue while the panel's buttons are scrolled out of view
+  const updateMoreBelow = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setMoreBelow(el.scrollHeight - el.scrollTop - el.clientHeight > 8);
+  }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    updateMoreBelow();
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateMoreBelow) : null;
+    observer?.observe(el);
+    if (el.firstElementChild) observer?.observe(el.firstElementChild);
+    window.addEventListener('resize', updateMoreBelow);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', updateMoreBelow);
+    };
+  }, [updateMoreBelow, children]);
 
   return (
     <div
@@ -26,23 +53,50 @@ export function ResolveMegaView({ children, verticalAlign = 'top', hand, onMegaV
         alignItems: verticalAlign === 'center' ? 'center' : 'flex-start',
         justifyContent: 'center',
         padding: 'clamp(8px, 3vw, 24px)',
+        // Keep the scroll area clear of the fixed hand strip so buttons never sit under it
+        paddingBottom: showStrip ? HAND_STRIP_RESERVE_PX : undefined,
         overflowY: 'auto',
       }}
     >
       <div
+        ref={scrollRef}
+        onScroll={updateMoreBelow}
         className="dialog-pop"
         style={{
           width: 'min(980px, 100%)',
-          maxHeight: 'calc(100vh - 16px)',
+          maxHeight: `calc(100dvh - 16px - ${showStrip ? HAND_STRIP_RESERVE_PX : 0}px)`,
           overflowY: 'auto',
           border: 'none',
           background: 'transparent',
           boxShadow: 'none',
           margin: '0 auto',
-          paddingBottom: showStrip ? 55 : undefined,
+          position: 'relative',
         }}
       >
-        {children}
+        <div>{children}</div>
+        {moreBelow && (
+          <button
+            type="button"
+            onClick={() => scrollRef.current?.scrollBy({ top: scrollRef.current.clientHeight * 0.8, behavior: 'smooth' })}
+            style={{
+              position: 'sticky',
+              bottom: 8,
+              display: 'block',
+              margin: '0 auto',
+              zIndex: 2,
+              borderRadius: 999,
+              padding: '6px 16px',
+              fontSize: 14,
+              fontWeight: 700,
+              background: 'var(--gold)',
+              color: '#1a1714',
+              border: '1px solid #1a1714',
+              boxShadow: '0 2px 12px rgba(0,0,0,0.6)',
+            }}
+          >
+            More below ↓
+          </button>
+        )}
       </div>
       {showStrip && (
         <HandReferenceStrip hand={hand} onMegaView={onMegaView} />

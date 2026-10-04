@@ -159,6 +159,25 @@ describe('Shaman: requires wares in market', () => {
   });
 });
 
+describe('Portuguese: requires wares in market', () => {
+  it('blocks when market is empty', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['portuguese_1']);
+    s = removeFromDeck(s, 'portuguese_1');
+    s = withMarket(s, 0, [null, null, null, null, null, null]);
+    expect(() => act(s, { type: 'PLAY_CARD', cardId: 'portuguese_1' })).toThrow(/no wares in market/);
+  });
+
+  it('allowed when market has wares', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['portuguese_1']);
+    s = removeFromDeck(s, 'portuguese_1');
+    s = withMarket(s, 0, ['silk', null, null, null, null, null]);
+    const s2 = act(s, { type: 'PLAY_CARD', cardId: 'portuguese_1' });
+    expect(s2.pendingResolution?.type).toBe('WARE_SELL_BULK');
+  });
+});
+
 describe('Traveling Merchant: wares come from supply', () => {
   it('can be played even with empty market (wares come from supply)', () => {
     let s = toPlayPhase(createTestState());
@@ -181,14 +200,29 @@ describe('Basket Maker: requires 2g and 2 empty market slots', () => {
     expect(() => act(s, { type: 'PLAY_CARD', cardId: 'basket_maker_1' })).toThrow(/need at least 2g/);
   });
 
-  it('blocks with fewer than 2 empty market slots', () => {
+  // Official rule: with too little room for wares from a people card, the
+  // player takes what fits and leaves the rest in the supply.
+  it('with room for only 1 ware: takes 1 (paying the 6th-space fee), leaves 1 in supply', () => {
     let s = toPlayPhase(createTestState());
     s = withHand(s, 0, ['basket_maker_1']);
     s = removeFromDeck(s, 'basket_maker_1');
     s = withGold(s, 0, 20);
     s = withMarket(s, 0, ['trinkets', 'hides', 'tea', 'silk', 'fruit', null]);
-    s = { ...s, wareSupply: { ...s.wareSupply, trinkets: 5, hides: 5, tea: 5, silk: 5, fruit: 5 } };
-    expect(() => act(s, { type: 'PLAY_CARD', cardId: 'basket_maker_1' })).toThrow(/need at least 2 empty market slots/);
+    s = { ...s, wareSupply: { ...s.wareSupply, trinkets: 5, hides: 5, tea: 5, silk: 5, fruit: 5, salt: 6 } };
+    let s2 = act(s, { type: 'PLAY_CARD', cardId: 'basket_maker_1' });
+    s2 = resolve(s2, { type: 'SELECT_WARE_TYPE', wareType: 'salt' });
+    expect(s2.players[0].market.filter(w => w === 'salt')).toHaveLength(1);
+    expect(s2.wareSupply.salt).toBe(5);
+    expect(s2.players[0].gold).toBe(20 - 2 - 2);
+  });
+
+  it('blocks with no room at all', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['basket_maker_1']);
+    s = removeFromDeck(s, 'basket_maker_1');
+    s = withGold(s, 0, 20);
+    s = withMarket(s, 0, ['trinkets', 'hides', 'tea', 'silk', 'fruit', 'salt']);
+    expect(() => act(s, { type: 'PLAY_CARD', cardId: 'basket_maker_1' })).toThrow(/no room on your market stands/);
   });
 
   it('allowed when 2g and 2+ empty slots', () => {
@@ -293,7 +327,7 @@ describe('Boat: requires cards in hand and empty market slot', () => {
     s = withMarket(s, 0, ['trinkets', 'hides', 'tea', 'silk', 'fruit', 'salt']);
     s = { ...s, wareSupply: { ...s.wareSupply, trinkets: 5, hides: 5, tea: 5, silk: 5, fruit: 5, salt: 5 } };
     s = withUtility(s, 0, 'boat_1', 'boat');
-    expect(() => act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 })).toThrow(/no empty market slots/);
+    expect(() => act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 })).toThrow(/no room on your market stands/);
   });
 });
 
@@ -344,7 +378,7 @@ describe('Leopard Statue: requires 2g and empty market slot', () => {
     s = withMarket(s, 0, ['trinkets', 'hides', 'tea', 'silk', 'fruit', 'salt']);
     s = { ...s, wareSupply: { ...s.wareSupply, trinkets: 5, hides: 5, tea: 5, silk: 5, fruit: 5, salt: 5 } };
     s = withUtility(s, 0, 'leopard_statue_1', 'leopard_statue');
-    expect(() => act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 })).toThrow(/no empty market slots/);
+    expect(() => act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 })).toThrow(/no room on your market stands/);
   });
 
   it('blocks when ware supply is empty', () => {
@@ -535,11 +569,13 @@ describe('Portuguese (WARE_SELL_BULK): auto-resolves when market is empty', () =
     s = withHand(s, 0, ['portuguese_1']);
     s = removeFromDeck(s, 'portuguese_1');
     s = withGold(s, 0, 20);
-    s = withMarket(s, 0, [null, null, null, null, null, null]);
+    s = withMarket(s, 0, ['silk', null, null, null, null, null]);
 
-    // Play Portuguese — enters WARE_SELL_BULK (no upfront validation gate)
-    const s2 = act(s, { type: 'PLAY_CARD', cardId: 'portuguese_1' });
+    // Play Portuguese (validation needs a ware), then empty the market
+    let s2 = act(s, { type: 'PLAY_CARD', cardId: 'portuguese_1' });
     expect(s2.pendingResolution?.type).toBe('WARE_SELL_BULK');
+    s2 = withMarket(s2, 0, [null, null, null, null, null, null]);
+    s2 = { ...s2, wareSupply: { ...s2.wareSupply, silk: s2.wareSupply.silk + 1 } };
 
     // Send any response — guard fires first (no wares) and auto-resolves
     const s3 = resolve(s2, { type: 'SELL_WARES', wareIndices: [] });
@@ -688,27 +724,48 @@ describe('Wise Man from Afar (TURN_MODIFIER): auto-resolves immediately', () => 
   });
 });
 
-describe('Arabian Merchant: requires 2 empty market slots', () => {
+describe('Traveling Merchant: requires 2 empty market slots', () => {
   it('blocks when player has fewer than 2 empty market slots', () => {
     let s = toPlayPhase(createTestState());
-    s = withHand(s, 0, ['arabian_merchant_1']);
-    s = removeFromDeck(s, 'arabian_merchant_1');
+    s = withHand(s, 0, ['traveling_merchant_1']);
+    s = removeFromDeck(s, 'traveling_merchant_1');
     s = withGold(s, 0, 20);
-    // Only 1 empty slot — not enough for 2 auctioned cards
+    // Only 1 empty slot — not enough for the 2 auctioned wares
     s = withMarket(s, 0, ['trinkets', 'hides', 'tea', 'silk', 'fruit', null]);
     s = { ...s, wareSupply: { ...s.wareSupply, trinkets: 5, hides: 5, tea: 5, silk: 5, fruit: 5 } };
-    expect(() => act(s, { type: 'PLAY_CARD', cardId: 'arabian_merchant_1' })).toThrow(/need at least 2 empty market slots/);
+    expect(() => act(s, { type: 'PLAY_CARD', cardId: 'traveling_merchant_1' })).toThrow(/need at least 2 empty market slots/);
   });
 
   it('allowed when 2+ empty slots exist', () => {
     let s = toPlayPhase(createTestState());
-    s = withHand(s, 0, ['arabian_merchant_1']);
-    s = removeFromDeck(s, 'arabian_merchant_1');
+    s = withHand(s, 0, ['traveling_merchant_1']);
+    s = removeFromDeck(s, 'traveling_merchant_1');
     s = withGold(s, 0, 20);
-    const s2 = act(s, { type: 'PLAY_CARD', cardId: 'arabian_merchant_1' });
+    const s2 = act(s, { type: 'PLAY_CARD', cardId: 'traveling_merchant_1' });
     expect(s2.pendingResolution?.type).toBe('AUCTION');
   });
 });
+describe('Traveling Merchant: requires 1g for the automatic opening bid', () => {
+  // Regression: with 0g the active player could "win" at the automatic 1g opening bid and go to -1g
+  it('blocks with 0 gold', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['traveling_merchant_1']);
+    s = removeFromDeck(s, 'traveling_merchant_1');
+    s = withGold(s, 0, 0);
+    expect(() => act(s, { type: 'PLAY_CARD', cardId: 'traveling_merchant_1' })).toThrow(/need at least 1g/);
+  });
+});
+
+describe('Arabian Merchant: requires a non-empty deck (auctions cards, not wares)', () => {
+  it('allowed with a full market', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['arabian_merchant_1']);
+    s = removeFromDeck(s, 'arabian_merchant_1');
+    s = withMarket(s, 0, ['trinkets', 'hides', 'tea', 'silk', 'fruit', 'salt']);
+    expect(act(s, { type: 'PLAY_CARD', cardId: 'arabian_merchant_1' }).pendingResolution?.type).toBe('AUCTION');
+  });
+});
+
 
 describe('Parrot: blocks when own market has no empty slots', () => {
   it('blocks when active player market is full', () => {
@@ -718,27 +775,25 @@ describe('Parrot: blocks when own market has no empty slots', () => {
     s = withMarket(s, 0, ['trinkets', 'hides', 'tea', 'silk', 'fruit', 'salt']);
     s = withMarket(s, 1, ['trinkets', null, null, null, null, null]);
     s = { ...s, wareSupply: { ...s.wareSupply, trinkets: 3, hides: 5, tea: 5, silk: 5, fruit: 5, salt: 5 } };
-    expect(() => act(s, { type: 'PLAY_CARD', cardId: 'parrot_1' })).toThrow(/your market has no empty slots/);
+    expect(() => act(s, { type: 'PLAY_CARD', cardId: 'parrot_1' })).toThrow(/your market has no room/);
   });
 });
 
-describe('Throne (WARE_THEFT_SWAP): resolver guard auto-resolves when active market is full', () => {
-  it('STEAL step auto-resolves when active player market has no empty slots', () => {
+describe('Throne (WARE_THEFT_SWAP): resolver guard auto-resolves when there is nothing to exchange', () => {
+  it('STEAL step auto-resolves when the active player has no wares left to give', () => {
     let s = toPlayPhase(createTestState());
     s = withHand(s, 0, []);
     s = withGold(s, 0, 20);
-    // Active player market full
-    s = withMarket(s, 0, ['trinkets', 'hides', 'tea', 'silk', 'fruit', 'salt']);
-    // Opponent has wares (validation passes)
+    s = withMarket(s, 0, ['hides', null, null, null, null, null]);
     s = withMarket(s, 1, ['trinkets', null, null, null, null, null]);
-    s = { ...s, wareSupply: { ...s.wareSupply, trinkets: 3, hides: 5, tea: 5, silk: 5, fruit: 5, salt: 5 } };
+    s = { ...s, wareSupply: { ...s.wareSupply, trinkets: 5, hides: 5 } };
     s = withUtility(s, 0, 'throne_1', 'throne');
 
-    // Validation passes (opponent has wares), but resolver guard fires (active market full)
-    const s2 = act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 });
+    let s2 = act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 });
     expect(s2.pendingResolution?.type).toBe('WARE_THEFT_SWAP');
-
-    // Send any response — guard fires and auto-resolves
+    // Market emptied after activation (e.g. by state change) — guard must fire
+    s2 = withMarket(s2, 0, [null, null, null, null, null, null]);
+    s2 = { ...s2, wareSupply: { ...s2.wareSupply, hides: 6 } };
     const s3 = resolve(s2, { type: 'SELECT_WARE', wareIndex: 0 });
     expect(s3.pendingResolution).toBeNull();
   });

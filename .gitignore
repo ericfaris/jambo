@@ -129,3 +129,6 @@ dist
 # Local dev data (stats, etc.)
 .data/
 .claude/investigations/
+
+# Python bytecode (playtest driver)
+__pycache__/

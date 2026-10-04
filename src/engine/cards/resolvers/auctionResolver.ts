@@ -1,10 +1,23 @@
 // ============================================================================
-// Auction Resolver - Traveling Merchant bidding mechanic
+// Auction Resolver - Traveling Merchant (2 wares) and Arabian Merchant (top 3
+// deck cards) bidding mechanic
 // ============================================================================
 
-import type { GameState, PendingAuction, InteractionResponse, WareType } from '../../types.ts';
-import { addWaresToMarket } from '../../market/MarketManager.ts';
+import type { GameState, PendingAuction, InteractionResponse, WareType, DeckCardId } from '../../types.ts';
+import { placeWaresUpToCapacity } from '../../market/MarketManager.ts';
 import { takeFromSupply, returnToSupply } from '../../market/WareSupply.ts';
+import { isAuctionBidding } from '../../responder.ts';
+import { discardCard } from '../../deck/DeckManager.ts';
+
+/** Take the revealed cards off the top of the deck (they never left it during bidding). */
+function removeRevealedFromDeck(state: GameState, cards: DeckCardId[]): GameState {
+  const deck = [...state.deck];
+  for (const cardId of cards) {
+    const idx = deck.indexOf(cardId);
+    if (idx !== -1) deck.splice(idx, 1);
+  }
+  return { ...state, deck };
+}
 
 const WARE_TYPES: WareType[] = ['trinkets', 'hides', 'tea', 'silk', 'fruit', 'salt'];
 
@@ -13,8 +26,11 @@ export function resolveAuction(
   pending: PendingAuction,
   response: InteractionResponse
 ): GameState {
-  // Step 1 & 2: Active player selects 2 ware types from supply to place on the card
-  if (pending.wares.length < 2) {
+  const revealedCards = pending.revealedCards ?? [];
+  const isCardAuction = revealedCards.length > 0;
+
+  // Step 1 & 2 (Traveling Merchant): active player selects 2 ware types from supply
+  if (!isAuctionBidding(pending)) {
     // Guard: no ware types available in supply
     const hasAnySupply = WARE_TYPES.some(wt => state.wareSupply[wt] > 0);
     if (!hasAnySupply) {
@@ -89,6 +105,43 @@ export function resolveAuction(
     const newPassed = [...pending.passed] as [boolean, boolean];
     newPassed[passingPlayer] = true;
 
+    // Arabian Merchant: no bids → revealed cards are discarded; otherwise the
+    // last bidder pays and takes all of them into hand
+    if (isCardAuction) {
+      let newState = removeRevealedFromDeck(state, revealedCards);
+      if (pending.currentBid <= 0) {
+        for (const cardId of revealedCards) newState = discardCard(newState, cardId);
+        return {
+          ...newState,
+          pendingResolution: null,
+          log: [...newState.log, {
+            turn: state.turn,
+            player: state.currentPlayer,
+            action: 'AUCTION_NO_WINNER',
+            details: 'No bids — revealed cards discarded',
+          }],
+        };
+      }
+      const cardWinner = pending.currentBidder;
+      const players = [...newState.players] as [typeof newState.players[0], typeof newState.players[1]];
+      players[cardWinner] = {
+        ...players[cardWinner],
+        gold: players[cardWinner].gold - pending.currentBid,
+        hand: [...players[cardWinner].hand, ...revealedCards],
+      };
+      newState = { ...newState, players };
+      return {
+        ...newState,
+        pendingResolution: null,
+        log: [...newState.log, {
+          turn: state.turn,
+          player: state.currentPlayer,
+          action: 'AUCTION_WON',
+          details: `Player ${cardWinner} won ${revealedCards.length} cards at ${pending.currentBid}g`,
+        }],
+      };
+    }
+
     // If both passed with no real bids, wares go back to supply
     if (pending.currentBid <= 0 || (newPassed[0] && newPassed[1])) {
       let newState = state;
@@ -110,31 +163,18 @@ export function resolveAuction(
     // One player passed — other wins the auction
     const winner = pending.currentBidder;
 
-    const winnerEmptySlots = state.players[winner].market.filter(slot => slot === null).length;
-    if (winnerEmptySlots < pending.wares.length) {
-      let newState = state;
-      for (const ware of pending.wares) {
-        newState = returnToSupply(newState, ware, 1);
-      }
-      return {
-        ...newState,
-        pendingResolution: null,
-        log: [...newState.log, {
-          turn: state.turn,
-          player: state.currentPlayer,
-          action: 'AUCTION_NO_WINNER',
-          details: `Winner market space insufficient (${winnerEmptySlots}/${pending.wares.length}); wares returned to supply`,
-        }],
-      };
-    }
-
     const winnerGold = state.players[winner].gold - pending.currentBid;
 
     const newPlayers = [...state.players] as [typeof state.players[0], typeof state.players[1]];
     newPlayers[winner] = { ...newPlayers[winner], gold: winnerGold };
 
     let newState: GameState = { ...state, players: newPlayers };
-    newState = addWaresToMarket(newState, winner, pending.wares);
+    // Winner takes what fits on their stands; the rest goes back to the supply
+    const placement = placeWaresUpToCapacity(newState, winner, pending.wares);
+    newState = placement.state;
+    for (const ware of placement.leftover) {
+      newState = returnToSupply(newState, ware, 1);
+    }
 
     return {
       ...newState,

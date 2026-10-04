@@ -1,6 +1,8 @@
 import { memo } from 'react';
 import type { WareType } from '../engine/types.ts';
 import { WareToken } from './CardFace.tsx';
+import { buttonProps } from './a11y.ts';
+import { getSixthSpaceIndex } from '../engine/market/MarketManager.ts';
 
 interface MarketDisplayProps {
   market: (WareType | null)[];
@@ -23,6 +25,8 @@ interface MarketDisplayProps {
 
 function MarketDisplayComponent({ market, onSlotClick, selectedSlots, flashSlots, flashVariant = 'normal', label, columns, slotSize = 48, tokenSize, borderless, dashedBorder }: MarketDisplayProps) {
   const isInteractive = !!onSlotClick;
+
+  const sixthSpace = getSixthSpaceIndex(market);
 
   return (
     <div>
@@ -59,9 +63,18 @@ function MarketDisplayComponent({ market, onSlotClick, selectedSlots, flashSlots
             cursor: onSlotClick && ware ? 'pointer' : 'default',
           }}
           onClick={onSlotClick && ware ? () => onSlotClick(i) : undefined}
+          {...buttonProps(onSlotClick && ware ? () => onSlotClick(i) : undefined, `${ware} in slot ${i + 1}`)}
           >
             {ware ? (
               <WareToken type={ware} size={tokenSize} />
+            ) : i === sixthSpace ? (
+              <span
+                title="Filling the large stand's 6th space costs 2g"
+                aria-label="6th space: costs 2 gold to fill"
+                style={{ fontSize: Math.max(10, Math.round(slotSize * 0.26)), fontWeight: 700, color: 'var(--gold-dim)', opacity: 0.85 }}
+              >
+                2g
+              </span>
             ) : (
               <span />
             )}

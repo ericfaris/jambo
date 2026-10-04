@@ -1,10 +1,11 @@
 import type { DeckCardId, GameAction, GameState, UtilityDesignId } from '../../engine/types.ts';
+import { isAuctionBidding } from '../../engine/responder.ts';
 import { getCard } from '../../engine/cards/CardDatabase.ts';
 import { getValidActions } from '../../engine/validation/actionValidator.ts';
 import { getRandomAiAction } from '../RandomAI.ts';
 import { createRng } from '../../utils/rng.ts';
 import {
-  getAuctionMaxBid,
+  getAuctionMaxBidFor,
   getCardEconomyValue,
   getCardPressureBonus,
   getHandRiskPenalty,
@@ -151,7 +152,7 @@ function pickWareNearTop(scored: ReadonlyArray<{ action: GameAction; score: numb
 
 function getMediumAuctionBidAction(state: GameState): GameAction | null {
   const pr = state.pendingResolution;
-  if (!pr || pr.type !== 'AUCTION' || pr.wares.length < 2) return null;
+  if (!pr || pr.type !== 'AUCTION' || !isAuctionBidding(pr)) return null;
 
   const me = pr.nextBidder;
   const bidAmount = pr.currentBid + 1;
@@ -162,7 +163,7 @@ function getMediumAuctionBidAction(state: GameState): GameAction | null {
   }
 
   // Use valuation ceiling — medium is slightly more willing than easy (which uses random pass)
-  const maxBid = getAuctionMaxBid(state, me, pr.wares);
+  const maxBid = getAuctionMaxBidFor(state, me, pr);
 
   if (bidAmount > maxBid) {
     return { type: 'RESOLVE_INTERACTION', response: { type: 'AUCTION_PASS' } };
@@ -173,7 +174,7 @@ function getMediumAuctionBidAction(state: GameState): GameAction | null {
 
 export function getMediumAiAction(state: GameState, rng: () => number = createMediumRng(state)): GameAction | null {
   // Special handling for auction bidding — use valuation
-  if (state.pendingResolution?.type === 'AUCTION' && state.pendingResolution.wares.length >= 2) {
+  if (state.pendingResolution?.type === 'AUCTION' && isAuctionBidding(state.pendingResolution)) {
     const auctionAction = getMediumAuctionBidAction(state);
     if (auctionAction) return auctionAction;
   }

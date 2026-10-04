@@ -582,10 +582,12 @@ button.brown:hover:not(:disabled) {
   left: 50%;
   transform: translateX(-50%);
   z-index: 24;
-  max-width: min(70vw, 640px);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* Fit in the gap between the DECK and DISCARD columns so it never covers their labels */
+  width: max-content;
+  max-width: min(60vw, 220px);
+  white-space: normal;
+  text-align: center;
+  overflow-wrap: anywhere;
   background: rgba(20,10,5,0.92);
   border: 1px solid var(--gold-dim);
   border-radius: 7px;

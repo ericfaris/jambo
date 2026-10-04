@@ -106,7 +106,10 @@ export interface PendingOpponentDiscard {
 export interface PendingAuction {
   type: 'AUCTION';
   sourceCard: DeckCardId;
-  wares: WareType[];          // Wares being auctioned
+  wares: WareType[];          // Wares being auctioned (Traveling Merchant)
+  /** Arabian Merchant: top deck cards up for auction. They stay on top of the
+   *  deck until the auction ends (nothing draws mid-auction). */
+  revealedCards?: DeckCardId[];
   currentBid: number;
   currentBidder: 0 | 1;
   nextBidder: 0 | 1;
@@ -129,6 +132,7 @@ export interface PendingWareTheftSwap {
   sourceCard: DeckCardId;
   step: 'STEAL' | 'GIVE';
   stolenWare?: WareType;       // Set after steal step
+  stolenIndex?: number;        // Opponent's slot of the stolen ware (exchanged in place)
 }
 
 export interface PendingWareTheftSingle {
@@ -331,6 +335,9 @@ export interface GameState {
   // Crocodile post-resolution cleanup
   crocodileCleanup: {
     utilityCardId: DeckCardId;
+    /** The Crocodile card itself — the borrowed utility's own resolution replaces
+     *  pendingResolution, so this is the only remaining reference to it. */
+    crocodileCardId: DeckCardId;
     opponentPlayer: 0 | 1;
     utilityIndex: number;
   } | null;
@@ -360,7 +367,6 @@ export type GameAction =
   | { type: 'SKIP_DRAW' }  // Skip draw phase entirely, transition to PLAY
   | { type: 'PLAY_CARD'; cardId: DeckCardId; wareMode?: 'buy' | 'sell' }
   | { type: 'ACTIVATE_UTILITY'; utilityIndex: number }
-  | { type: 'DRAW_ACTION' }  // Action-phase draw (costs 1 action, must keep)
   | { type: 'END_TURN' }
   | { type: 'RESOLVE_INTERACTION'; response: InteractionResponse }
   | { type: 'GUARD_REACTION'; play: boolean }  // true = play Guard, false = decline

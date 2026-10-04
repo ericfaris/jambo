@@ -6,8 +6,9 @@ import type { AIDifficulty } from '../ai/difficulties/index.ts';
 import { getAiActionDescription } from '../ai/aiActionDescriptions.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
 import { validatePlayCard, validateActivateUtility } from '../engine/validation/actionValidator.ts';
-import type { DeckCardId, GameState, PendingResolution } from '../engine/types.ts';
+import type { DeckCardId } from '../engine/types.ts';
 import { CONSTANTS } from '../engine/types.ts';
+import { getResponder } from '../engine/responder.ts';
 import { OpponentArea } from './OpponentArea.tsx';
 import { CenterRow } from './CenterRow.tsx';
 import { MarketDisplay } from './MarketDisplay.tsx';
@@ -21,6 +22,8 @@ import { ResolveMegaView } from './ResolveMegaView.tsx';
 import { isHandInteraction } from './HandReferenceStrip.tsx';
 import { MegaView } from './MegaView.tsx';
 import { TutorialOverlay } from './TutorialOverlay.tsx';
+import { PassDeviceScreen, needsHandoff } from './PassDeviceScreen.tsx';
+import { shouldAiAct, isWareDialogValid } from './gameScreenLogic.ts';
 import { useVisualFeedback } from './useVisualFeedback.ts';
 import { getDrawDisabledReason, getPlayDisabledReason } from './uiHints.ts';
 import { getVolume, setVolume as saveVolume, getMuted, setMuted as saveMuted, resetAudioSettings } from './audioSettings.ts';
@@ -100,7 +103,11 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   const blockedPlaySecondsRef = useRef(0);
   const blockedDrawSecondsRef = useRef(0);
   const prevPhaseRef = useRef(state.phase);
-  const viewerPlayer: 0 | 1 = localMultiplayer ? state.currentPlayer : 0;
+  // Hotseat: the screen belongs to whoever must act next — including the
+  // non-active player answering a Guard/Rain Maker, auction, draft, etc.
+  const viewerPlayer: 0 | 1 = localMultiplayer ? getResponder(state) : 0;
+  // Hotseat: whose hand is currently allowed on screen (changes only after a handoff)
+  const [confirmedViewer, setConfirmedViewer] = useState<0 | 1>(viewerPlayer);
   const opponentPlayer: 0 | 1 = viewerPlayer === 0 ? 1 : 0;
 
   useEffect(() => {
@@ -253,37 +260,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   }, [menuOpen]);
 
   // Is it the AI's turn to act?
-  const getPendingResponder = (state: GameState, pr: PendingResolution): 0 | 1 => {
-    switch (pr.type) {
-      case 'AUCTION':
-        return pr.wares.length < 2 ? state.currentPlayer : pr.nextBidder;
-      case 'DRAFT':
-        return pr.currentPicker;
-      case 'OPPONENT_DISCARD':
-      case 'CARRIER_WARE_SELECT':
-        return pr.targetPlayer;
-      case 'UTILITY_KEEP':
-        return pr.step === 'ACTIVE_CHOOSE'
-          ? state.currentPlayer
-          : (state.currentPlayer === 0 ? 1 : 0);
-      case 'OPPONENT_CHOICE':
-        return state.currentPlayer === 0 ? 1 : 0;
-      default:
-        return state.currentPlayer;
-    }
-  };
-
-  const isAiResponder = (state: GameState) => {
-    if (!state.pendingResolution) return false;
-    return getPendingResponder(state, state.pendingResolution) === 1;
-  };
-
-  const isAiTurn = !localMultiplayer && state.phase !== 'GAME_OVER' && (
-    state.pendingResolution !== null ? isAiResponder(state) :
-    state.pendingGuardReaction !== null ? state.pendingGuardReaction.targetPlayer === 1 :
-    state.pendingWareCardReaction !== null ? state.pendingWareCardReaction.targetPlayer === 1 :
-    state.currentPlayer === 1
-  );
+  const isAiTurn = !localMultiplayer && state.phase !== 'GAME_OVER' && getResponder(state) === 1;
 
   const getFriendlyErrorMessage = (reason: string) => {
     if (reason.includes('PLAY phase')) {
@@ -343,8 +320,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   }, [state]);
 
   useEffect(() => {
-    if (!isAiTurn) return;
-    if (aiAttemptRef.current >= 10) return;
+    if (!shouldAiAct({ isAiTurn, showTutorial, attempts: aiAttemptRef.current })) return;
 
     const isFirstTurn = state.turn === 0;
     const delay = isFirstTurn ? 0 : CONSTANTS.AI_ACTION_DELAY_MS;
@@ -361,7 +337,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
     }, delay);
 
     return () => clearTimeout(timer);
-  }, [isAiTurn, state, dispatch, error, aiDifficulty]);
+  }, [isAiTurn, state, dispatch, error, aiDifficulty, showTutorial]);
 
   // Auto-open draw modal when entering draw phase
   useEffect(() => {
@@ -399,6 +375,12 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
     state.actionsLeft > 0 &&
     !hasPendingInteraction;
   const playActionsDisabled = !canTakePlayActions;
+
+  // Close a stale buy/sell dialog once its card leaves the hand or the turn moves on
+  const wareDialogStillValid = isWareDialogValid(wareDialog, canTakePlayActions, state.players[viewerPlayer].hand);
+  useEffect(() => {
+    if (wareDialog !== null && !wareDialogStillValid) setWareDialog(null);
+  }, [wareDialog, wareDialogStillValid]);
 
   const canTakeDrawActions =
     state.phase === 'DRAW' &&
@@ -538,6 +520,10 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
     return <TutorialOverlay onClose={handleCloseTutorial} />;
   }
 
+  if (needsHandoff(localMultiplayer, state.phase, confirmedViewer, viewerPlayer)) {
+    return <PassDeviceScreen state={state} viewerPlayer={viewerPlayer} onReady={() => setConfirmedViewer(viewerPlayer)} />;
+  }
+
   return (
     <div className={showUxDebug ? 'ux-debug' : undefined} style={{
       display: 'flex',
@@ -572,7 +558,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
 
         {/* Center row */}
         <div>
-          <CenterRow state={state} dispatch={dispatch} isLocalMode={true} showGlow={false} visualFeedback={visualFeedback} />
+          <CenterRow state={state} dispatch={dispatch} isLocalMode={true} showGlow={false} visualFeedback={visualFeedback} actorLabels={localMultiplayer ? ['Player 1', 'Player 2'] : ['You', 'Opponent']} hiddenPlayer={localMultiplayer ? null : 1} />
         </div>
 
         {/* Player sections */}
@@ -758,7 +744,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
           <div style={{ fontFamily: 'var(--font-heading)', fontSize: 15, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.5 }}>
             Game Log
           </div>
-          <GameLog log={state.log} />
+          <GameLog log={state.log} labels={localMultiplayer ? ['Player 1', 'Player 2'] : ['You', 'Opponent']} hiddenPlayer={localMultiplayer ? null : 1} />
         </div>
       )}
 
@@ -1133,7 +1119,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
       </div>
 
       {/* Ware buy/sell dialog */}
-      {wareDialog && (
+      {wareDialog && wareDialogStillValid && (
         <CardPlayDialog
           cardId={wareDialog}
           onBuy={() => {

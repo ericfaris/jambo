@@ -5,6 +5,7 @@ import { getCard } from '../engine/cards/CardDatabase.ts';
 import { CardFace, WareToken, WARE_COLORS } from './CardFace.tsx';
 import { MarketDisplay } from './MarketDisplay.tsx';
 import { formatResolutionBreadcrumb } from './uiHints.ts';
+import { isAuctionBidding } from '../engine/responder.ts';
 
 interface InteractionPanelProps {
   state: GameState;
@@ -349,6 +350,8 @@ function shouldUseCompactSourceCard(pr: PendingResolution): boolean {
       return pr.targetPlayer === 0;
     case 'DRAFT':
       return pr.draftMode !== 'wares';
+    case 'AUCTION':
+      return (pr.revealedCards?.length ?? 0) > 0;
     case 'WARE_CASH_CONVERSION':
       return pr.step === 'SELECT_CARD';
     case 'UTILITY_EFFECT':
@@ -440,7 +443,7 @@ function ResolutionContent({ state, pr, dispatch, viewerPlayer, onMegaView }: { 
     case 'OPPONENT_CHOICE':
       return <BinaryChoicePanel options={pr.options} onChoice={(c) => resolve(dispatch, { type: 'OPPONENT_CHOICE', choice: c })} />;
     case 'AUCTION':
-      return <AuctionPanel pr={pr} state={state} viewerPlayer={viewerPlayer} dispatch={dispatch} />;
+      return <AuctionPanel pr={pr} state={state} viewerPlayer={viewerPlayer} dispatch={dispatch} onMegaView={onMegaView} />;
     case 'DECK_PEEK':
       return <DeckPeekPanel pr={pr} dispatch={dispatch} onMegaView={onMegaView} />;
     case 'DISCARD_PICK':
@@ -518,9 +521,14 @@ function WareTradePanel({ pr, dispatch }: { state: GameState; pr: Extract<Pendin
   return <WareTypePicker prompt={receivePrompt} onPick={(wt) => resolve(dispatch, { type: 'SELECT_WARE_TYPE', wareType: wt })} exclude={pr.giveType} />;
 }
 
-function AuctionPanel({ pr, state, viewerPlayer, dispatch }: { pr: Extract<PendingResolution, { type: 'AUCTION' }>; state: GameState; viewerPlayer: 0 | 1; dispatch: InteractionPanelProps['dispatch'] }) {
+function AuctionPanel({ pr, state, viewerPlayer, dispatch, onMegaView }: { pr: Extract<PendingResolution, { type: 'AUCTION' }>; state: GameState; viewerPlayer: 0 | 1; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
+  const revealedCards = pr.revealedCards ?? [];
+  if (revealedCards.length > 0) {
+    return <CardAuctionPanel pr={pr} cards={revealedCards} state={state} viewerPlayer={viewerPlayer} dispatch={dispatch} onMegaView={onMegaView} />;
+  }
+
   // Ware selection phase: active player picks 2 ware types from supply
-  if (pr.wares.length < 2) {
+  if (!isAuctionBidding(pr)) {
     const isMyPick = state.currentPlayer === viewerPlayer;
     if (!isMyPick) return <div className="ui-helper-text">Step 1/2: waiting for opponent to select auction wares...</div>;
     const prompt = pr.wares.length === 0
@@ -567,6 +575,34 @@ function AuctionPanel({ pr, state, viewerPlayer, dispatch }: { pr: Extract<Pendi
         </button>
         <button onClick={() => resolve(dispatch, { type: 'AUCTION_PASS' })}>Pass</button>
       </div>
+    </div>
+  );
+}
+
+/** Arabian Merchant: bid on the revealed top deck cards; no bids → discarded. */
+function CardAuctionPanel({ pr, cards, state, viewerPlayer, dispatch, onMegaView }: { pr: Extract<PendingResolution, { type: 'AUCTION' }>; cards: DeckCardId[]; state: GameState; viewerPlayer: 0 | 1; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
+  const isMyBid = pr.nextBidder === viewerPlayer;
+  const nextBid = pr.currentBid + 1;
+  const canAfford = state.players[viewerPlayer].gold >= nextBid;
+  const leader = pr.currentBid > 0 ? (pr.currentBidder === viewerPlayer ? 'You lead' : 'Opponent leads') : 'No bids yet';
+  return (
+    <div>
+      <div className="ui-prompt-text">
+        Auction for {cards.length} card{cards.length === 1 ? '' : 's'} — winner takes them all. If nobody bids, they are discarded.
+      </div>
+      <SelectableCardArea cards={cards} onSelect={() => {}} onMegaView={onMegaView} />
+      <div className="ui-helper-text" style={{ textAlign: 'center', margin: '8px 0' }}>
+        {leader}{pr.currentBid > 0 ? ` at ${pr.currentBid}g` : ''}.{' '}
+        {isMyBid ? 'Your turn — raise or pass. Passing ends the auction.' : 'Waiting for opponent bid...'}
+      </div>
+      {isMyBid && (
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+          <button className="primary" disabled={!canAfford} onClick={() => resolve(dispatch, { type: 'AUCTION_BID', amount: nextBid })}>
+            Bid {nextBid}g
+          </button>
+          <button onClick={() => resolve(dispatch, { type: 'AUCTION_PASS' })}>Pass</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -654,6 +690,17 @@ function WareSellBulkPanel({ state, pr, dispatch }: { state: GameState; pr: Extr
     setSelected(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i]);
   };
 
+  if (!player.market.some(w => w !== null)) {
+    return (
+      <div>
+        <div className="ui-prompt-text">No wares in your market to sell.</div>
+        <button className="primary" onClick={() => resolve(dispatch, { type: 'SELL_WARES', wareIndices: [] })} style={{ margin: '8px auto 0', display: 'block' }}>
+          Continue
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="ui-prompt-text">
@@ -704,7 +751,7 @@ function WareTheftSwapPanel({ state, pr, dispatch }: { state: GameState; pr: Ext
     return (
       <div>
         <div className="ui-prompt-text">
-          Step 1/2: steal 1 ware from opponent ({opponentWareCount} available).
+          Step 1/2: pick 1 of your opponent's wares to take ({opponentWareCount} available).
         </div>
         <MarketDisplay market={state.players[opponent].market} onSlotClick={(i) => resolve(dispatch, { type: 'SELECT_WARE', wareIndex: i })} />
       </div>
@@ -713,8 +760,9 @@ function WareTheftSwapPanel({ state, pr, dispatch }: { state: GameState; pr: Ext
   const myWareCount = state.players[cp].market.filter(w => w !== null).length;
   return (
     <div>
-      <div className="ui-prompt-text">
-        Step 2/2: give 1 ware to opponent ({myWareCount} available).
+      <div className="ui-prompt-text" style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+        Step 2/2: pick 1 of your wares ({myWareCount} available) to exchange for
+        {pr.stolenWare && <WareToken type={pr.stolenWare} size={28} />}
       </div>
       <MarketDisplay market={state.players[cp].market} onSlotClick={(i) => resolve(dispatch, { type: 'SELECT_WARE', wareIndex: i })} />
     </div>
@@ -776,7 +824,7 @@ function OpponentDiscardPanel({ state, pr, viewerPlayer, dispatch, onMegaView }:
     return (
       <div>
         <div className="ui-prompt-text">
-          Hand limit check: {target.hand.length} card(s), target is {pr.discardTo}. No cards need to be discarded.
+          Opponent has {target.hand.length} card(s); discard target is {pr.discardTo}. No cards need to be discarded.
         </div>
         <button className="primary" onClick={() => resolve(dispatch, { type: 'OPPONENT_DISCARD_SELECTION', cardIndices: [] })} style={{ margin: '8px auto 0', display: 'block' }}>
           Continue

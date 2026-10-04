@@ -63,6 +63,7 @@ export function resolveCrocodileUse(
       ...state,
       crocodileCleanup: {
         utilityCardId: selectedUtility.cardId,
+        crocodileCardId: pending.sourceCard,
         opponentPlayer: opponent,
         utilityIndex,
       },

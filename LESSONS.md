@@ -31,3 +31,54 @@ identical between them — then verified the test actually fails without the
 exploiting hidden information, not deeper search. Worth remembering before
 assuming any AI benchmark swing is a bug: check whether the "stronger" tier
 was cheating first.
+
+## 2026-10-03 — UI playtest (5 games via Playwright driver)
+
+Built `.claude/skills/game-playtest/scripts/driver.py`. It plays real games
+through UI clicks, using the engine AI to pick the human's moves, and found
+bugs that 294 unit tests missed:
+- **Crocodile on an interactive utility (Drums, Boat…) lost the Crocodile
+  card** (110 → 109). The inner `UTILITY_EFFECT` replaces `pendingResolution`,
+  so post-resolution cleanup discarded based on the *utility's* sourceCard.
+  Now `crocodileCleanup.crocodileCardId` carries it. Any resolver that
+  swaps in an inner pending resolution has to carry the outer source card
+  forward explicitly.
+- **Portuguese on an empty market stalled the UI**. The resolver guard
+  existed, but the validator and the UI Continue (prongs 1 and 4) were
+  missing. Having one prong out of four isn't enough.
+- **Hotseat Multiplayer froze whenever the non-active player had to
+  respond** (Guard, Rain Maker, auctions, drafts…). The viewer was
+  `currentPlayer`. It is now `getResponder(state)` from
+  `src/engine/responder.ts` (which also de-duplicates 3 copies).
+- The AI played its first turn behind the first-run tutorial. Replays
+  didn't record the starting player.
+
+**Gotcha (driver)**: an HMR update mid-run splits module instances, so a
+page loaded afterwards gets a different `useGameStore` than
+`import('/src/hooks/useGameStore.ts')` returns. I lost a whole batch of 3
+games to phantom "AI stalls" before noticing. Restart Vite before a batch,
+don't edit `src/` during one, and keep the store/DOM desync guard.
+Playwright's fake clock also freezes rAF, so `locator.click()` hangs; click
+by coordinates with an `elementFromPoint` occlusion check instead.
+
+## 2026-10-03 — Audit against the official rulebook
+
+The official Rio Grande rules PDF is gone from their site but the Internet
+Archive has it (`Game_120_gameRules.pdf`, 2012 snapshot). It has **no
+per-card texts** ("exceptions are noted in the text of the cards"), so card
+effects can only be cross-checked against reviews and summaries. The Kosmos
+German PDF on retailer sites is image-only (render it and read the pages).
+
+Real rule bugs found only by reading the rulebook rather than our docs:
+6th large-stand space costs 2g each fill (constant existed, never used);
+first small stand is 6g *per game*, not per player; "not enough room → take
+what fits, rest stays in supply" (we blocked cards / destroyed Elephant
+picks); no hand limit. Our own docs had drifted (CLAUDE.md said 5-card
+limit) — treat the rulebook as source of truth, not CLAUDE.md.
+
+**Gotcha**: a stricter `addWaresToMarket` (throws if gold < fee) surfaced a
+latent bug — Traveling Merchant's automatic 1g opening bid let a 0g player
+win and go to −1g. The AI benchmark's `stallReasons` in
+`reports/ai-benchmark/*.json` pinpointed it; always read them when `stalls`
+is non-zero. (And `git checkout` those report files afterwards — the bench
+overwrites tracked files.)

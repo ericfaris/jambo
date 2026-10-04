@@ -4,6 +4,7 @@
 // Usage: npm run server (tsx src/multiplayer/server.ts)
 // ============================================================================
 
+import { isAuctionBidding } from '../engine/responder.ts';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer } from 'node:http';
 import { randomBytes } from 'node:crypto';
@@ -268,7 +269,6 @@ function detectAudioEvent(action: GameAction): AudioEvent | null {
   switch (action.type) {
     case 'DRAW_CARD':
     case 'KEEP_CARD':
-    case 'DRAW_ACTION':
       return 'card-draw';
     case 'PLAY_CARD': {
       if (action.wareMode) return 'coin';
@@ -413,7 +413,7 @@ function isWaitingForPlayer(state: GameState, slot: PlayerSlot): boolean {
       case 'OPPONENT_CHOICE':
         return state.currentPlayer !== slot;
       case 'AUCTION':
-        if (pr.wares.length < 2) {
+        if (!isAuctionBidding(pr)) {
           return state.currentPlayer === slot;
         }
         return pr.nextBidder === slot;

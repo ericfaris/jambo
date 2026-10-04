@@ -13,7 +13,7 @@ Digital implementation of **Jambo** as a deterministic, rules-faithful 2-player 
 - Start gold: 20 each
 - Base market slots: 6 (expandable via Small Market Stand)
 - Utility limit: 3 in play per player
-- Hand limit: 5 at end of turn
+- No hand limit (official rules: players may hold any number of cards)
 - Turn budget: 5 actions
 - Endgame trigger: player ends turn at >= 60 gold; opponent gets one final turn
 

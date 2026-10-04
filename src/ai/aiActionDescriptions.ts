@@ -34,9 +34,6 @@ export function getAiActionDescription(action: GameAction, state: GameState): st
       return "Activating a utility.";
     }
 
-    case 'DRAW_ACTION':
-      return "Drawing an extra card as an action.";
-
     case 'END_TURN':
       return "My turn is done, your move!";
 

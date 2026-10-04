@@ -20,6 +20,7 @@ import { drawFromDeck, discardCard } from './deck/DeckManager.ts';
 import { getCard, isDesign } from './cards/CardDatabase.ts';
 import {
   addWaresToMarket,
+  getSixthSpaceFee,
   getEmptySlots,
   expandMarket,
 } from './market/MarketManager.ts';
@@ -27,6 +28,7 @@ import { takeFromSupply, returnToSupply } from './market/WareSupply.ts';
 import { checkEndgameTrigger } from './endgame/EndgameManager.ts';
 import { validateAction } from './validation/actionValidator.ts';
 import { initializeResolution, resolveInteraction } from './cards/CardResolver.ts';
+import { getSmallStandCost } from './market/standCost.ts';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -130,7 +132,8 @@ function canBuyWaresForCard(
   const effectivePrice = Math.max(0, buyPrice - state.turnModifiers.buyDiscount);
   const playerState = state.players[player];
   const emptySlots = getEmptySlots(state, player).length;
-  return playerState.gold >= effectivePrice && emptySlots >= wareCount;
+  const fee = getSixthSpaceFee(state, player, wareCount);
+  return playerState.gold >= effectivePrice + fee && emptySlots >= wareCount;
 }
 
 /**
@@ -201,9 +204,6 @@ export function processAction(state: GameState, action: GameAction): GameState {
       break;
     case 'ACTIVATE_UTILITY':
       next = handleActivateUtility(state, action.utilityIndex);
-      break;
-    case 'DRAW_ACTION':
-      next = handleDrawAction(state);
       break;
     case 'END_TURN':
       next = handleEndTurn(state);
@@ -514,9 +514,7 @@ function handlePlayStand(state: GameState, cardId: DeckCardId): GameState {
   const cp = state.currentPlayer;
   const player = state.players[cp];
 
-  const cost = player.smallMarketStands === 0
-    ? CONSTANTS.FIRST_STAND_COST
-    : CONSTANTS.ADDITIONAL_STAND_COST;
+  const cost = getSmallStandCost(state);
 
   if (player.gold < cost) {
     throw new Error(`Cannot buy stand: need ${cost}g, have ${player.gold}g`);
@@ -778,6 +776,11 @@ function handleResolveInteraction(
         next = discardCard(next, cleanup.utilityCardId);
         next = withLog(next, 'CROCODILE_CLEANUP', `Discarded opponent's ${cleanup.utilityCardId} after Crocodile use`);
       }
+      // An interactive borrowed utility replaced the Crocodile's pendingResolution,
+      // so the source-card discard above saw the utility, not the Crocodile.
+      if (!next.discardPile.includes(cleanup.crocodileCardId)) {
+        next = discardCard(next, cleanup.crocodileCardId);
+      }
       next = { ...next, crocodileCleanup: null };
     }
   }
@@ -887,33 +890,6 @@ function handleWareCardReaction(state: GameState, play: boolean): GameState {
 // ---------------------------------------------------------------------------
 // Draw as Action (PLAY phase)
 // ---------------------------------------------------------------------------
-
-/**
- * PLAY phase draw action: draw a card and add to hand (must keep).
- * Costs 1 action.
- */
-export function handleDrawAction(state: GameState): GameState {
-  const cp = state.currentPlayer;
-
-  const drawResult = drawFromDeck(state);
-  if (drawResult.card === null) {
-    throw new Error('No cards available to draw (deadlock)');
-  }
-
-  let next = drawResult.state;
-
-  const newHand = [...next.players[cp].hand, drawResult.card];
-  next = withPlayer(next, cp, { hand: newHand });
-
-  next = {
-    ...next,
-    actionsLeft: next.actionsLeft - 1,
-  };
-
-  next = withLog(next, 'DRAW_ACTION', `Drew ${drawResult.card} (action cost)`);
-
-  return next;
-}
 
 // ---------------------------------------------------------------------------
 // End Turn

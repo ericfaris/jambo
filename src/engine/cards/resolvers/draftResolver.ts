@@ -13,7 +13,8 @@ import type {
   UtilityDesignId,
 } from '../../types.ts';
 import { CONSTANTS } from '../../types.ts';
-import { addWareToMarket, getEmptySlots } from '../../market/MarketManager.ts';
+import { addWareToMarket, getPlacementCapacity } from '../../market/MarketManager.ts';
+import { returnToSupply } from '../../market/WareSupply.ts';
 import { discardCard } from '../../deck/DeckManager.ts';
 import { getCard } from '../CardDatabase.ts';
 
@@ -74,11 +75,12 @@ function resolveWareDraft(
   const picker = pending.currentPicker;
 
   let newState = state;
-  const emptySlots = getEmptySlots(newState, picker);
-  if (emptySlots.length > 0) {
+  if (getPlacementCapacity(newState, picker) > 0) {
     newState = addWareToMarket(newState, picker, pickedWare);
+  } else {
+    // No room (or can't pay the 6th-space fee): the ware goes back to the supply
+    newState = returnToSupply(newState, pickedWare, 1);
   }
-  // If no room, ware is lost
 
   const newPicks: [WareType[], WareType[]] = [
     [...pending.picks[0]],

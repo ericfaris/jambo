@@ -7,6 +7,8 @@ export interface ReplayLog {
   gameVersion: string;
   createdAt: string;
   rngSeed: number;
+  /** Who moved first. Older replays omit it (treated as player 0). */
+  startingPlayer?: 0 | 1;
   actions: GameAction[];
 }
 
@@ -89,7 +91,6 @@ function isGameAction(value: unknown): value is GameAction {
     case 'KEEP_CARD':
     case 'DISCARD_DRAWN':
     case 'SKIP_DRAW':
-    case 'DRAW_ACTION':
     case 'END_TURN':
       return true;
     case 'PLAY_CARD':
@@ -161,11 +162,16 @@ function parseReplayLog(value: unknown): ReplayLog {
     throw new Error('Replay actions must be an array');
   }
 
+  if (value.startingPlayer !== undefined && value.startingPlayer !== 0 && value.startingPlayer !== 1) {
+    throw new Error('Replay startingPlayer must be 0 or 1');
+  }
+
   return {
     formatVersion: '1.0',
     gameVersion: value.gameVersion,
     createdAt: value.createdAt,
     rngSeed: value.rngSeed,
+    ...(value.startingPlayer !== undefined ? { startingPlayer: value.startingPlayer } : {}),
     actions: normalizeActions(value.actions),
   };
 }
@@ -196,15 +202,23 @@ function migrateLegacyReplayV09(value: Record<string, unknown>): ReplayLog {
 
 export function createReplayLog(
   state: GameState,
-  actions: readonly GameAction[]
+  actions: readonly GameAction[],
+  startingPlayer: 0 | 1 = 0,
 ): ReplayLog {
   return {
     formatVersion: '1.0',
     gameVersion: state.version,
     createdAt: new Date().toISOString(),
     rngSeed: state.rngSeed,
+    startingPlayer,
     actions: [...actions],
   };
+}
+
+/** Initial state for a seed + starting player (mirrors useGameStore.newGame). */
+export function createStartingState(seed: number | undefined, startingPlayer: 0 | 1 = 0): GameState {
+  const initial = createInitialState(seed);
+  return startingPlayer === 0 ? initial : { ...initial, currentPlayer: 1 };
 }
 
 export function exportReplayLog(log: ReplayLog): string {
@@ -217,7 +231,7 @@ export function importReplayLog(payload: string): ReplayLog {
 }
 
 export function replayToState(log: ReplayLog): GameState {
-  let state = createInitialState(log.rngSeed);
+  let state = createStartingState(log.rngSeed, log.startingPlayer ?? 0);
   for (const action of log.actions) {
     state = processAction(state, action);
   }

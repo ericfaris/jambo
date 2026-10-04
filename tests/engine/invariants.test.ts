@@ -45,6 +45,21 @@ describe('checkInvariants', () => {
   });
 });
 
+describe('hand size', () => {
+  // Official Jambo rules have no hand limit — a big hand is a legal state.
+  it('accepts a 20-card hand', () => {
+    const s = createTestState();
+    const extra = s.deck.slice(0, 15);
+    const big = {
+      ...s,
+      deck: s.deck.slice(15),
+      players: [{ ...s.players[0], hand: [...s.players[0].hand, ...extra] }, s.players[1]] as typeof s.players,
+    };
+    expect(big.players[0].hand.length).toBe(20);
+    expect(checkInvariants(big).filter(v => v.severity !== 'warning')).toEqual([]);
+  });
+});
+
 describe('assertValidState', () => {
   it('does not throw for valid state', () => {
     expect(() => assertValidState(createTestState())).not.toThrow();

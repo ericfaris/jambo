@@ -1176,7 +1176,6 @@ function isOpponentActionForPanel(action: string): boolean {
     action === 'KEEP_CARD' ||
     action === 'DISCARD_DRAWN' ||
     action === 'SKIP_DRAW' ||
-    action === 'DRAW_ACTION' ||
     action === 'PARROT_STEAL' ||
     action === 'THRONE_SWAP' ||
     action === 'CROCODILE_DISCARD' ||
@@ -1215,7 +1214,7 @@ function isOpponentActionForPanel(action: string): boolean {
   );
 }
 
-function parseOpponentAction(
+export function parseOpponentAction(
   action: string,
   details: string,
   pub: PublicGameState,
@@ -1233,7 +1232,6 @@ function parseOpponentAction(
   if (action === 'KEEP_CARD') return { cardId: null, message: 'Opponent kept the drawn card.' };
   if (action === 'DISCARD_DRAWN') return { cardId: null, message: 'Opponent discarded the drawn card.' };
   if (action === 'SKIP_DRAW') return { cardId: null, message: 'Opponent skipped the draw phase.' };
-  if (action === 'DRAW_ACTION') return { cardId: null, message: 'Opponent drew a card using an action.' };
 
   if (action.startsWith('PLAY_')) {
     const cardId = extractPlayedCardId(details, pub, opponent);
@@ -1348,9 +1346,8 @@ function parseOpponentAction(
   if (action === 'SCALE_EFFECT') {
     const gaveCardId = details.match(/gave\s+([a-z0-9_]+)\s+to opponent/i)?.[1]?.trim();
     const gaveCardName = gaveCardId && isValidDeckCardId(gaveCardId) ? getCard(gaveCardId).name : null;
-    const keptCardId = details.match(/Kept\s+([a-z0-9_]+)/i)?.[1]?.trim();
-    const keptCardName = keptCardId && isValidDeckCardId(keptCardId) ? getCard(keptCardId).name : null;
-    if (gaveCardName && keptCardName) {
+    // The kept card is redacted in the public log; only the given card is known
+    if (gaveCardName) {
       return {
         cardId: findUtilityCardIdByDesign(pub, opponent, 'scale') ?? findAnyCardIdByDesign('scale'),
         message: 'Opponent used Scale and gave you a card.',

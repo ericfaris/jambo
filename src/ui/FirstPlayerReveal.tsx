@@ -3,9 +3,11 @@ import { useEffect, useState } from 'react';
 interface FirstPlayerRevealProps {
   firstPlayer: 0 | 1;
   onComplete: () => void;
+  /** Hotseat: name the seats instead of "You"/"Opponent" */
+  localMultiplayer?: boolean;
 }
 
-export function FirstPlayerReveal({ firstPlayer, onComplete }: FirstPlayerRevealProps) {
+export function FirstPlayerReveal({ firstPlayer, onComplete, localMultiplayer = false }: FirstPlayerRevealProps) {
   const [phase, setPhase] = useState<'visible' | 'fading'>('visible');
 
   useEffect(() => {
@@ -23,7 +25,9 @@ export function FirstPlayerReveal({ firstPlayer, onComplete }: FirstPlayerReveal
     };
   }, [onComplete]);
 
-  const label = firstPlayer === 0 ? 'You go first' : 'Opponent goes first';
+  const label = localMultiplayer
+    ? `Player ${firstPlayer + 1} goes first`
+    : firstPlayer === 0 ? 'You go first' : 'Opponent goes first';
 
   return (
     <div

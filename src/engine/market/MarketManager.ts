@@ -78,15 +78,49 @@ export function countWaresOfType(state: GameState, player: 0 | 1, wareType: Ware
   return state.players[player].market.filter((slot) => slot === wareType).length;
 }
 
+// ---------------------------------------------------------------------------
+// Placement — official rule: "The large market stands have space for 6 wares.
+// The players pay nothing to use five of these spaces. However, when a player
+// fills a sixth space with a ware, he must pay 2 gold to the bank."
+// ---------------------------------------------------------------------------
+
 /**
- * Returns true if all base 6 slots are occupied, triggering the 6th-slot penalty (-2g).
- * The penalty applies only to the base 6 market slots, not stand expansion slots.
+ * Empty slots in the order wares are placed: the large stand's free spaces
+ * first, then small-stand spaces, and the large stand's 6th (paid) space last.
  */
-export function hasSixthSlotPenalty(state: GameState, player: 0 | 1): boolean {
-  const market = state.players[player].market;
-  // Check the first 6 (base) slots only
-  const baseSlots = market.slice(0, CONSTANTS.MARKET_SLOTS);
-  return baseSlots.every((slot) => slot !== null);
+function getPlacementPlan(market: (WareType | null)[]): { order: number[]; sixthSpace: number | null } {
+  const largeEmpty: number[] = [];
+  const standEmpty: number[] = [];
+  for (let i = 0; i < market.length; i++) {
+    if (market[i] !== null) continue;
+    if (i < CONSTANTS.MARKET_SLOTS) largeEmpty.push(i);
+    else standEmpty.push(i);
+  }
+  const largeOccupied = CONSTANTS.MARKET_SLOTS - largeEmpty.length;
+  const freeLarge = largeEmpty.slice(0, Math.max(0, CONSTANTS.MARKET_SLOTS - 1 - largeOccupied));
+  const sixthSpace = largeEmpty.length > freeLarge.length ? largeEmpty[largeEmpty.length - 1] : null;
+  return { order: [...freeLarge, ...standEmpty, ...(sixthSpace === null ? [] : [sixthSpace])], sixthSpace };
+}
+
+/** Slot index of the large stand's paid 6th space (filled last), or null if it's occupied. */
+export function getSixthSpaceIndex(market: (WareType | null)[]): number | null {
+  return getPlacementPlan(market).sixthSpace;
+}
+
+/** Gold owed for placing `count` new wares (2g if it fills the large stand's 6th space). */
+export function getSixthSpaceFee(state: GameState, player: 0 | 1, count: number): number {
+  const { order, sixthSpace } = getPlacementPlan(state.players[player].market);
+  return sixthSpace !== null && order.slice(0, count).includes(sixthSpace) ? CONSTANTS.SIXTH_SLOT_PENALTY : 0;
+}
+
+/**
+ * How many wares the player can place right now. The 6th large-stand space
+ * only counts if they can afford its fee from `goldAvailable`.
+ */
+export function getPlacementCapacity(state: GameState, player: 0 | 1, goldAvailable: number = state.players[player].gold): number {
+  const { order, sixthSpace } = getPlacementPlan(state.players[player].market);
+  if (sixthSpace === null) return order.length;
+  return goldAvailable >= CONSTANTS.SIXTH_SLOT_PENALTY ? order.length : order.length - 1;
 }
 
 // ---------------------------------------------------------------------------
@@ -94,23 +128,14 @@ export function hasSixthSlotPenalty(state: GameState, player: 0 | 1): boolean {
 // ---------------------------------------------------------------------------
 
 /**
- * Place a ware in the first empty slot of the player's market.
- * Throws if the market has no empty slots.
+ * Place one ware (see addWaresToMarket for placement order and the 6th-space fee).
  */
 export function addWareToMarket(
   state: GameState,
   player: 0 | 1,
   wareType: WareType
 ): GameState {
-  const emptySlots = getEmptySlots(state, player);
-  if (emptySlots.length === 0) {
-    throw new Error(`Player ${player}'s market is full: no empty slots available`);
-  }
-
-  const newMarket = [...state.players[player].market];
-  newMarket[emptySlots[0]] = wareType;
-
-  return withUpdatedMarket(state, player, newMarket);
+  return addWaresToMarket(state, player, [wareType]);
 }
 
 /**
@@ -141,26 +166,70 @@ export function removeWareFromMarket(
 }
 
 /**
- * Add multiple wares to the first available empty slots.
- * Throws if there are not enough empty slots for all wares.
+ * Place wares on the player's stands — free large-stand spaces, then small
+ * stands, then the 6th large-stand space (charging its 2g fee).
+ * Throws if there isn't room or the player can't pay the fee.
  */
 export function addWaresToMarket(
   state: GameState,
   player: 0 | 1,
   wares: WareType[]
 ): GameState {
-  const emptySlots = getEmptySlots(state, player);
-  if (emptySlots.length < wares.length) {
+  const { order } = getPlacementPlan(state.players[player].market);
+  if (order.length < wares.length) {
     throw new Error(
-      `Player ${player}'s market has ${emptySlots.length} empty slot(s) but ${wares.length} ware(s) need to be added`
+      `Player ${player}'s market has ${order.length} empty slot(s) but ${wares.length} ware(s) need to be added`
     );
+  }
+  const fee = getSixthSpaceFee(state, player, wares.length);
+  const gold = state.players[player].gold;
+  if (gold < fee) {
+    throw new Error(`Player ${player} cannot pay ${fee}g for the 6th market space`);
   }
 
   const newMarket = [...state.players[player].market];
   for (let i = 0; i < wares.length; i++) {
-    newMarket[emptySlots[i]] = wares[i];
+    newMarket[order[i]] = wares[i];
   }
 
+  const next = withUpdatedMarket(state, player, newMarket);
+  if (fee === 0) return next;
+  const newPlayers: [PlayerState, PlayerState] = [
+    player === 0 ? { ...next.players[0], gold: gold - fee } : next.players[0],
+    player === 1 ? { ...next.players[1], gold: gold - fee } : next.players[1],
+  ];
+  return { ...next, players: newPlayers };
+}
+
+/**
+ * For wares received from card effects: place as many as fit (and whose 6th
+ * space fee the player can pay); the rest stay in / go back to the supply.
+ * Official rule: "If a player does not have enough room on his market stands
+ * for wares he receives as a result of the effects of people and animal cards,
+ * he can choose which to take and which to leave in the supply."
+ */
+export function placeWaresUpToCapacity(
+  state: GameState,
+  player: 0 | 1,
+  wares: WareType[]
+): { state: GameState; placed: WareType[]; leftover: WareType[] } {
+  const capacity = getPlacementCapacity(state, player);
+  const placed = wares.slice(0, capacity);
+  const leftover = wares.slice(capacity);
+  return { state: placed.length > 0 ? addWaresToMarket(state, player, placed) : state, placed, leftover };
+}
+
+/**
+ * Put a ware into a specific (empty) slot — used by in-place swaps such as
+ * Throne, which exchange wares rather than filling a new space.
+ */
+export function setWareAtSlot(state: GameState, player: 0 | 1, slotIndex: number, wareType: WareType): GameState {
+  const market = state.players[player].market;
+  if (market[slotIndex] !== null) {
+    throw new Error(`Player ${player}'s market slot ${slotIndex} is not empty`);
+  }
+  const newMarket = [...market];
+  newMarket[slotIndex] = wareType;
   return withUpdatedMarket(state, player, newMarket);
 }
 

@@ -102,6 +102,22 @@ export function initializeResolution(
     }
 
     case 'AUCTION':
+      // Arabian Merchant: auction the top 3 deck cards; the active player opens
+      if (isDesign(cardId, 'arabian_merchant')) {
+        const revealedCards = state.deck.slice(0, 3);
+        if (revealedCards.length === 0) return null;
+        return {
+          type: 'AUCTION',
+          sourceCard: cardId,
+          wares: [],
+          revealedCards,
+          currentBid: 0,
+          // Bids swap current/next, so "current" starts as the opponent
+          currentBidder: state.currentPlayer === 0 ? 1 : 0,
+          nextBidder: state.currentPlayer,
+          passed: [false, false],
+        };
+      }
       return {
         type: 'AUCTION',
         sourceCard: cardId,

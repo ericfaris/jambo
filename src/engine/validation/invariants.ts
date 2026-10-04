@@ -59,9 +59,8 @@ export function checkInvariants(state: GameState): InvariantViolation[] {
     check(`P${p}_GOLD_UPPER`, player.gold <= 200,
       `Player ${p} gold=${player.gold} exceeds sanity limit of 200`, 'warning');
 
-    // 10-11. Hand size upper bound
-    check(`P${p}_HAND_SIZE`, player.hand.length <= 12,
-      `Player ${p} hand size=${player.hand.length} exceeds max 12`);
+    // 10-11. (No hand-size bound: official Jambo rules have no hand limit;
+    // the 110-card total check below already bounds it.)
 
     // 12-13. Market must have correct number of slots (base 6 + 3 per stand)
     const expectedSlots = CONSTANTS.MARKET_SLOTS + (player.smallMarketStands * CONSTANTS.STAND_EXPANSION_SLOTS);
@@ -203,6 +202,12 @@ function countAllCards(state: GameState): number {
         }
       }
     }
+  }
+
+  // Crocodile card while its borrowed utility's effect is resolving
+  const crocodileCardId = state.crocodileCleanup?.crocodileCardId;
+  if (crocodileCardId && !allCounted.has(crocodileCardId) && crocodileCardId !== state.pendingResolution?.sourceCard) {
+    count += 1;
   }
 
   // pendingGuardReaction.animalCard — animal card awaiting guard decision

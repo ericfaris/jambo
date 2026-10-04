@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { DeckCardId, WareType } from '../engine/types.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
+import { buttonProps } from './a11y.ts';
 
 const CARD_TYPE_COLORS: Record<string, string> = {
   people: 'var(--card-people)',
@@ -96,6 +97,7 @@ export function CardFace({ cardId, onClick, selected, small, medium, large, extr
       <div
         title={tooltip}
         onClick={onClick}
+        {...buttonProps(onClick, card.name)}
         className="linen-texture"
         style={{
           width: faceWidth,
@@ -142,6 +144,7 @@ export function CardFace({ cardId, onClick, selected, small, medium, large, extr
             /* 6-ware layout: top row of 3 pips, bottom row with coins + 3 pips */
             <div
               onClick={(e) => { e.stopPropagation(); onMegaView?.(cardId); }}
+              {...buttonProps(onMegaView ? () => onMegaView(cardId) : undefined, `Zoom in on ${card.name}`)}
               style={{
                 position: 'absolute',
                 bottom: 0,
@@ -195,6 +198,7 @@ export function CardFace({ cardId, onClick, selected, small, medium, large, extr
             ) : (
             <div
               onClick={(e) => { e.stopPropagation(); onMegaView?.(cardId); }}
+              {...buttonProps(onMegaView ? () => onMegaView(cardId) : undefined, `Zoom in on ${card.name}`)}
               style={{
                 position: 'absolute',
                 bottom: 0,
@@ -236,6 +240,7 @@ export function CardFace({ cardId, onClick, selected, small, medium, large, extr
           ) : (
             <div
               onClick={(e) => { e.stopPropagation(); onMegaView?.(cardId); }}
+              {...buttonProps(onMegaView ? () => onMegaView(cardId) : undefined, `Zoom in on ${card.name}`)}
               style={{
                 position: 'absolute',
                 bottom: 0,
@@ -276,6 +281,7 @@ export function CardFace({ cardId, onClick, selected, small, medium, large, extr
     <div
       title={tooltip}
       onClick={onClick}
+      {...buttonProps(onClick, card.name)}
       style={{
         width: fallbackWidth,
         height: fallbackHeight,
@@ -364,6 +370,7 @@ export function WareToken({ type, onClick, selected, size = 42 }: { type: WareTy
       src={`/assets/tokens/${type}.png`}
       alt={type}
       onClick={onClick}
+      {...buttonProps(onClick, type)}
       style={{
         width: size,
         height: size,

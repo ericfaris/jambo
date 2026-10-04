@@ -56,7 +56,6 @@ function findChangedMarketSlots(
 
 const DRAW_LOG_ACTIONS = new Set([
   'DRAW_CARD',
-  'DRAW_ACTION',
   'KEEP_CARD',
   'TRIBAL_ELDER_DRAW',
   'SUPPLIES_DRAW',

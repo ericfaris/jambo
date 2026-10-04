@@ -3,7 +3,7 @@ import type { GameState, PendingAuction, WareType } from '../../src/engine/types
 import { getEasyAiAction } from '../../src/ai/difficulties/EasyAI.ts';
 import { getMediumAiAction } from '../../src/ai/difficulties/MediumAI.ts';
 import { getHardAiAction } from '../../src/ai/difficulties/HardAI.ts';
-import { getAuctionMaxBid } from '../../src/ai/strategyHeuristics.ts';
+import { getAuctionMaxBid, getCardAuctionMaxBid } from '../../src/ai/strategyHeuristics.ts';
 import { createTestState, toPlayPhase, withGold, withHand, withMarket } from '../helpers/testHelpers.ts';
 
 /**
@@ -327,4 +327,46 @@ describe('Auction bidding — all difficulties pass at high bids', () => {
       expect(action!.response.type).toBe('AUCTION_PASS');
     }
   });
+});
+
+describe('Arabian Merchant card auction — AI bidding', () => {
+  function withCardAuction(state: GameState, currentBid: number, nextBidder: 0 | 1): GameState {
+    const pending: PendingAuction = {
+      type: 'AUCTION',
+      sourceCard: 'arabian_merchant_1',
+      wares: [],
+      revealedCards: state.deck.slice(0, 3),
+      currentBid,
+      currentBidder: nextBidder === 0 ? 1 : 0,
+      nextBidder,
+      passed: [false, false],
+    };
+    return { ...state, pendingResolution: pending };
+  }
+
+  it('values 3 cards at a few gold, capped by 40% of gold', () => {
+    let state = toPlayPhase(createTestState(200));
+    state = withGold(state, 1, 20);
+    const max = getCardAuctionMaxBid(state, 1, state.deck.slice(0, 3));
+    expect(max).toBeGreaterThanOrEqual(4);
+    expect(max).toBeLessThanOrEqual(8);
+    state = withGold(state, 1, 5);
+    expect(getCardAuctionMaxBid(state, 1, state.deck.slice(0, 3))).toBeLessThanOrEqual(2);
+  });
+
+  for (const [name, ai] of [['medium', getMediumAiAction], ['hard', getHardAiAction]] as const) {
+    it(`${name} AI opens the bidding on a cheap card auction`, () => {
+      let state = toPlayPhase(createTestState(201));
+      state = withGold(state, 1, 20);
+      state = withCardAuction(state, 0, 1);
+      expect(ai(state)).toEqual({ type: 'RESOLVE_INTERACTION', response: { type: 'AUCTION_BID', amount: 1 } });
+    });
+
+    it(`${name} AI passes once the price exceeds the cards' value`, () => {
+      let state = toPlayPhase(createTestState(202));
+      state = withGold(state, 1, 20);
+      state = withCardAuction(state, 12, 1);
+      expect(ai(state)).toEqual({ type: 'RESOLVE_INTERACTION', response: { type: 'AUCTION_PASS' } });
+    });
+  }
 });

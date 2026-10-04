@@ -3,8 +3,9 @@
 // ============================================================================
 
 import type { GameState, DeckCardId, GameAction, WareType } from '../types.ts';
-import { CONSTANTS } from '../types.ts';
 import { getCard, isDesign } from '../cards/CardDatabase.ts';
+import { getPlacementCapacity, getSixthSpaceFee } from '../market/MarketManager.ts';
+import { getSmallStandCost } from '../market/standCost.ts';
 
 export interface ValidationResult {
   valid: boolean;
@@ -47,8 +48,6 @@ export function validateAction(state: GameState, action: GameAction): Validation
       return validatePlayCard(state, action.cardId, action.wareMode);
     case 'ACTIVATE_UTILITY':
       return validateActivateUtility(state, action.utilityIndex);
-    case 'DRAW_ACTION':
-      return validateDrawAction();
     case 'END_TURN':
       return validateEndTurn(state);
     case 'RESOLVE_INTERACTION':
@@ -169,13 +168,14 @@ export function validatePlayCard(
       }
     } else {
       const effectiveBuyPrice = Math.max(0, cardDef.wares!.buyPrice - state.turnModifiers.buyDiscount);
-      if (player.gold < effectiveBuyPrice) {
-        return fail(`Cannot buy: insufficient gold (need ${effectiveBuyPrice}g, have ${player.gold}g)`);
-      }
-
       const emptyMarketSlots = player.market.filter(slot => slot === null).length;
       if (emptyMarketSlots < requiredWares.length) {
         return fail('Cannot buy: insufficient market space');
+      }
+      // Filling the large stand's 6th space costs 2g on top of the price
+      const totalCost = effectiveBuyPrice + getSixthSpaceFee(state, state.currentPlayer, requiredWares.length);
+      if (player.gold < totalCost) {
+        return fail(`Cannot buy: insufficient gold (need ${totalCost}g, have ${player.gold}g)`);
       }
 
       const requiredCounts: Partial<Record<WareType, number>> = {};
@@ -193,9 +193,7 @@ export function validatePlayCard(
 
   // Stand card validation
   if (cardDef.type === 'stand') {
-    const cost = player.smallMarketStands === 0
-      ? CONSTANTS.FIRST_STAND_COST
-      : CONSTANTS.ADDITIONAL_STAND_COST;
+    const cost = getSmallStandCost(state);
     if (player.gold < cost) {
       return fail(`Not enough gold for stand: need ${cost}g, have ${player.gold}g`);
     }
@@ -215,8 +213,8 @@ export function validatePlayCard(
       if (!opPlayer.market.some(w => w !== null)) {
         return fail('Cannot play Parrot: opponent has no wares');
       }
-      if (!player.market.some(w => w === null)) {
-        return fail('Cannot play Parrot: your market has no empty slots');
+      if (getPlacementCapacity(state, state.currentPlayer) < 1) {
+        return fail('Cannot play Parrot: your market has no room');
       }
     }
     // Elephant: both markets must have at least 1 ware total
@@ -267,18 +265,34 @@ export function validatePlayCard(
     // Basket Maker: need 2g, 2 empty market slots, and at least 1 ware type in supply
     if (isDesign(cardId, 'basket_maker')) {
       if (player.gold < 2) return fail('Cannot play Basket Maker: need at least 2g');
-      if (player.market.filter(w => w === null).length < 2) return fail('Cannot play Basket Maker: need at least 2 empty market slots');
+      // Takes up to 2 wares; with room for only 1, the other stays in the supply
+      if (getPlacementCapacity(state, state.currentPlayer, player.gold - 2) < 1) return fail('Cannot play Basket Maker: no room on your market stands');
       if (!Object.values(state.wareSupply).some(v => v > 0)) return fail('Cannot play Basket Maker: no wares in supply');
     }
     // Shaman: need at least 1 ware in market to trade
     if (isDesign(cardId, 'shaman') && !player.market.some(w => w !== null)) {
       return fail('Cannot play Shaman: no wares in market to trade');
     }
-    // Arabian Merchant: player needs at least 2 empty market slots to receive auctioned wares
-    if (isDesign(cardId, 'arabian_merchant')) {
-      if (player.market.filter(w => w === null).length < 2) {
-        return fail('Cannot play Arabian Merchant: need at least 2 empty market slots');
+    // Portuguese: need at least 1 ware in market to sell
+    if (isDesign(cardId, 'portuguese') && !player.market.some(w => w !== null)) {
+      return fail('Cannot play Portuguese: no wares in market to sell');
+    }
+    // Traveling Merchant: auctions 2 supply wares — needs supply and room to receive them
+    if (isDesign(cardId, 'traveling_merchant')) {
+      // Playing it opens the bidding at 1g on your behalf
+      if (player.gold < 1) {
+        return fail('Cannot play Traveling Merchant: need at least 1g for the opening bid');
       }
+      if (!Object.values(state.wareSupply).some(v => v > 0)) {
+        return fail('Cannot play Traveling Merchant: no wares in supply');
+      }
+      if (player.market.filter(w => w === null).length < 2) {
+        return fail('Cannot play Traveling Merchant: need at least 2 empty market slots');
+      }
+    }
+    // Arabian Merchant: auctions the top 3 deck cards — deck must not be empty
+    if (isDesign(cardId, 'arabian_merchant') && state.deck.length === 0) {
+      return fail('Cannot play Arabian Merchant: draw deck is empty');
     }
   }
 
@@ -328,18 +342,20 @@ export function validateActivateUtility(state: GameState, utilityIndex: number):
       break;
     case 'leopard_statue':
       if (player.gold < 2) return fail('Cannot activate Leopard Statue: need at least 2g');
-      if (player.market.filter(s => s === null).length < 1) return fail('Cannot activate Leopard Statue: no empty market slots');
+      if (getPlacementCapacity(state, state.currentPlayer, player.gold - 2) < 1) return fail('Cannot activate Leopard Statue: no room on your market stands');
       if (!Object.values(state.wareSupply).some(v => v > 0)) return fail('Cannot activate Leopard Statue: no wares available in supply');
       break;
     case 'throne':
       if (!state.players[opponent].market.some(w => w !== null)) return fail('Cannot activate Throne: opponent has no wares');
+      // Throne exchanges wares — you need one to give
+      if (!player.market.some(w => w !== null)) return fail('Cannot activate Throne: you have no wares to exchange');
       break;
     case 'drums':
       if (!player.market.some(w => w !== null)) return fail('Cannot activate Drums: no wares in market to return');
       break;
     case 'boat':
       if (player.hand.length === 0) return fail('Cannot activate Boat: no cards in hand to discard');
-      if (player.market.filter(s => s === null).length < 1) return fail('Cannot activate Boat: no empty market slots');
+      if (getPlacementCapacity(state, state.currentPlayer) < 1) return fail('Cannot activate Boat: no room on your market stands');
       break;
     case 'weapons':
       if (player.hand.length === 0) return fail('Cannot activate Weapons: no cards in hand to discard');
@@ -354,10 +370,6 @@ export function validateActivateUtility(state: GameState, utilityIndex: number):
   }
 
   return ok;
-}
-
-function validateDrawAction(): ValidationResult {
-  return fail('Drawing cards is only allowed during DRAW phase');
 }
 
 function validateEndTurn(state: GameState): ValidationResult {
@@ -442,11 +454,6 @@ export function getValidActions(state: GameState): GameAction[] {
         if (validateActivateUtility(state, i).valid) {
           actions.push({ type: 'ACTIVATE_UTILITY', utilityIndex: i });
         }
-      }
-
-      // Draw as action
-      if (validateDrawAction().valid) {
-        actions.push({ type: 'DRAW_ACTION' });
       }
     }
 

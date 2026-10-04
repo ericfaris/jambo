@@ -1,4 +1,5 @@
 import type { GameAction, GameState } from '../../engine/types.ts';
+import { isAuctionBidding } from '../../engine/responder.ts';
 
 import { processAction } from '../../engine/GameEngine.ts';
 import { getValidActions } from '../../engine/validation/actionValidator.ts';
@@ -232,7 +233,7 @@ function pickWareNearTop(scored: ReadonlyArray<{ action: GameAction; score: numb
 
 export function getExpertAiAction(state: GameState, rng: () => number = createExpertRng(state)): GameAction | null {
   // Auction bidding — reuse Hard's simulation-based handler
-  if (state.pendingResolution?.type === 'AUCTION' && state.pendingResolution.wares.length >= 2) {
+  if (state.pendingResolution?.type === 'AUCTION' && isAuctionBidding(state.pendingResolution)) {
     const auctionAction = getHardAuctionBidAction(state);
     if (auctionAction) return auctionAction;
   }

@@ -1,11 +1,15 @@
 import { useEffect, useRef } from 'react';
 import type { GameLogEntry } from '../engine/types.ts';
+import { humanizeLogDetails } from './uiHints.ts';
 
 interface GameLogProps {
   log: GameLogEntry[];
+  labels?: readonly [string, string];
+  /** Player whose card identities stay hidden (the AI in solo) */
+  hiddenPlayer?: 0 | 1 | null;
 }
 
-export function GameLog({ log }: GameLogProps) {
+export function GameLog({ log, labels = ['Player 1', 'Player 2'], hiddenPlayer = null }: GameLogProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -36,11 +40,10 @@ export function GameLog({ log }: GameLogProps) {
           opacity: i < recent.length - 10 ? 0.6 : 1,
         }}>
           <span style={{ color: 'var(--text-muted)' }}>T{entry.turn}</span>{' '}
-          <span style={{ fontWeight: 600 }}>P{entry.player + 1}</span>{' '}
-          <span>{entry.action}</span>
-          {entry.details && (
-            <span style={{ color: 'var(--text-muted)' }}> - {entry.details}</span>
-          )}
+          <span style={{ fontWeight: 600 }}>{labels[entry.player]}</span>{' '}
+          <span style={{ color: 'var(--text-muted)' }}>
+            {entry.details ? humanizeLogDetails(entry.details, entry.player === hiddenPlayer) : entry.action.toLowerCase().replace(/_/g, ' ')}
+          </span>
         </div>
       ))}
       <div ref={bottomRef} />

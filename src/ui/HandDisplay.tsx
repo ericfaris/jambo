@@ -22,6 +22,11 @@ interface HandDisplayProps {
   fixedOverlapPx?: number;
 }
 
+/** Max overlap as a fraction of card width — keeps each card's art readable. */
+export const MAX_READABLE_OVERLAP_RATIO = 0.5;
+/** Hand size at which the fan stops squeezing and scrolls sideways. */
+export const SCROLL_HAND_SIZE = 12;
+
 function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaView, useWoodBackground = true, transparentBackground = false, showBorder = true, showHelperText = true, cardScale = 1, paddingBottom = 14, paddingX = 14, paddingLeft, paddingRight, paddingTop = 14, layoutMode = 'fan', fixedOverlapPx }: HandDisplayProps) {
   const [isMobile, setIsMobile] = useState(false);
 
@@ -64,7 +69,9 @@ function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaVie
     }
 
     overlapAmount = Math.max(baseOverlap, spaceBasedOverlap);
-    overlapAmount = Math.min(overlapAmount, cardWidth * 0.72);
+    // Never squeeze cards past half-overlapped; big hands scroll instead
+    // (official rules have no hand limit, so 15–20 card hands are legal)
+    overlapAmount = Math.min(overlapAmount, MAX_READABLE_OVERLAP_RATIO * cardWidth);
     overlapAmount = Math.max(overlapAmount, 0);
   }
 
@@ -75,6 +82,7 @@ function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaVie
   const spacing = overlapAmount > 0 ? -overlapAmount : minGap;
   const isGrid3 = layoutMode === 'grid3';
   const isTwoRowAlternate = layoutMode === 'twoRowAlternate';
+  const scrollsSideways = !isGrid3 && !isTwoRowAlternate && hand.length >= SCROLL_HAND_SIZE;
 
   const renderCardTile = (cardId: DeckCardId, index: number, marginLeft: number, zIndex: number) => (
     <div
@@ -153,12 +161,13 @@ function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaVie
         border: showBorder ? '1px dashed var(--border)' : 'none',
         borderRadius: 10,
         minHeight: 200,
-        overflowX: isGrid3 ? 'hidden' : (isMobile || isTwoRowAlternate ? 'auto' : 'hidden'),
+        overflowX: isGrid3 ? 'hidden' : (isMobile || isTwoRowAlternate || scrollsSideways ? 'auto' : 'hidden'),
         overflowY: isGrid3 ? 'auto' : 'hidden',
         display: isGrid3 ? 'grid' : 'flex',
         gridTemplateColumns: isGrid3 ? 'repeat(3, minmax(0, 1fr))' : undefined,
         flexDirection: isTwoRowAlternate ? 'column' : undefined,
-        justifyContent: isGrid3 ? undefined : (isMobile || isTwoRowAlternate ? 'flex-start' : 'center'),
+        // 'safe center' centers when the row fits and falls back to start when it scrolls
+        justifyContent: isGrid3 ? undefined : (isMobile || isTwoRowAlternate ? 'flex-start' : scrollsSideways ? 'safe center' : 'center'),
         justifyItems: isGrid3 ? 'center' : undefined,
         alignItems: 'flex-start',
         gap: isGrid3 || isTwoRowAlternate ? 10 : undefined,
@@ -176,6 +185,17 @@ function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaVie
           zIndex: 5,
         }}>
           Tap a card to play it.
+        </div>
+      )}
+      {scrollsSideways && (
+        <div className="ui-helper-text" style={{
+          position: 'absolute',
+          top: 4,
+          right: 8,
+          // Above every card in the fan (cards stack with zIndex = index)
+          zIndex: hand.length + 10,
+        }}>
+          {hand.length} cards in hand
         </div>
       )}
       {hand.length === 0 && (
