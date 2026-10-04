@@ -125,3 +125,17 @@ describe('breadcrumbs', () => {
     expect(formatResolutionBreadcrumb({ ...pr, revealedCards: undefined, wares: ['silk', 'tea'] })).toBe('Auction > Bidding');
   });
 });
+
+import { shouldShowResolvePanel } from '../../src/ui/gameScreenLogic.ts';
+
+describe('resolve panel visibility during the AI turn (playtest 2026-10-04)', () => {
+  it('keeps auctions visible while the AI bids (was hidden: the human never saw the cards being auctioned)', () => {
+    expect(shouldShowResolvePanel(true, true, 'AUCTION')).toBe(true);
+    expect(shouldShowResolvePanel(true, true, 'DRAFT')).toBe(true);
+  });
+  it('hides other AI-side decisions and shows everything on the human turn', () => {
+    expect(shouldShowResolvePanel(true, true, 'DECK_PEEK')).toBe(false);
+    expect(shouldShowResolvePanel(true, false, 'DECK_PEEK')).toBe(true);
+    expect(shouldShowResolvePanel(false, false, null)).toBe(false);
+  });
+});

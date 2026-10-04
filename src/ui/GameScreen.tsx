@@ -23,7 +23,7 @@ import { isHandInteraction } from './HandReferenceStrip.tsx';
 import { MegaView } from './MegaView.tsx';
 import { TutorialOverlay } from './TutorialOverlay.tsx';
 import { PassDeviceScreen, needsHandoff } from './PassDeviceScreen.tsx';
-import { shouldAiAct, isWareDialogValid } from './gameScreenLogic.ts';
+import { shouldAiAct, isWareDialogValid, shouldShowResolvePanel } from './gameScreenLogic.ts';
 import { useVisualFeedback } from './useVisualFeedback.ts';
 import { getDrawDisabledReason, getPlayDisabledReason, friendlyPlayError } from './uiHints.ts';
 import { getVolume, setVolume as saveVolume, getMuted, setMuted as saveMuted, resetAudioSettings } from './audioSettings.ts';
@@ -1356,7 +1356,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
       <EndgameOverlay state={state} onNewGame={() => newGame()} onMainMenu={onBackToMenu} />
 
       {/* Resolve mega view — also stay visible during drafts when AI is picking */}
-      {hasPendingInteraction && (!isAiTurn || state.pendingResolution?.type === 'DRAFT') && (
+      {shouldShowResolvePanel(hasPendingInteraction, isAiTurn, state.pendingResolution?.type) && (
         <ResolveMegaView
           verticalAlign="center"
           hand={state.players[viewerPlayer].hand}

@@ -53,7 +53,13 @@ export function fitCardsToBox({
     cardWidth: Math.round(CARD_BASE_WIDTH * maxScale), cardHeight: Math.round(CARD_BASE_HEIGHT * maxScale),
     overlapPx: 0, gap,
   };
-  if (count <= 0 || width <= 0 || height <= 0) return empty;
+  if (count <= 0) return empty;
+  if (width <= 0 || height <= 0) {
+    // Not measured yet: render small rather than overflow (it corrects on
+    // the first measurement)
+    const w = Math.round(CARD_BASE_WIDTH * minScale);
+    return { ...empty, perRow: count, scale: minScale, cardWidth: w, cardHeight: Math.round(w / aspect) };
+  }
 
   let best: FitResult | null = null;
   let bestScore = -1;

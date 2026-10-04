@@ -24,24 +24,14 @@ window.__ptLoad = async () => {
   const inv = await import('/src/engine/validation/invariants.ts');
   const va = await import('/src/engine/validation/actionValidator.ts');
   const cd = await import('/src/engine/cards/CardDatabase.ts');
-  Object.assign(window.__pt, { store: st.useGameStore, ai, inv, va, cd });
+  const rs = await import('/src/engine/responder.ts');
+  Object.assign(window.__pt, { store: st.useGameStore, ai, inv, va, cd, rs });
   return true;
 };
-window.__ptResponder = (s) => {
-  if (s.pendingGuardReaction) return s.pendingGuardReaction.targetPlayer;
-  if (s.pendingWareCardReaction) return s.pendingWareCardReaction.targetPlayer;
-  const pr = s.pendingResolution;
-  if (pr) {
-    switch (pr.type) {
-      case 'AUCTION': return pr.wares.length < 2 ? s.currentPlayer : pr.nextBidder;
-      case 'DRAFT': return pr.currentPicker;
-      case 'OPPONENT_DISCARD': case 'CARRIER_WARE_SELECT': return pr.targetPlayer;
-      case 'UTILITY_KEEP': return pr.step === 'ACTIVE_CHOOSE' ? s.currentPlayer : 1 - s.currentPlayer;
-      case 'OPPONENT_CHOICE': return 1 - s.currentPlayer;
-    }
-  }
-  return s.currentPlayer;
-};
+// Whose decision is it? Use the engine's own answer — a hand-copied version
+// went stale when the Arabian Merchant card auction (opponent bids first,
+// wares stay empty) was added, causing fake AI_STALL / UI_GAP findings.
+window.__ptResponder = (s) => window.__pt.rs.getResponder(s);
 window.__ptSummary = () => {
   const g = window.__pt.store.getState();
   const s = g.state;
@@ -165,6 +155,15 @@ class Game:
     def realize(self, action, before):
         t = action['type']
         cs = self.scan()
+        # The draw dialog opens from a React effect one render after the turn
+        # starts; under the frozen fake clock the first scan can land before
+        # it. Advance time and rescan before treating it as a UI gap.
+        if t in ('DRAW_CARD', 'SKIP_DRAW', 'KEEP_CARD', 'DISCARD_DRAWN'):
+            for _ in range(3):
+                if any(c['tag'] == 'BUTTON' and c['text'].startswith(('Draw Card', 'Skip Draw', 'Keep Card', 'Discard')) for c in cs):
+                    break
+                self.tick(600)
+                cs = self.scan()
         btn = lambda words: next((c for c in cs if c['tag'] == 'BUTTON' and any(c['text'].startswith(w) for w in words)), None)
         target = None
         if t == 'DRAW_CARD':
@@ -207,6 +206,10 @@ class Game:
                     cs3 = self.scan()
                     err = [c for c in cs3 if 'HandDisplay' in c['comps']]
                 return ch
+        elif t == 'ACTIVATE_UTILITY' and btn(['Use Mask of Transformation']):
+            # Before drawing, Mask is offered as a button in the draw dialog
+            target = btn(['Use Mask of Transformation'])
+            self.stats['utilities'] += 1
         elif t == 'ACTIVATE_UTILITY':
             ut = [c for c in cs if 'UtilityArea' in c['comps']]
             # own utilities are the lower area: largest y
@@ -232,7 +235,9 @@ class Game:
     def panel_clickables(self):
         cs = self.scan()
         # inside resolution panel (ResolveMegaView), excluding the reference hand strip + zoom helpers
-        inside = self.ev("""() => [...document.querySelectorAll('[data-pt]')].filter(e => e.closest('.panel-slide')).map(e => e.getAttribute('data-pt'))""")
+        # (skip the Cancel ✕ — exploring it just loops play→cancel, which wasted
+        #  ~2,300 actions per batch once CANCEL_ACTION existed)
+        inside = self.ev("""() => [...document.querySelectorAll('[data-pt]')].filter(e => e.closest('.panel-slide') && !e.closest('.panel-cancel-x')).map(e => e.getAttribute('data-pt'))""")
         ids = set(inside)
         out = [c for c in cs if c['id'] in ids and 'HandReferenceStrip' not in c['comps']]
         # drop zoom-only (tiny) elements within cards
@@ -442,7 +447,10 @@ def run_game(gid, mode, difficulty, human_policy, eps, seed):
     os.makedirs(f'{S}/shots', exist_ok=True)
     with sync_playwright() as p:
         b = p.chromium.launch(headless=True)
-        ctx = b.new_context(viewport={'width': 1400, 'height': 900})
+        # PT_VIEWPORT=390x844 runs the game at phone size (phone GameScreen layout)
+        vw, vh = (int(x) for x in os.environ.get('PT_VIEWPORT', '1400x900').split('x'))
+        phone = vw <= 640
+        ctx = b.new_context(viewport={'width': vw, 'height': vh}, is_mobile=phone, has_touch=phone)
         tutorial_seen = 'true' if gid != 1 else 'false'
         ctx.add_init_script(f"if (!sessionStorage.getItem('pt-init')) {{ localStorage.setItem('jambo.tutorialSeen','{tutorial_seen}'); localStorage.setItem('jambo.uxDebugCounters','false'); sessionStorage.setItem('pt-init','1'); }}")
         pg = ctx.new_page()
@@ -517,6 +525,7 @@ USAGE = """usage: driver.py GAME_ID MODE AI_DIFFICULTY HUMAN_POLICY EPSILON SEED
   HUMAN_POLICY   difficulty used to choose the human seat's moves
   EPSILON        0..1 chance of a random valid action instead (exploration)
   env PT_OUT     output dir (default cwd), PT_BASE app URL (default :5180)
+      PT_VIEWPORT  WxH (default 1400x900); <=640 wide uses the phone layout
 GAME_ID 1 also leaves the first-run tutorial enabled."""
 
 if __name__ == '__main__':

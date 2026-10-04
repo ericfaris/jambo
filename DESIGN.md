@@ -452,6 +452,13 @@ documenting it, fixing one duplication, and identifying the SFX gap.
 
 ## Changelog
 
+### 2026-10-04 — Playtest fixes
+- Phone layout no longer breaks after the tutorial / pass-device screen
+  (late-mounted board was never measured; see LESSONS.md).
+- Auctions stay visible read-only during the AI's bid (`shouldShowResolvePanel`).
+- `.panel-source-art` keeps a 45vh cap on tall screens (was uncapped ≥900px,
+  pushing Dancer's Confirm below the fold).
+
 ### 2026-10-04 — Drawn ware cards can be bought straight from the draw dialog
 - Reported: on turn 1 a drawn six-ware card "had no buy or sell indicator".
   The draw dialog showed its coins unlabelled with only Keep/Discard; buying

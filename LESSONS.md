@@ -172,3 +172,23 @@ overwrites tracked files.)
   room — after a refresh it had nothing to rejoin. It now remembers the room
   and rejoins on socket open; "Room not found"/"Room is full" forgets it so a
   dead room can't cause a retry loop.
+
+## 2026-10-04 — Playtest session (3 driver batches, 23 games + manual Cast/refresh)
+- **Real bug — phone layout broke after the tutorial or the hotseat
+  pass-device screen.** `useElementSize` attached its ResizeObserver once on
+  mount via `useRef`; GameScreen first renders those other screens, so the
+  board mounted later, stayed 0×0, and `fitCardsToBox` fell back to *max*
+  scale → oversized, overflowing cards. Fix: a callback ref (observe whenever
+  the node changes) + the solver now returns *min* scale for an unmeasured
+  box. Rule: measuring hooks must use callback refs when the target can mount
+  after the component does.
+- **UX gaps fixed:** auctions now stay visible read-only while the AI bids
+  (like drafts); resolve-panel art is capped at 45vh on tall screens too, so
+  Confirm doesn't fall below the fold at 900px.
+- **Most findings were driver artifacts** — always confirm a finding by
+  replaying to that exact action (bisect `game<N>.replay.json` with tsx), then
+  reproducing in a real-clock browser, before "fixing" the game. Three Draw/
+  Keep "gaps" all came from the frozen fake clock; the auction ones from a
+  stale responder copy in the driver.
+- Running the driver with exploration also stress-tested Cancel for free:
+  ~2,300 play→cancel cycles, invariants checked every step, zero violations.

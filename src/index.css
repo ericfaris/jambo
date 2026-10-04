@@ -880,9 +880,12 @@ button.brown:hover:not(:disabled) {
   object-fit: contain;
 }
 
+/* Tall screens get bigger art, but still capped so the panel's controls
+   (e.g. Dancer's Confirm) never fall below the fold at ~900px */
 @media (min-height: 900px) {
   .panel-source-art {
-    max-height: none;
+    max-height: 45vh;
+    max-height: 45dvh;
   }
 }
 

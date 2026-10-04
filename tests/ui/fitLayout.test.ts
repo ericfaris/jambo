@@ -55,7 +55,11 @@ describe('fitCardsToBox — phone player view never scrolls', () => {
 
   it('handles empty input and zero-size boxes (before first measure)', () => {
     expect(fitCardsToBox({ count: 0, width: 300, height: 300 }).perRow).toBe(0);
-    expect(fitCardsToBox({ count: 5, width: 0, height: 0 }).scale).toBeGreaterThan(0);
+    // Unmeasured box → smallest cards, never the largest (that overflowed the
+    // phone board when the measuring hook missed a late-mounted board)
+    const unmeasured = fitCardsToBox({ count: 5, width: 0, height: 0, maxScale: 1.3, minScale: 0.3 });
+    expect(unmeasured.scale).toBe(0.3);
+    expect(unmeasured.scale).toBeLessThan(1);
   });
 });
 

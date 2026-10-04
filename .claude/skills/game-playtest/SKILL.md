@@ -79,7 +79,18 @@ It writes `game<N>.log`, `game<N>.json` (findings, stats, endgame),
 against one dev server. Run it with `run_in_background` in a single command
 that ends in `wait`: detached `&` processes get killed.
 
+Set `PT_VIEWPORT=390x844` (any width ≤ 640) to play a game at phone size and
+exercise the phone layout; mix several phone sizes into every batch.
+
 **Driver gotchas (learned the hard way):**
+- The driver asks the engine's own `getResponder()` whose decision it is.
+  Never re-implement it in the driver: a stale copy (from before the Arabian
+  Merchant card auction) produced fake AI_STALL and UI_GAP findings.
+- Exploration clicks skip the resolve panel's Cancel ✕ — exploring it just
+  loops play→cancel (it once burned ~2,300 actions in one batch).
+- Draw-phase actions rescan after advancing the fake clock: the draw dialog
+  opens one React render after the turn starts, and a frozen-clock scan can
+  land before it (a false "Could not perform DRAW_CARD/KEEP_CARD").
 - **Restart Vite before a batch, and never edit `src/` while games run.**
   An HMR update splits module instances, so pages loaded afterwards get a
   *different* `useGameStore` from the one the driver imports. The driver
