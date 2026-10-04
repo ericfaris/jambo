@@ -20,7 +20,7 @@ import { CardPlayDialog, DrawModal as SharedDrawModal } from './ActionButtons.ts
 import { useAudioEvents } from './useAudioEvents.ts';
 import { useVisualFeedback } from './useVisualFeedback.ts';
 import { getVolume, setVolume as saveVolume, getMuted, setMuted as saveMuted, resetAudioSettings } from './audioSettings.ts';
-import { getPlayDisabledReason, getDrawDisabledReason } from './uiHints.ts';
+import { getPlayDisabledReason, getDrawDisabledReason, friendlyPlayError } from './uiHints.ts';
 import { CastEndgameOverlay } from './CastEndgameOverlay.tsx';
 import { useCastRoomSync } from '../cast/useCastRoomSync.ts';
 import { getCastSessionController, isCastSdkEnabled } from '../cast/factory.ts';
@@ -308,30 +308,7 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
     log: pub.log,
   };
 
-  const getFriendlyErrorMessage = (reason: string) => {
-    if (reason.includes('PLAY phase')) {
-      return 'You can only play cards during your turn.';
-    }
-    if (reason.includes('No actions remaining')) {
-      return "You've used all your actions this turn.";
-    }
-    if (reason.includes('not in hand')) {
-      return 'This card is not in your hand.';
-    }
-    if (reason.includes('wareMode')) {
-      return 'Please choose buy or sell for this ware card.';
-    }
-    if (reason.includes('gold') || reason.includes('cost')) {
-      return 'You do not have enough gold for this action.';
-    }
-    if (reason.includes('market') || reason.includes('space')) {
-      return 'You do not have space in your market for this ware.';
-    }
-    if (reason.includes('wares') || reason.includes('supply')) {
-      return 'There are no wares available to buy or sell.';
-    }
-    return 'This card cannot be played right now.';
-  };
+  const getFriendlyErrorMessage = friendlyPlayError;
 
   const handlePlayCard = useCallback((cardId: DeckCardId) => {
     if (!inPlayPhase || actionsDisabled) return;
@@ -864,6 +841,7 @@ function DrawModal({ pub, priv, dispatch, disabled, disabledReason, onClose, slo
     keptCardThisDrawPhase: false,
     discardPile: pub.discardPile,
     wareSupply: pub.wareSupply,
+    turnModifiers: pub.turnModifiers, // Keep & Buy price check (Wise Man discount)
     players: [
       { ...pub.players[0], hand: slot === 0 ? priv.hand : [] as DeckCardId[] },
       { ...pub.players[1], hand: slot === 1 ? priv.hand : [] as DeckCardId[] },

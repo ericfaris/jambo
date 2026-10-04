@@ -25,7 +25,7 @@ import { TutorialOverlay } from './TutorialOverlay.tsx';
 import { PassDeviceScreen, needsHandoff } from './PassDeviceScreen.tsx';
 import { shouldAiAct, isWareDialogValid } from './gameScreenLogic.ts';
 import { useVisualFeedback } from './useVisualFeedback.ts';
-import { getDrawDisabledReason, getPlayDisabledReason } from './uiHints.ts';
+import { getDrawDisabledReason, getPlayDisabledReason, friendlyPlayError } from './uiHints.ts';
 import { getVolume, setVolume as saveVolume, getMuted, setMuted as saveMuted, resetAudioSettings } from './audioSettings.ts';
 import { fetchUserStatsSummary, fetchDifficultyBreakdown, recordCompletedGame } from '../persistence/userStatsApi.ts';
 import type { UserStatsSummary, DifficultyBreakdown } from '../persistence/userStatsApi.ts';
@@ -288,31 +288,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   // Is it the AI's turn to act?
   const isAiTurn = !localMultiplayer && state.phase !== 'GAME_OVER' && getResponder(state) === 1;
 
-  const getFriendlyErrorMessage = (reason: string) => {
-    if (reason.includes('PLAY phase')) {
-      return 'You can only play cards during your turn.';
-    }
-    if (reason.includes('No actions remaining')) {
-      return "You've used all your actions this turn.";
-    }
-    if (reason.includes('not in hand')) {
-      return 'This card is not in your hand.';
-    }
-    if (reason.includes('wareMode')) {
-      return 'Please choose buy or sell for this ware card.';
-    }
-    if (reason.includes('gold') || reason.includes('cost')) {
-      return 'You do not have enough gold for this action.';
-    }
-    if (reason.includes('market') || reason.includes('space')) {
-      return 'You do not have space in your market for this ware.';
-    }
-    if (reason.includes('wares') || reason.includes('supply')) {
-      return 'There are no wares available to buy or sell.';
-    }
-    // Default friendly message
-    return 'This card cannot be played right now.';
-  };
+  const getFriendlyErrorMessage = friendlyPlayError;
 
   // Handle playing a card from hand
   const handlePlayCard = useCallback((cardId: DeckCardId) => {

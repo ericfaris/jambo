@@ -1151,3 +1151,22 @@ button.brown:hover:not(:disabled) {
   border-color: var(--gold);
   color: var(--gold);
 }
+
+/* Draw dialog: keep a drawn ware card and buy/sell it in one step */
+.keep-and-play {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.keep-and-play-hint {
+  text-align: center;
+  color: #5a4632;
+}
+
+/* The Keep & Buy/Sell row (~70px) and the hand strip (60px) need room on
+   short screens: shrink the card art first */
+.dialog-pop:has(.keep-and-play) .dialog-card-art {
+  max-height: calc(100vh - 400px);
+  max-height: calc(100dvh - 400px);
+}

@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import type { GameState, DeckCardId } from '../engine/types.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
+import { keepAndPlayOptions } from './uiHints.ts';
 import { validateActivateUtility } from '../engine/validation/actionValidator.ts';
 import { WARE_COLORS } from './CardFace.tsx';
 import { HandReferenceStrip } from './HandReferenceStrip.tsx';
+import { HAND_STRIP_RESERVE_PX } from './ResolveMegaView.tsx';
 import { buttonProps } from './a11y.ts';
 
 interface ActionButtonsProps {
@@ -91,8 +93,8 @@ export function CardPlayDialog({ cardId, onBuy, onSell, onCancel }: CardPlayDial
               <div
                 key={i}
                 style={{
-                  width: 44,
-                  height: 44,
+                  width: 'clamp(30px, 9vw, 44px)',
+                  height: 'clamp(30px, 9vw, 44px)',
                   borderRadius: '50%',
                   background: WARE_COLORS[wareType],
                   border: '2px solid rgba(0,0,0,0.6)',
@@ -153,6 +155,18 @@ export function DrawModal({ state, dispatch, disabled, disabledReason, onClose, 
     setShowCardBack(false);
   };
 
+  // Drawn a ware card? Offer keep-and-play in one step (same rules and
+  // action cost as keeping it, then playing it from the hand).
+  const keepAndPlay = keepAndPlayOptions(state, viewerPlayer);
+  const handleKeepAndPlay = (mode: 'buy' | 'sell') => {
+    const cardId = state.drawnCard;
+    if (!cardId) return;
+    dispatch({ type: 'KEEP_CARD' });
+    dispatch({ type: 'PLAY_CARD', cardId, wareMode: mode });
+    setShowCardBack(false);
+    onClose();
+  };
+
   const handleSkipDraw = () => {
     dispatch({ type: 'SKIP_DRAW' });
     setShowCardBack(false);
@@ -174,6 +188,8 @@ export function DrawModal({ state, dispatch, disabled, disabledReason, onClose, 
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        // Keep the dialog clear of the fixed hand strip at the bottom
+        paddingBottom: state.players[viewerPlayer].hand.length > 0 ? HAND_STRIP_RESERVE_PX : undefined,
       }}
     >
       <div
@@ -218,19 +234,22 @@ export function DrawModal({ state, dispatch, disabled, disabledReason, onClose, 
             <div style={{ padding: '0 6px 6px' }}>
               {getCard(state.drawnCard!).wares ? (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 28, padding: '2px 0' }}>
-                  <img
-                    src={`/assets/coins/coin_${getCard(state.drawnCard!).wares!.buyPrice}.png`}
-                    alt={`${getCard(state.drawnCard!).wares!.buyPrice}g`}
-                    style={{ width: 56, height: 56 }}
-                    draggable={false}
-                  />
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                    <img
+                      src={`/assets/coins/coin_${getCard(state.drawnCard!).wares!.buyPrice}.png`}
+                      alt={`Buy for ${getCard(state.drawnCard!).wares!.buyPrice}g`}
+                      style={{ width: 56, height: 56 }}
+                      draggable={false}
+                    />
+                    <span className="coin-caption">Buy</span>
+                  </div>
                   <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 180 }}>
                     {getCard(state.drawnCard!).wares!.types.map((wareType, i) => (
                       <div
                         key={i}
                         style={{
-                          width: 44,
-                          height: 44,
+                          width: 'clamp(30px, 9vw, 44px)',
+                          height: 'clamp(30px, 9vw, 44px)',
                           borderRadius: '50%',
                           background: WARE_COLORS[wareType],
                           border: '2px solid rgba(0,0,0,0.6)',
@@ -240,12 +259,15 @@ export function DrawModal({ state, dispatch, disabled, disabledReason, onClose, 
                       />
                     ))}
                   </div>
-                  <img
-                    src={`/assets/coins/coin_${getCard(state.drawnCard!).wares!.sellPrice}.png`}
-                    alt={`${getCard(state.drawnCard!).wares!.sellPrice}g`}
-                    style={{ width: 56, height: 56 }}
-                    draggable={false}
-                  />
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                    <img
+                      src={`/assets/coins/coin_${getCard(state.drawnCard!).wares!.sellPrice}.png`}
+                      alt={`Sell for ${getCard(state.drawnCard!).wares!.sellPrice}g`}
+                      style={{ width: 56, height: 56 }}
+                      draggable={false}
+                    />
+                    <span className="coin-caption">Sell</span>
+                  </div>
                 </div>
               ) : (
                 <>
@@ -332,6 +354,28 @@ export function DrawModal({ state, dispatch, disabled, disabledReason, onClose, 
             </>
           )}
           </div>
+          {!showCardBack && keepAndPlay && canAct && (
+            <div className="keep-and-play">
+              <div style={{ display: 'flex', gap: 12 }}>
+                {(['buy', 'sell'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    disabled={!keepAndPlay[mode].valid}
+                    onClick={() => handleKeepAndPlay(mode)}
+                    title={keepAndPlay[mode].reason}
+                    style={{ flex: 1, padding: '10px 12px' }}
+                  >
+                    {mode === 'buy' ? 'Keep & Buy' : 'Keep & Sell'}
+                  </button>
+                ))}
+              </div>
+              <div className="ui-helper-text keep-and-play-hint">
+                {keepAndPlay.buy.valid || keepAndPlay.sell.valid
+                  ? 'Or keep it now and play it from your hand later.'
+                  : keepAndPlay.buy.reason}
+              </div>
+            </div>
+          )}
           {(showCardBack || !state.drawnCard) && canUseMaskBeforeDraw && (
             <button
               className="brown"

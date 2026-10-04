@@ -1,5 +1,6 @@
 import { isAuctionBidding } from '../engine/responder.ts';
-import type { PendingResolution } from '../engine/types.ts';
+import type { GameState, PendingResolution } from '../engine/types.ts';
+import { validatePlayCard } from '../engine/validation/actionValidator.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
 
 interface PlayDisabledReasonInput {
@@ -126,4 +127,58 @@ export function formatLogRecap(
 /** Status-pill owner text: "Your turn" for the local player, "Opponent's turn" / "Player 2's turn" otherwise. */
 export function formatTurnOwner(label: string): string {
   return label === 'You' ? 'Your turn' : `${label}'s turn`;
+}
+
+/**
+ * Validator reason -> player-facing message, as specific as the reason allows.
+ * Shared by GameScreen, PlayerScreen and the draw dialog.
+ */
+export function friendlyPlayError(reason: string): string {
+  if (reason.includes('PLAY phase')) return 'You can only play cards during your turn.';
+  if (reason.includes('No actions remaining')) return "You've used all your actions this turn.";
+  if (reason.includes('not in hand')) return 'This card is not in your hand.';
+  if (reason.includes('wareMode')) return 'Choose buy or sell for this ware card.';
+  if (reason.startsWith('Cannot sell')) return 'To sell, your market needs every ware shown on this card.';
+  const gold = reason.match(/need (\d+)g, have (\d+)g/);
+  if (gold) return `Buying costs ${gold[1]}g — you have ${gold[2]}g.`;
+  if (reason.includes('gold') || reason.includes('cost')) return 'You do not have enough gold for this action.';
+  if (reason.includes('market') || reason.includes('space')) return 'Not enough room in your market for these wares.';
+  const supply = reason.match(/supply \((\w+)\)/);
+  if (supply) return `The supply has run out of ${supply[1]}.`;
+  if (reason.includes('supply')) return 'The supply has run out of a ware this card needs.';
+  return 'This card cannot be played right now.';
+}
+
+export interface KeepAndPlayOption { valid: boolean; reason?: string }
+
+/**
+ * Draw dialog: can the just-drawn ware card be kept AND bought/sold right
+ * away? Evaluated against the state as it will be after KEEP_CARD (draw phase
+ * over, card in hand), so it applies exactly the normal play rules — the
+ * shortcut only saves the "find it in your hand" step. Null when the drawn
+ * card isn't a ware card.
+ */
+export function keepAndPlayOptions(state: GameState, viewer: 0 | 1): { buy: KeepAndPlayOption; sell: KeepAndPlayOption } | null {
+  const drawn = state.drawnCard;
+  if (!drawn || state.phase !== 'DRAW' || state.currentPlayer !== viewer) return null;
+  if (getCard(drawn).type !== 'ware') return null;
+  const me = state.players[viewer];
+  const afterKeep: GameState = {
+    ...state,
+    phase: 'PLAY',
+    drawnCard: null,
+    keptCardThisDrawPhase: true,
+    players: (viewer === 0
+      ? [{ ...me, hand: [...me.hand, drawn] }, state.players[1]]
+      : [state.players[0], { ...me, hand: [...me.hand, drawn] }]) as GameState['players'],
+  };
+  const check = (mode: 'buy' | 'sell'): KeepAndPlayOption => {
+    try {
+      const v = validatePlayCard(afterKeep, drawn, mode);
+      return v.valid ? { valid: true } : { valid: false, reason: friendlyPlayError(v.reason ?? '') };
+    } catch {
+      return { valid: true }; // partial client state — let the engine/server decide
+    }
+  };
+  return { buy: check('buy'), sell: check('sell') };
 }

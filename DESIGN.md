@@ -232,6 +232,12 @@ Keyframes are named descriptively (`pilePulse`, `marketSlotFlash`,
 - **Rejoining screen** — while a refreshed Cast tab reconnects to its room:
   "Room 1234 / Rejoining your game…" with a Cancel, so the menu or code
   entry never flashes.
+- **Keep & Buy / Keep & Sell** (`.keep-and-play`) — in the draw dialog when
+  the drawn card is a ware card: keeps it and plays it in one tap (exactly
+  `KEEP_CARD` then `PLAY_CARD`, same action cost). Validated against the
+  post-keep state (`keepAndPlayOptions()` in `uiHints.ts`); an unavailable
+  option is disabled with its reason as the tooltip, or as the hint line when
+  neither works. The drawn card's coins carry BUY/SELL captions too.
 - **Coin captions** (`.coin-caption`) — "BUY"/"SELL" under the coin art in
   `CardPlayDialog`. The coins were already the buttons; nothing said so.
 - **Dialog / panel art** (`.dialog-card-art`, `.panel-source-art`,
@@ -445,6 +451,17 @@ existing set already covers the full identity; this pass's job was
 documenting it, fixing one duplication, and identifying the SFX gap.
 
 ## Changelog
+
+### 2026-10-04 — Drawn ware cards can be bought straight from the draw dialog
+- Reported: on turn 1 a drawn six-ware card "had no buy or sell indicator".
+  The draw dialog showed its coins unlabelled with only Keep/Discard; buying
+  required keeping it, then finding it in the hand. Added coin captions and
+  Keep & Buy / Keep & Sell. The dialog now reserves the hand strip's height
+  (it overlapped on short phones) and ware dots shrink on narrow screens
+  (`clamp(30px, 9vw, 44px)`) so six fit in two rows.
+- Error wording: one shared `friendlyPlayError()`; selling without the wares
+  no longer says "no wares available to buy or sell", and gold errors quote
+  the real cost (incl. the 6th-space fee).
 
 ### 2026-10-04 — Refresh-proof games
 - Resume Game button and a Rejoining screen (see Components). A refresh no
