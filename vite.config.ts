@@ -12,10 +12,10 @@ export default defineConfig({
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
   build: {
-    rollupOptions: {
+    rolldownOptions: {
       input: {
-        main: resolve(__dirname, 'index.html'),
-        receiver: resolve(__dirname, 'receiver/react/index.html'),
+        main: resolve(import.meta.dirname, 'index.html'),
+        receiver: resolve(import.meta.dirname, 'receiver/react/index.html'),
       },
     },
   },

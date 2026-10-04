@@ -14,7 +14,7 @@ Digital implementation of "Jambo" card game by Rudiger Dorn.
 
 ```bash
 npm run dev          # Start dev server
-npx tsc --noEmit     # Type-check (run after every change)
+npm run typecheck    # Type-check with TypeScript 7 (run after every change)
 npx vite build       # Production build
 npm test             # Run Vitest tests (when tests exist)
 ```
@@ -25,7 +25,11 @@ When committing, only use `git status` to see changes — **do NOT run `git diff
 
 ## Tech Stack
 
-- **React 19 + TypeScript**, Vite, Zustand 5, Zod 4, Tailwind CSS 4, Vitest 4
+- **React 18 + TypeScript 7**, Vite 8 (Rolldown), Zustand 5, Vitest 4
+- **Two TypeScripts on purpose**: `typescript7` (alias of `typescript@7`, the
+  native compiler) runs `npm run typecheck`/`build`; plain `typescript` stays
+  on 6.0 only because typescript-eslint needs the JS compiler API that TS 7
+  doesn't ship. So `npx tsc` is TS 6 — use `npm run typecheck`.
 - **Pure TypeScript game engine** — zero UI dependencies, fully immutable
 - **Seeded Mulberry32 PRNG** for deterministic shuffles (`src/utils/rng.ts`)
 
@@ -157,7 +161,7 @@ if (hand.length === 0) {
 5. Decide whether its first step can be cancelled — add it to
    `isAtFirstStep()` in `src/engine/cancelAction.ts` only if backing out
    reveals no hidden info and undoes no opponent decision (never animals)
-6. Run `npx tsc --noEmit` to verify
+6. Run `npm run typecheck` to verify
 
 ## Draft Panel Visibility — IMPORTANT
 

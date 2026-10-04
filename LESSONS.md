@@ -124,3 +124,16 @@ overwrites tracked files.)
 - Make the new GameState field optional and only write it when it changes,
   so old saved states / replays and every existing deep-equality test keep
   passing.
+
+## 2026-10-04 — TypeScript 7 + Vite 8
+- **TS 7's npm package has no classic JS compiler API** (`main` only exports
+  the version), so typescript-eslint (≤ TS 6.0) crashes if `typescript` is 7.
+  npm `overrides` can't fix it — they don't apply to peer deps. Working setup:
+  `typescript@~6.0` for tooling + `"typescript7": "npm:typescript@^7"` called by
+  path in `npm run typecheck`. Bins don't collide in practice (`.bin/tsc` →
+  TS 6). Revisit when typescript-eslint supports TS 7.
+- Vite 8 = Rolldown: Rollup is gone from the tree, so the Dockerfile's
+  `@rollup/rollup-linux-x64-musl` workaround was removed — the lockfile now
+  carries `@rolldown/binding-linux-x64-musl` itself. `build.rollupOptions` →
+  `rolldownOptions`; `__dirname` in vite.config → `import.meta.dirname`.
+- Proved the 0.2s TS 7 check is real by planting a type error.

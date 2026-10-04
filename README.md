@@ -15,7 +15,7 @@ Useful commands:
 
 ```bash
 npm run dev
-npx tsc --noEmit
+npm run typecheck   # TypeScript 7
 npx vite build
 npm test
 ```

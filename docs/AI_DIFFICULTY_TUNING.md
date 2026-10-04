@@ -74,7 +74,7 @@ Edit the relevant AI files. Common tuning knobs:
 ### 2. Type-Check
 
 ```bash
-npx tsc --noEmit
+npm run typecheck
 ```
 
 ### 3. Run Benchmark

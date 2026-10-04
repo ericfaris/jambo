@@ -19,7 +19,7 @@ Last reviewed: 2026-02-15
 
 ## Quality Gates
 
-- Type check: `npx tsc --noEmit`
+- Type check: `npm run typecheck` (TypeScript 7)
 - Build: `npx vite build`
 - Tests: `npm test`
 

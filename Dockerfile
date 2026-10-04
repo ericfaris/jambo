@@ -9,7 +9,7 @@ ARG VITE_CAST_APP_ID
 ENV VITE_CAST_APP_ID=$VITE_CAST_APP_ID
 
 COPY package*.json ./
-RUN npm ci && npm install --no-save @rollup/rollup-linux-x64-musl@4.64.0
+RUN npm ci
 
 COPY . .
 RUN npm run build
