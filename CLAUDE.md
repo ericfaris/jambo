@@ -154,7 +154,10 @@ if (hand.length === 0) {
 2. Put auto-resolve guard BEFORE response type check in resolver
 3. Handle empty state in AI (`RandomAI.ts:getRandomInteractionResponse`)
 4. Handle empty state in UI (`InteractionPanel.tsx`)
-5. Run `npx tsc --noEmit` to verify
+5. Decide whether its first step can be cancelled — add it to
+   `isAtFirstStep()` in `src/engine/cancelAction.ts` only if backing out
+   reveals no hidden info and undoes no opponent decision (never animals)
+6. Run `npx tsc --noEmit` to verify
 
 ## Draft Panel Visibility — IMPORTANT
 
@@ -263,6 +266,16 @@ Each ware type has a shared supply pool (not unlimited). When wares are bought, 
 ### Reactions (played during opponent's turn, cost 0 actions)
 - **Guard**: Cancel any animal card
 - **Rain Maker**: Take opponent's just-used ware card from discard
+
+### Cancelling (digital-only convenience)
+`CANCEL_ACTION` backs out of a card/utility the active player just started,
+before its first choice: refunds the action, returns the card to the same
+hand slot or clears the utility's used flag. Allowed: Boat, Kettle, Weapons,
+Drums, Leopard Statue, Throne, Mask, Supplies, Scale (before drawing),
+Shaman, Tribal Elder, Carrier, Portuguese, Basket Maker, Dancer, Drummer,
+Traveling Merchant (before any bid), choosing a utility to replace. Never:
+Psychic, Arabian Merchant (reveal deck cards), animals (Guard window already
+offered). Not in `getValidActions()` — the AI never cancels.
 
 ### Endgame
 - **Trigger**: Player ends turn with >= 60g

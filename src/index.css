@@ -1121,3 +1121,33 @@ button.brown:hover:not(:disabled) {
 @media (prefers-reduced-motion: reduce) {
   .speech-pill { animation: none; }
 }
+
+/* Cancel (✕) on a resolve panel — shown only while the just-started card or
+   utility can still be backed out of (engine/cancelAction.ts). Sits over the
+   card art, so it's a dark disc rather than an ink linen button. */
+.linen-texture button.panel-cancel-x {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 3;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 2px solid var(--gold-dim);
+  background: rgba(20, 10, 5, 0.78);
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+.linen-texture button.panel-cancel-x:hover:not(:disabled) {
+  background: rgba(20, 10, 5, 0.92);
+  border-color: var(--gold);
+  color: var(--gold);
+}

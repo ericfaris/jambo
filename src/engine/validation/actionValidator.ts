@@ -2,6 +2,7 @@
 // Action Validator - Pre-play validation for each card and action type
 // ============================================================================
 
+import { canCancelAction } from '../cancelAction.ts';
 import type { GameState, DeckCardId, GameAction, WareType } from '../types.ts';
 import { getCard, isDesign } from '../cards/CardDatabase.ts';
 import { getPlacementCapacity, getSixthSpaceFee } from '../market/MarketManager.ts';
@@ -24,7 +25,11 @@ export function validateAction(state: GameState, action: GameAction): Validation
     return fail('Game is over');
   }
 
-  // Can't act while pending resolution exists (except RESOLVE_INTERACTION and GUARD_REACTION)
+  // Can't act while pending resolution exists (except RESOLVE_INTERACTION, or
+  // CANCEL_ACTION while the just-started action is still cancellable)
+  if (action.type === 'CANCEL_ACTION') {
+    return canCancelAction(state) ? ok : fail('This action can no longer be cancelled');
+  }
   if (state.pendingResolution && action.type !== 'RESOLVE_INTERACTION') {
     return fail('Must resolve pending interaction first');
   }

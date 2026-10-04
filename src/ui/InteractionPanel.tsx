@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { GameState, PendingResolution, InteractionResponse, WareType, DeckCardId } from '../engine/types.ts';
 import { WARE_TYPES } from '../engine/types.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
@@ -6,12 +6,15 @@ import { CardFace, WareToken, WARE_COLORS } from './CardFace.tsx';
 import { MarketDisplay } from './MarketDisplay.tsx';
 import { formatResolutionBreadcrumb } from './uiHints.ts';
 import { isAuctionBidding } from '../engine/responder.ts';
+import { canCancelAction } from '../engine/cancelAction.ts';
 
 interface InteractionPanelProps {
   state: GameState;
   dispatch: (action: import('../engine/types.ts').GameAction) => void;
   viewerPlayer?: 0 | 1;
   onMegaView?: (cardId: DeckCardId) => void;
+  /** Cast clients pass this from PublicGameState; local play derives it from state. */
+  canCancel?: boolean;
 }
 
 function resolve(dispatch: InteractionPanelProps['dispatch'], response: InteractionResponse) {
@@ -156,7 +159,7 @@ function SelectableCardArea({
   );
 }
 
-export function InteractionPanel({ state, dispatch, viewerPlayer = 0, onMegaView }: InteractionPanelProps) {
+export function InteractionPanel({ state, dispatch, viewerPlayer = 0, onMegaView, canCancel }: InteractionPanelProps) {
   // Guard reaction
   if (state.pendingGuardReaction) {
     const animalCard = getCard(state.pendingGuardReaction.animalCard);
@@ -214,6 +217,7 @@ export function InteractionPanel({ state, dispatch, viewerPlayer = 0, onMegaView
   const source = getCard(pr.sourceCard);
   const compactSourceCard = shouldUseCompactSourceCard(pr);
   const breadcrumb = formatResolutionBreadcrumb(pr);
+  const cancellable = state.currentPlayer === viewerPlayer && (canCancel ?? canCancelAction(state));
 
   return (
     <PanelShell
@@ -222,6 +226,8 @@ export function InteractionPanel({ state, dispatch, viewerPlayer = 0, onMegaView
       sourceCardId={pr.sourceCard}
       onMegaView={onMegaView}
       compactSourceCard={compactSourceCard}
+      onCancel={cancellable ? () => dispatch({ type: 'CANCEL_ACTION' }) : undefined}
+      cancelLabel={`Cancel ${source.name} and get your action back`}
     >
       <ResolutionContent state={state} pr={pr} dispatch={dispatch} viewerPlayer={viewerPlayer} onMegaView={onMegaView} />
     </PanelShell>
@@ -361,8 +367,16 @@ function shouldUseCompactSourceCard(pr: PendingResolution): boolean {
   }
 }
 
-function PanelShell({ title, breadcrumb, children, sourceCardId, onMegaView, compactSourceCard, sourceCardOverlay }: { title: string; breadcrumb?: string; children?: React.ReactNode; sourceCardId?: DeckCardId; onMegaView?: (cardId: DeckCardId) => void; compactSourceCard?: boolean; sourceCardOverlay?: React.ReactNode }) {
+function PanelShell({ title, breadcrumb, children, sourceCardId, onMegaView, compactSourceCard, sourceCardOverlay, onCancel, cancelLabel }: { title: string; breadcrumb?: string; children?: React.ReactNode; sourceCardId?: DeckCardId; onMegaView?: (cardId: DeckCardId) => void; compactSourceCard?: boolean; sourceCardOverlay?: React.ReactNode; onCancel?: () => void; cancelLabel?: string }) {
   const sourceCard = sourceCardId ? getCard(sourceCardId) : null;
+
+  // Esc backs out too, while the panel offers it
+  useEffect(() => {
+    if (!onCancel) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onCancel]);
 
   return (
     <div className="panel-slide" style={{ maxWidth: compactSourceCard ? 980 : 460, margin: '0 auto', width: '100%' }}>
@@ -377,8 +391,20 @@ function PanelShell({ title, breadcrumb, children, sourceCardId, onMegaView, com
           flexWrap: compactSourceCard ? 'wrap' : undefined,
           gap: compactSourceCard ? 10 : 0,
           alignItems: 'start',
+          position: 'relative',
         }}
       >
+        {onCancel && (
+          <button
+            type="button"
+            className="panel-cancel-x"
+            onClick={onCancel}
+            aria-label={cancelLabel ?? 'Cancel'}
+            title={cancelLabel ?? 'Cancel'}
+          >
+            ✕
+          </button>
+        )}
         {sourceCard && (
           <div
             onClick={sourceCardId && onMegaView ? () => onMegaView(sourceCardId) : undefined}

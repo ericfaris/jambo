@@ -934,6 +934,7 @@ function CastInteractionPanel({ pub, priv, slot, dispatch, onMegaView }: {
       dispatch={dispatch}
       viewerPlayer={slot}
       onMegaView={onMegaView}
+      canCancel={pub.canCancel}
     />
   );
 }

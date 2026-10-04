@@ -4,6 +4,7 @@
 // All functions are PURE - take GameState, return new GameState.
 // ============================================================================
 
+import { deriveCancellableAction, handleCancelAction } from './cancelAction.ts';
 import type {
   GameState,
   GameAction,
@@ -217,8 +218,18 @@ export function processAction(state: GameState, action: GameAction): GameState {
     case 'WARE_CARD_REACTION':
       next = handleWareCardReaction(state, action.play);
       break;
+    case 'CANCEL_ACTION':
+      next = handleCancelAction(state);
+      break;
     default:
       throw new Error(`Unknown action type`);
+  }
+
+  // Offer a cancel only right after the action that opened the resolution;
+  // any further action (the first choice, a reaction, …) withdraws it.
+  const cancellable = action.type === 'CANCEL_ACTION' ? null : deriveCancellableAction(state, action, next);
+  if (cancellable || next.cancellableAction) {
+    next = { ...next, cancellableAction: cancellable };
   }
 
   // Auto-end turn when no actions left and no pending interactions

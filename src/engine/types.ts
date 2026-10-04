@@ -348,8 +348,18 @@ export interface GameState {
     targetPlayer: 0 | 1;
   } | null;
 
+  /** Set while the active player may still back out of the action that
+   *  opened pendingResolution (see engine/cancelAction.ts). Optional so
+   *  states saved before this field existed still load. */
+  cancellableAction?: CancellableAction | null;
+
   log: GameLogEntry[];
 }
+
+/** What CANCEL_ACTION must undo: refund 1 action plus the card or utility use. */
+export type CancellableAction =
+  | { kind: 'utility'; utilityIndex: number }
+  | { kind: 'card'; cardId: DeckCardId; handIndex: number };
 
 // --- Game Log ---
 export interface GameLogEntry {
@@ -371,6 +381,7 @@ export type GameAction =
   | { type: 'RESOLVE_INTERACTION'; response: InteractionResponse }
   | { type: 'GUARD_REACTION'; play: boolean }  // true = play Guard, false = decline
   | { type: 'WARE_CARD_REACTION'; play: boolean }  // Rain Maker: true = take ware card, false = decline
+  | { type: 'CANCEL_ACTION' }  // Back out of a just-started card/utility before its first choice
   ;
 
 // --- Interaction Responses ---

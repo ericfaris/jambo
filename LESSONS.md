@@ -111,3 +111,16 @@ overwrites tracked files.)
   21-slot markets on 360×640) silently overflows. Stage extreme states in
   Playwright via `await import('/src/hooks/useGameStore.ts')` +
   `stagePreviewState()` instead of playing into them.
+
+## 2026-10-04 — Cancel a just-started card/utility
+- Undo by **descriptor, not snapshot**: `cancellableAction` records only what
+  to reverse (`utilityIndex`, or `cardId` + `handIndex`). A full pre-action
+  `GameState` snapshot would ride along to Cast clients and leak the
+  opponent's hand/deck. Exactness relies on "nothing else changes between
+  starting the action and its first choice" — Scale breaks that once it
+  draws, so its first step is "SELECT_CARD with no selectedCards".
+- Keep it out of `getValidActions()`: an AI that can cancel will happily loop
+  activate → cancel → activate.
+- Make the new GameState field optional and only write it when it changes,
+  so old saved states / replays and every existing deep-equality test keep
+  passing.

@@ -92,6 +92,7 @@ function isGameAction(value: unknown): value is GameAction {
     case 'DISCARD_DRAWN':
     case 'SKIP_DRAW':
     case 'END_TURN':
+    case 'CANCEL_ACTION':
       return true;
     case 'PLAY_CARD':
       return typeof value.cardId === 'string' && (value.wareMode === undefined || value.wareMode === 'buy' || value.wareMode === 'sell');

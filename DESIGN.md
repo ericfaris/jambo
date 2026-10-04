@@ -219,6 +219,12 @@ Keyframes are named descriptively (`pilePulse`, `marketSlotFlash`,
   label show actions left; spent pips go `rgba(90,64,48,0.5)`. Shared by
   `GameScreen` and `PlayerScreen` — previously two inline copies plus a
   `<style>` tag injected at runtime from `GameScreen.tsx`.
+- **Cancel ✕ on resolve panels** (`.panel-cancel-x`) — 40px dark disc with
+  a gold-dim ring, top-right of the panel over the card art; Esc does the
+  same. Shown only while the active player can still back out of the card
+  or utility they just started (engine `CANCEL_ACTION`, see
+  `src/engine/cancelAction.ts` for exactly which cards and steps qualify).
+  Label: "Cancel <card> and get your action back".
 - **Coin captions** (`.coin-caption`) — "BUY"/"SELL" under the coin art in
   `CardPlayDialog`. The coins were already the buttons; nothing said so.
 - **Dialog / panel art** (`.dialog-card-art`, `.panel-source-art`,
@@ -416,6 +422,12 @@ existing set already covers the full identity; this pass's job was
 documenting it, fixing one duplication, and identifying the SFX gap.
 
 ## Changelog
+
+### 2026-10-04 — Cancel a just-started card or utility
+- New `.panel-cancel-x` on resolve panels, backed by a `CANCEL_ACTION` engine
+  action that refunds the action and the card / utility use. Offered only
+  before the first choice and only where backing out reveals nothing and
+  undoes no opponent decision.
 
 ### 2026-10-04 — Phone solo/hotseat board fits the screen
 - `GameScreen` gets a phone layout (≤640px): top bar, compact opponent strip

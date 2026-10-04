@@ -3,6 +3,7 @@
 // Splits full GameState into public + private views for each player/TV.
 // ============================================================================
 
+import { canCancelAction } from '../engine/cancelAction.ts';
 import { isAuctionBidding } from '../engine/responder.ts';
 import type { GameState, DeckCardId, GameLogEntry } from '../engine/types.ts';
 import type {
@@ -38,6 +39,7 @@ export function extractPublicState(state: GameState): PublicGameState {
     log: state.log.map(redactHiddenCards),
     pendingResolutionType: state.pendingResolution?.type ?? null,
     waitingOnPlayer: getWaitingPlayer(state),
+    canCancel: canCancelAction(state),
   };
 }
 

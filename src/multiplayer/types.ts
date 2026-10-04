@@ -80,6 +80,8 @@ export interface PublicGameState {
   pendingResolutionType: PendingResolution['type'] | null;
   // Who needs to act on the current resolution
   waitingOnPlayer: 0 | 1 | null;
+  // The active player may still back out of the card/utility they just started
+  canCancel: boolean;
 }
 
 // --- Private Game State (sent only to the relevant player) ---
