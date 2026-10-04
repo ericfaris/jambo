@@ -192,3 +192,27 @@ overwrites tracked files.)
   stale responder copy in the driver.
 - Running the driver with exploration also stress-tested Cancel for free:
   ~2,300 play→cancel cycles, invariants checked every step, zero violations.
+
+## 2026-10-04 — Deep-dive bug hunt (fuzzers + attack tests)
+- **Engine fuzzer (`npm run fuzz`)** — 2,500 headless games, ~1.1M actions:
+  random legal play + garbage responses + random Cancel. Found Kettle accepting
+  the same card twice (conjured a 111th card) and Boat/Leopard Statue accepting
+  ware type "gold". Root cause: no response-*shape* check; fixed centrally with
+  `validateResponseShape()`. Also confirmed: no state mutation, deterministic
+  replays, endgame rules, no hand leaks.
+- **Verify "rules" before encoding them in a fuzzer.** I assumed duplicate
+  utilities were illegal — the rulebook explicitly allows them. 32 fake
+  findings until I checked.
+- **"First choice rejected" soft findings pointed at a real UX bug**: pickers
+  offered options the engine refuses (Basket Maker with <2 in supply, Supplies
+  "Pay 1g" at 0 gold). Disabling them introduced a potential dead end (all
+  disabled) — caught by reasoning about the resolver guards; Continue added.
+- **Critical server crash**: no `ws.on('error')` on client sockets, so ONE bad
+  frame (oversized, invalid UTF-8, bad opcode) was an unhandled 'error' and
+  killed the whole process — every game. Plus `generateRoomCode()` loops
+  forever once 9,000 four-digit codes are taken. Fixed: error handler,
+  `maxPayload` 64 KB, MAX_ROOMS 2,000. Verified with live attack tests.
+- **Cast protocol fuzzer (`npm run fuzz:cast`)** — 10 PvP games over the real
+  server, 123 drop/rejoins, ~9,200 bad messages: no desync, no overlap, no
+  stall, rematch OK. Its first "stall" was the fuzzer not offering Scale's
+  drawn cards — widen candidates to every id the phone can see.

@@ -17,6 +17,8 @@ npm run dev          # Start dev server
 npm run typecheck    # Type-check with TypeScript 7 (run after every change)
 npx vite build       # Production build
 npm test             # Run Vitest tests (when tests exist)
+npm run fuzz -- 500  # Engine fuzzer: random + adversarial games, invariants, replay, leaks
+npm run fuzz:cast    # Cast protocol fuzzer (needs a server: PORT=3031 MONGODB_URI= npm run server)
 ```
 
 ## Git Commits
@@ -169,6 +171,18 @@ if (hand.length === 0) {
   return <button onClick={() => resolve(dispatch, dummyResponse)}>Continue</button>;
 }
 ```
+
+### Response shape is validated centrally
+`validateResponseShape()` (actionValidator.ts) rejects malformed
+`RESOLVE_INTERACTION` responses before any resolver runs (unknown ware types,
+duplicate ids/indices, negative or fractional indices, bids ≤ 0). Cast clients
+send responses over the network — never trust their shape in a resolver.
+
+### Disabled choices need a Continue fallback
+Resolve panels disable options the engine would reject
+(`src/ui/choiceAvailability.ts`). If a picker can end up with *every* option
+disabled, it must render Continue (sending a response that triggers the
+resolver's empty-state guard) — never a panel with nothing to tap.
 
 ### When adding a new card or resolver:
 1. Add precondition validation in `actionValidator.ts`

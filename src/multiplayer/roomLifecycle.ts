@@ -25,3 +25,17 @@ export function isRoomAbandoned(
 ): boolean {
   return connectionCount === 0 && !reservations.some((r) => r.expiresAt > now);
 }
+
+/**
+ * Room codes are 4 digits (9,000 possible) and generateRoomCode() retries
+ * until it finds a free one — so without a cap, 9,000 live rooms would make
+ * it loop forever and freeze the whole server. Refuse new rooms well before.
+ */
+export const MAX_ROOMS = 2000;
+
+export function canCreateRoom(liveRooms: number): boolean {
+  return liveRooms < MAX_ROOMS;
+}
+
+/** Largest client message accepted (real ones are well under 2 KB). */
+export const MAX_MESSAGE_BYTES = 64 * 1024;

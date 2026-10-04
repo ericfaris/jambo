@@ -19,7 +19,7 @@ import { getAiTelemetryEnabled, getAiTelemetrySampleRate, shouldSampleTelemetryG
 import { getValidActions } from '../engine/validation/actionValidator.ts';
 import { extractPublicState, extractPrivateState } from './stateSplitter.ts';
 import { detectAudioEvent } from './audioEvents.ts';
-import { PLAYER_RECONNECT_GRACE_MS, ROOM_IDLE_TIMEOUT_MS, isRoomAbandoned } from './roomLifecycle.ts';
+import { PLAYER_RECONNECT_GRACE_MS, ROOM_IDLE_TIMEOUT_MS, isRoomAbandoned, canCreateRoom, MAX_MESSAGE_BYTES } from './roomLifecycle.ts';
 import type { GameState, GameAction } from '../engine/types.ts';
 import { CONSTANTS } from '../engine/types.ts';
 import type {
@@ -478,6 +478,11 @@ function tryStartGame(room: Room): void {
 // --- Message Handlers ---
 
 function handleCreateRoom(ws: WebSocket, mode: RoomMode, aiDifficulty: AIDifficulty = 'medium'): void {
+  if (!canCreateRoom(rooms.size)) {
+    send(ws, { type: 'ERROR', message: 'The server is busy right now — please try again in a few minutes' });
+    console.warn(`[Rooms] Refused CREATE_ROOM: ${rooms.size} live rooms`);
+    return;
+  }
   const code = generateRoomCode();
   const room: Room = {
     code,
@@ -949,7 +954,7 @@ const server = createServer((req, res) => {
   res.end('Not found');
 });
 
-const wss = new WebSocketServer({ noServer: true });
+const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_MESSAGE_BYTES });
 
 server.on('upgrade', (req, socket, head) => {
   if (!(req.url ?? '').startsWith('/ws')) {
@@ -963,6 +968,13 @@ server.on('upgrade', (req, socket, head) => {
 });
 
 wss.on('connection', (ws: WebSocket) => {
+  // Without an 'error' listener, one bad client frame (oversized, malformed,
+  // invalid UTF-8) is an unhandled 'error' event and crashes the whole server,
+  // ending every game. Log it; ws then closes just this socket and the normal
+  // 'close' handler reserves the player's seat.
+  ws.on('error', (err: Error & { code?: string }) => {
+    console.warn(`[WS] Client socket error (${err.code ?? 'unknown'}): ${err.message}`);
+  });
   ws.on('message', (data: Buffer | string) => {
     try {
       const msg = JSON.parse(data.toString()) as ClientMessage;

@@ -3,7 +3,8 @@
 // ============================================================================
 
 import { canCancelAction } from '../cancelAction.ts';
-import type { GameState, DeckCardId, GameAction, WareType } from '../types.ts';
+import type { GameState, DeckCardId, GameAction, WareType, InteractionResponse } from '../types.ts';
+import { WARE_TYPES } from '../types.ts';
 import { getCard, isDesign } from '../cards/CardDatabase.ts';
 import { getPlacementCapacity, getSixthSpaceFee } from '../market/MarketManager.ts';
 import { getSmallStandCost } from '../market/standCost.ts';
@@ -56,7 +57,8 @@ export function validateAction(state: GameState, action: GameAction): Validation
     case 'END_TURN':
       return validateEndTurn(state);
     case 'RESOLVE_INTERACTION':
-      return state.pendingResolution ? ok : fail('No pending interaction to resolve');
+      if (!state.pendingResolution) return fail('No pending interaction to resolve');
+      return validateResponseShape(action.response);
     case 'GUARD_REACTION':
       return state.pendingGuardReaction ? ok : fail('No pending Guard reaction');
     case 'WARE_CARD_REACTION':
@@ -467,4 +469,58 @@ export function getValidActions(state: GameState): GameAction[] {
   }
 
   return actions;
+}
+
+// ---------------------------------------------------------------------------
+// Response shape validation — every RESOLVE_INTERACTION, before any resolver.
+// Cast clients send responses over the network, so the engine must not trust
+// them: resolvers check game meaning (is that card in your hand?), this checks
+// form. Found by fuzzing (scripts/fuzz.ts): Boat/Leopard Statue accepted
+// wareType "gold", and Kettle accepted the same card twice (duplicating it).
+// ---------------------------------------------------------------------------
+
+const isIndex = (n: unknown): boolean => Number.isInteger(n) && (n as number) >= 0;
+const isCardId = (c: unknown): boolean => typeof c === 'string' && c.length > 0;
+const allDistinct = (xs: readonly unknown[]): boolean => new Set(xs).size === xs.length;
+
+export function validateResponseShape(response: InteractionResponse): ReturnType<typeof validateAction> {
+  const r = response as Record<string, unknown> & { type: string };
+  const list = (key: string, item: (x: unknown) => boolean) => {
+    const xs = r[key];
+    if (!Array.isArray(xs) || !xs.every(item)) return fail(`Invalid response: ${key} must be a list of valid entries`);
+    if (!allDistinct(xs)) return fail(`Invalid response: ${key} contains duplicates`);
+    return ok;
+  };
+  switch (r.type) {
+    case 'SELECT_WARE':
+    case 'RETURN_WARE':
+      return isIndex(r.wareIndex) ? ok : fail('Invalid response: wareIndex');
+    case 'SELECT_WARE_TYPE':
+      return WARE_TYPES.includes(r.wareType as WareType) ? ok : fail(`Invalid response: unknown ware type "${String(r.wareType)}"`);
+    case 'SELECT_CARD':
+      // '' is the documented dummy response that lets empty-state guards auto-resolve
+      return typeof r.cardId === 'string' ? ok : fail('Invalid response: cardId');
+    case 'DISCARD_PICK':
+      return typeof r.cardId === 'string' ? ok : fail('Invalid response: cardId');
+    case 'SELECT_CARDS':
+      return list('cardIds', isCardId);
+    case 'SELECT_WARES':
+    case 'SELL_WARES':
+      return list('wareIndices', isIndex);
+    case 'OPPONENT_DISCARD_SELECTION':
+      return list('cardIndices', isIndex);
+    case 'AUCTION_BID':
+      return Number.isInteger(r.amount) && (r.amount as number) > 0 ? ok : fail('Invalid response: bid amount');
+    case 'AUCTION_PASS':
+      return ok;
+    case 'BINARY_CHOICE':
+    case 'OPPONENT_CHOICE':
+      return r.choice === 0 || r.choice === 1 ? ok : fail('Invalid response: choice');
+    case 'DECK_PEEK_PICK':
+      return isIndex(r.cardIndex) ? ok : fail('Invalid response: cardIndex');
+    case 'SELECT_UTILITY':
+      return isIndex(r.utilityIndex) ? ok : fail('Invalid response: utilityIndex');
+    default:
+      return fail(`Invalid response type "${String(r.type)}"`);
+  }
 }

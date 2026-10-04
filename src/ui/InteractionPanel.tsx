@@ -7,6 +7,7 @@ import { MarketDisplay } from './MarketDisplay.tsx';
 import { formatResolutionBreadcrumb } from './uiHints.ts';
 import { isAuctionBidding } from '../engine/responder.ts';
 import { canCancelAction } from '../engine/cancelAction.ts';
+import { wareChoiceBlocked, binaryChoiceBlocked } from './choiceAvailability.ts';
 
 interface InteractionPanelProps {
   state: GameState;
@@ -464,9 +465,9 @@ function ResolutionContent({ state, pr, dispatch, viewerPlayer, onMegaView }: { 
       return <WareTradePanel state={state} pr={pr} dispatch={dispatch} />;
     case 'WARE_SELECT_MULTIPLE':
     case 'CARRIER_WARE_SELECT':
-      return <WareTypePicker prompt={pr.type === 'WARE_SELECT_MULTIPLE' ? `Pick a ware type (receive x${pr.count})` : 'Choose a ware type'} onPick={(wt) => resolve(dispatch, { type: 'SELECT_WARE_TYPE', wareType: wt })} />;
+      return <WareTypePicker prompt={pr.type === 'WARE_SELECT_MULTIPLE' ? `Pick a ware type (receive x${pr.count})` : 'Choose a ware type'} onPick={(wt) => resolve(dispatch, { type: 'SELECT_WARE_TYPE', wareType: wt })} blocked={(wt) => wareChoiceBlocked(state, pr, wt)} />;
     case 'BINARY_CHOICE':
-      return <BinaryChoicePanel options={pr.options} onChoice={(c) => resolve(dispatch, { type: 'BINARY_CHOICE', choice: c })} />;
+      return <BinaryChoicePanel options={pr.options} onChoice={(c) => resolve(dispatch, { type: 'BINARY_CHOICE', choice: c })} blocked={(c) => binaryChoiceBlocked(state, pr, c)} />;
     case 'OPPONENT_CHOICE':
       return <BinaryChoicePanel options={pr.options} onChoice={(c) => resolve(dispatch, { type: 'OPPONENT_CHOICE', choice: c })} />;
     case 'AUCTION':
@@ -513,39 +514,65 @@ function ResolutionContent({ state, pr, dispatch, viewerPlayer, onMegaView }: { 
 
 // --- Sub-components ---
 
-function WareTypePicker({ prompt, onPick, exclude }: { prompt: string; onPick: (wt: WareType) => void; exclude?: WareType }) {
+function WareTypePicker({ prompt, onPick, exclude, blocked }: { prompt: string; onPick: (wt: WareType) => void; exclude?: WareType; blocked?: (wt: WareType) => string | null }) {
   const types = exclude ? WARE_TYPES.filter(w => w !== exclude) : WARE_TYPES;
+  // Nothing pickable: the resolver's empty-state guard auto-resolves on any
+  // response, so offer Continue (stall prevention — never leave nothing to tap)
+  if (blocked && types.every((wt) => blocked(wt) !== null)) {
+    return (
+      <div style={{ textAlign: 'center' }}>
+        <div className="ui-prompt-text">No ware type is available right now — this has no effect.</div>
+        <button className="primary" onClick={() => onPick(types[0])}>Continue</button>
+      </div>
+    );
+  }
   return (
     <div>
       <div className="ui-prompt-text">{prompt}</div>
       <div style={getWareGridStyle(types.length)}>
-        {types.map(wt => (
-          <button key={wt} onClick={() => onPick(wt)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
-            <WareToken type={wt} />
-          </button>
-        ))}
+        {types.map(wt => {
+          const reason = blocked?.(wt) ?? null;
+          return (
+            <button
+              key={wt}
+              onClick={() => onPick(wt)}
+              disabled={reason !== null}
+              title={reason ?? wt}
+              aria-label={reason ? `${wt} — ${reason}` : wt}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+            >
+              <WareToken type={wt} />
+            </button>
+          );
+        })}
       </div>
     </div>
   );
 }
 
-function BinaryChoicePanel({ options, onChoice }: { options: [string, string]; onChoice: (c: 0 | 1) => void }) {
+function BinaryChoicePanel({ options, onChoice, blocked }: { options: [string, string]; onChoice: (c: 0 | 1) => void; blocked?: (c: 0 | 1) => string | null }) {
   return (
-    <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-      <button className="primary" onClick={() => onChoice(0)}>{options[0]}</button>
-      <button className="primary" onClick={() => onChoice(1)}>{options[1]}</button>
+    <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+      {([0, 1] as const).map((c) => {
+        const reason = blocked?.(c) ?? null;
+        return (
+          <button key={c} className="primary" disabled={reason !== null} title={reason ?? undefined} onClick={() => onChoice(c)}>
+            {options[c]}{reason ? ` (${reason})` : ''}
+          </button>
+        );
+      })}
     </div>
   );
 }
 
-function WareTradePanel({ pr, dispatch }: { state: GameState; pr: Extract<PendingResolution, { type: 'WARE_TRADE' }>; dispatch: InteractionPanelProps['dispatch'] }) {
+function WareTradePanel({ state, pr, dispatch }: { state: GameState; pr: Extract<PendingResolution, { type: 'WARE_TRADE' }>; dispatch: InteractionPanelProps['dispatch'] }) {
   if (pr.step === 'SELECT_GIVE') {
-    return <WareTypePicker prompt="Select ware type to give (all of that type)" onPick={(wt) => resolve(dispatch, { type: 'SELECT_WARE_TYPE', wareType: wt })} />;
+    return <WareTypePicker prompt="Select ware type to give (all of that type)" onPick={(wt) => resolve(dispatch, { type: 'SELECT_WARE_TYPE', wareType: wt })} blocked={(wt) => wareChoiceBlocked(state, pr, wt)} />;
   }
   const receivePrompt = pr.giveType != null && pr.giveCount != null
     ? `Trade all ${pr.giveCount} ${pr.giveType} — pick a type to receive:`
     : 'Select ware type to receive';
-  return <WareTypePicker prompt={receivePrompt} onPick={(wt) => resolve(dispatch, { type: 'SELECT_WARE_TYPE', wareType: wt })} exclude={pr.giveType} />;
+  return <WareTypePicker prompt={receivePrompt} onPick={(wt) => resolve(dispatch, { type: 'SELECT_WARE_TYPE', wareType: wt })} exclude={pr.giveType} blocked={(wt) => wareChoiceBlocked(state, pr, wt)} />;
 }
 
 function AuctionPanel({ pr, state, viewerPlayer, dispatch, onMegaView }: { pr: Extract<PendingResolution, { type: 'AUCTION' }>; state: GameState; viewerPlayer: 0 | 1; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
@@ -569,7 +596,7 @@ function AuctionPanel({ pr, state, viewerPlayer, dispatch, onMegaView }: { pr: E
             <WareToken type={pr.wares[0]} />
           </div>
         )}
-        <WareTypePicker prompt={prompt} onPick={(wt) => resolve(dispatch, { type: 'SELECT_WARE_TYPE', wareType: wt })} />
+        <WareTypePicker prompt={prompt} onPick={(wt) => resolve(dispatch, { type: 'SELECT_WARE_TYPE', wareType: wt })} blocked={(wt) => wareChoiceBlocked(state, pr, wt)} />
       </div>
     );
   }
@@ -1169,7 +1196,7 @@ function UtilityEffectPanel({ state, pr, dispatch, onMegaView }: { state: GameSt
   }
 
   if (pr.step === 'SELECT_WARE_TYPE') {
-    return <WareTypePicker prompt="Choose a ware type to receive" onPick={(wt) => resolve(dispatch, { type: 'SELECT_WARE_TYPE', wareType: wt })} />;
+    return <WareTypePicker prompt="Choose a ware type to receive" onPick={(wt) => resolve(dispatch, { type: 'SELECT_WARE_TYPE', wareType: wt })} blocked={(wt) => wareChoiceBlocked(state, pr, wt)} />;
   }
 
   return <div className="ui-helper-text">Processing...</div>;

@@ -18,6 +18,8 @@ import { getCard } from '../engine/cards/CardDatabase.ts';
 
 export function isDevPlayerMode(): boolean {
   if (typeof window === 'undefined') return false;
+  // Dev builds only — on the production site ?player=1 is just ignored
+  if (!import.meta.env.DEV) return false;
   return new URLSearchParams(window.location.search).get('player') === '1';
 }
 
