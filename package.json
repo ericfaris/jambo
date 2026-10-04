@@ -1,7 +1,7 @@
 {
   "name": "jambo",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.1.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,6 +11,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "fuzz": "tsx scripts/fuzz.ts",
+    "fuzz:cast": "tsx scripts/cast-fuzz.ts",
     "server": "tsx src/multiplayer/server.ts",
     "ai:bench:short": "tsx scripts/ai-benchmark.ts short",
     "ai:bench:medium": "tsx scripts/ai-benchmark.ts medium",
