@@ -91,6 +91,19 @@ export function CardFace({ cardId, onClick, selected, small, medium, large, extr
   }
   const tooltip = tooltipLines.join('\n');
 
+  // The coin/pip strip on a ware card is where players tap to buy or sell.
+  // When the card is playable it must play the card (open Buy/Sell — that
+  // dialog shows the full art, so it doubles as the zoom); it only zooms when
+  // the card can't be played. It used to always zoom, so tapping the coins
+  // opened a dead-end view with no Buy/Sell — "intermittent" depending on
+  // where on the card you tapped (reported 2026-10-04).
+  const wareStripProps = onClick
+    ? {}
+    : {
+      onClick: (e: { stopPropagation: () => void }) => { e.stopPropagation(); onMegaView?.(cardId); },
+      ...buttonProps(onMegaView ? () => onMegaView(cardId) : undefined, `Zoom in on ${card.name}`),
+    };
+
   if (hasImage) {
     const pad = small || medium ? 2 : large ? 4 : 3;
     // Fitted phone layouts can render cards far below the named sizes; scale
@@ -150,8 +163,7 @@ export function CardFace({ cardId, onClick, selected, small, medium, large, extr
             card.wares.types.length > 3 ? (
             /* 6-ware layout: top row of 3 pips, bottom row with coins + 3 pips */
             <div
-              onClick={(e) => { e.stopPropagation(); onMegaView?.(cardId); }}
-              {...buttonProps(onMegaView ? () => onMegaView(cardId) : undefined, `Zoom in on ${card.name}`)}
+              {...wareStripProps}
               style={{
                 position: 'absolute',
                 bottom: 0,
@@ -204,8 +216,7 @@ export function CardFace({ cardId, onClick, selected, small, medium, large, extr
             </div>
             ) : (
             <div
-              onClick={(e) => { e.stopPropagation(); onMegaView?.(cardId); }}
-              {...buttonProps(onMegaView ? () => onMegaView(cardId) : undefined, `Zoom in on ${card.name}`)}
+              {...wareStripProps}
               style={{
                 position: 'absolute',
                 bottom: 0,
