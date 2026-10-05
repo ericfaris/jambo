@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { DeckCardId } from '../engine/types.ts';
+import type { DeckCardId, WareType } from '../engine/types.ts';
+import { MarketSummary } from './MarketSummary.tsx';
 import { HandReferenceStrip } from './HandReferenceStrip.tsx';
 
 interface ResolveMegaViewProps {
@@ -9,12 +10,14 @@ interface ResolveMegaViewProps {
   hand?: DeckCardId[];
   onMegaView?: (cardId: DeckCardId) => void;
   hideHandStrip?: boolean;
+  /** The viewer's market — the panel covers the board, so show it above the panel */
+  market?: readonly (WareType | null)[];
 }
 
 /** Height reserved for the fixed HandReferenceStrip (45px peeks + padding + border). */
 export const HAND_STRIP_RESERVE_PX = 60;
 
-export function ResolveMegaView({ children, verticalAlign = 'top', hand, onMegaView, hideHandStrip }: ResolveMegaViewProps) {
+export function ResolveMegaView({ children, verticalAlign = 'top', hand, onMegaView, hideHandStrip, market }: ResolveMegaViewProps) {
   const showStrip = !hideHandStrip && hand && hand.length > 0;
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [moreBelow, setMoreBelow] = useState(false);
@@ -73,6 +76,7 @@ export function ResolveMegaView({ children, verticalAlign = 'top', hand, onMegaV
           position: 'relative',
         }}
       >
+        {market && <div style={{ marginBottom: 8 }}><MarketSummary market={market} tone="onDark" /></div>}
         <div>{children}</div>
         {moreBelow && (
           <button

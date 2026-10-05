@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { GameState, DeckCardId } from '../engine/types.ts';
+import type { GameState, DeckCardId, WareType } from '../engine/types.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
 import { keepAndPlayOptions } from './uiHints.ts';
 import { validateActivateUtility } from '../engine/validation/actionValidator.ts';
@@ -7,6 +7,7 @@ import { WARE_COLORS } from './CardFace.tsx';
 import { HandReferenceStrip } from './HandReferenceStrip.tsx';
 import { HAND_STRIP_RESERVE_PX } from './ResolveMegaView.tsx';
 import { buttonProps } from './a11y.ts';
+import { MarketSummary } from './MarketSummary.tsx';
 
 interface ActionButtonsProps {
   state: GameState;
@@ -30,12 +31,14 @@ export function ActionButtons({ state }: ActionButtonsProps) {
 
 interface CardPlayDialogProps {
   cardId: DeckCardId;
+  /** The viewer's market — the dialog covers the board, so show it here */
+  market?: readonly (WareType | null)[];
   onBuy: () => void;
   onSell: () => void;
   onCancel: () => void;
 }
 
-export function CardPlayDialog({ cardId, onBuy, onSell, onCancel }: CardPlayDialogProps) {
+export function CardPlayDialog({ cardId, market, onBuy, onSell, onCancel }: CardPlayDialogProps) {
   const card = getCard(cardId);
   if (!card.wares) return null;
 
@@ -114,6 +117,7 @@ export function CardPlayDialog({ cardId, onBuy, onSell, onCancel }: CardPlayDial
             <span className="coin-caption">Sell</span>
           </div>
         </div>
+        {market && <div style={{ padding: '0 6px 6px' }}><MarketSummary market={market} cardId={cardId} /></div>}
       </div>
     </div>
   );
@@ -282,6 +286,10 @@ export function DrawModal({ state, dispatch, disabled, disabledReason, onClose, 
             </div>
           </>
         )}
+        <MarketSummary
+          market={state.players[viewerPlayer].market}
+          cardId={!showCardBack && state.drawnCard && getCard(state.drawnCard).wares ? state.drawnCard : null}
+        />
         <div style={{
           display: 'flex',
           gap: 12,

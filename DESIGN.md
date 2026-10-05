@@ -256,6 +256,18 @@ Keyframes are named descriptively (`pilePulse`, `marketSlotFlash`,
 - **Action tags / recap** (`.center-row-action-tag`, `.center-row-recap`) —
   pill/rounded-rect labels over the center row announcing the last action,
   gold-bordered when it's the opponent's.
+- **Your market row** (`MarketSummary`, `.market-summary`) — every overlay
+  that covers the board (draw dialog, Buy/Sell dialog, zoom view, resolve
+  panels) shows the viewer's market stands: one 16px rounded square per slot
+  in stand order, filled with the ware colour token, empty slots as a dashed
+  outline, a 6px gap before each small stand, and "N free". Given a ware card
+  it adds a sell check: green "✓ You have the wares to sell this" or "To sell,
+  you still need: 1 trinket, 2 tea". `tone="onDark"` for the dark resolve
+  overlay, default linen text otherwise. Dialog card art reserves +60px for it
+  (`.dialog-pop:has(.market-summary) .dialog-card-art`).
+- **Ware card tap target** — on a playable ware card the coin/pip strip is
+  part of the card (opens Buy/Sell); it only acts as a zoom button when the
+  card can't be played. Non-ware caption strips always zoom.
 
 ## Layout — Phone player view (Cast mode `PlayerScreen`)
 
@@ -451,6 +463,14 @@ existing set already covers the full identity; this pass's job was
 documenting it, fixing one duplication, and identifying the SFX gap.
 
 ## Changelog
+
+### 2026-10-04 — Market visible under dialogs; coin strip opens Buy/Sell
+- New `MarketSummary` row in the draw, Buy/Sell, zoom and resolve overlays,
+  so the player can see their wares (and what a card still needs to sell)
+  while the board is covered.
+- Tapping a ware card's coins opens Buy/Sell (was a dead-end zoom).
+- Zoom view width is `min(380px, 100vw - 16px)` (overflowed 360px phones) and
+  its art is capped at `100dvh - 260px`.
 
 ### 2026-10-04 — Playtest fixes
 - Phone layout no longer breaks after the tutorial / pass-device screen

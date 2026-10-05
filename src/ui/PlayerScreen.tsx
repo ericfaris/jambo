@@ -401,7 +401,7 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
       )}
       {/* Interaction panel */}
       {hasPendingInteraction && (
-        <ResolveMegaView verticalAlign="center">
+        <ResolveMegaView verticalAlign="center" market={pub.players[slot].market}>
           <CastInteractionPanel pub={pub} priv={priv} slot={slot} dispatch={dispatch} onMegaView={setMegaCardId} />
         </ResolveMegaView>
       )}
@@ -490,6 +490,7 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
       {wareDialog && (
         <CardPlayDialog
           cardId={wareDialog}
+          market={pub.players[slot].market}
           onBuy={() => {
             const validation = validatePlayCard(validationState, wareDialog, 'buy');
             if (!validation.valid) {
@@ -775,7 +776,7 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
 
       {/* Mega view */}
       {megaCardId && (
-        <MegaView cardId={megaCardId} onClose={() => setMegaCardId(null)} />
+        <MegaView cardId={megaCardId} onClose={() => setMegaCardId(null)} market={pub.players[slot].market} />
       )}
 
       {isDevMode() && showDevTelemetry && telemetryEvents.length > 0 && (

@@ -1,14 +1,17 @@
 import { useEffect } from 'react';
-import type { DeckCardId } from '../engine/types.ts';
+import type { DeckCardId, WareType } from '../engine/types.ts';
+import { MarketSummary } from './MarketSummary.tsx';
 import { getCard } from '../engine/cards/CardDatabase.ts';
 import { WARE_COLORS } from './CardFace.tsx';
 
 interface MegaViewProps {
   cardId: DeckCardId;
   onClose: () => void;
+  /** The viewer's market — the zoom covers the board, so show it here */
+  market?: readonly (WareType | null)[];
 }
 
-export function MegaView({ cardId, onClose }: MegaViewProps) {
+export function MegaView({ cardId, onClose, market }: MegaViewProps) {
   const card = getCard(cardId);
 
   useEffect(() => {
@@ -39,7 +42,7 @@ export function MegaView({ cardId, onClose }: MegaViewProps) {
         className="dialog-pop linen-texture"
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: 380,
+          width: 'min(380px, calc(100vw - 16px))',
           borderRadius: 14,
           padding: 8,
           border: '2px solid #a89880',
@@ -129,6 +132,7 @@ export function MegaView({ cardId, onClose }: MegaViewProps) {
             </>
           )}
         </div>
+        {market && <div style={{ padding: '0 6px 6px' }}><MarketSummary market={market} cardId={card.wares ? cardId : null} /></div>}
       </div>
     </div>
   );

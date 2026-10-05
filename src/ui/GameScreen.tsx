@@ -1265,6 +1265,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
       {wareDialog && wareDialogStillValid && (
         <CardPlayDialog
           cardId={wareDialog}
+          market={state.players[viewerPlayer].market}
           onBuy={() => {
             const validation = validatePlayCard(state, wareDialog, 'buy');
             if (!validation.valid) {
@@ -1362,6 +1363,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
           hand={state.players[viewerPlayer].hand}
           onMegaView={setMegaCardId}
           hideHandStrip={isHandInteraction(state.pendingResolution, viewerPlayer)}
+          market={state.players[viewerPlayer].market}
         >
           <InteractionPanel state={state} dispatch={dispatch} viewerPlayer={viewerPlayer} onMegaView={setMegaCardId} />
         </ResolveMegaView>
@@ -1369,7 +1371,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
 
       {/* Mega view */}
       {megaCardId && (
-        <MegaView cardId={megaCardId} onClose={() => setMegaCardId(null)} />
+        <MegaView cardId={megaCardId} onClose={() => setMegaCardId(null)} market={state.players[viewerPlayer].market} />
       )}
 
     </div>

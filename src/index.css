@@ -1173,3 +1173,18 @@ button.brown:hover:not(:disabled) {
   max-height: calc(100vh - 400px);
   max-height: calc(100dvh - 400px);
 }
+
+/* The "Your market" row (+ sell check line) adds ~60px of chrome under the art */
+.dialog-pop:has(.market-summary) .dialog-card-art {
+  max-height: calc(100vh - 290px);
+  max-height: calc(100dvh - 290px);
+}
+.dialog-pop:has(.keep-and-play):has(.market-summary) .dialog-card-art {
+  max-height: calc(100vh - 460px);
+  max-height: calc(100dvh - 460px);
+}
+.mega-view-art img {
+  max-height: calc(100dvh - 260px);
+  object-fit: cover;
+  object-position: center 30%;
+}
