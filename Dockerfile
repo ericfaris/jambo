@@ -3,7 +3,7 @@
 ARG APP_VERSION=0.0.0
 ARG VITE_CAST_APP_ID=
 
-FROM node:24-alpine AS build
+FROM node:26-alpine AS build
 WORKDIR /app
 ARG VITE_CAST_APP_ID
 ENV VITE_CAST_APP_ID=$VITE_CAST_APP_ID
@@ -14,7 +14,7 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-FROM node:24-alpine AS runtime
+FROM node:26-alpine AS runtime
 RUN apk update && apk upgrade --no-cache
 LABEL version=$APP_VERSION
 WORKDIR /app
