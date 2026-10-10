@@ -1,7 +1,7 @@
 {
   "name": "jambo",
   "private": true,
-  "version": "1.4.1",
+  "version": "1.5.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -17,6 +17,7 @@
     "ai:bench:short": "tsx scripts/ai-benchmark.ts short",
     "ai:bench:medium": "tsx scripts/ai-benchmark.ts medium",
     "ai:bench:long": "tsx scripts/ai-benchmark.ts long",
+    "ai:ladder": "tsx scripts/ai-ladder.ts",
     "ai:telemetry:smoke": "tsx scripts/ai-telemetry-smoke.ts",
     "ai:profile": "tsx scripts/ai-turn-profile.ts",
     "version:bump": "tsx scripts/bump-version.ts patch",

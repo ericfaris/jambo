@@ -261,3 +261,21 @@ overwrites tracked files.)
   from `performance.getEntriesByType('resource')` first.
 - Engine log lines are written from the actor's side; recaps shown to the
   other seat must flip "opponent" → "you" (`formatLogRecap`).
+
+## 2026-10-10 — Throne no-op swap; even AI difficulty ladder
+- **Fungible resources make "swap" effects degenerate**: Throne let a player
+  (the AI, in practice) trade tea for tea — legal, changes nothing, burns the
+  action. Exclude like-for-like at every layer from one helper
+  (`engine/market/throneSwap.ts`): validator, `initializeResolution` (so a
+  Crocodile-borrowed Throne skips), resolver guard + rejects, AI candidates,
+  greyed-out panel slots. Hard/Expert scored the no-op as equal to real swaps
+  because the eval values all wares the same.
+- **Measure difficulty as a ladder, not a matrix**: `npm run ai:ladder` runs
+  only adjacent pairs, both seat orders on paired seeds, in parallel
+  processes, and reports logit gaps. Medium→Hard was 2.55 vs ~1.2 for the
+  other steps.
+- **Blending is a smooth, safe strength dial**: a level hands a share of its
+  decisions to its neighbour (`DIFFICULTY_BLEND`, deterministic per state).
+  No new decision logic, so no new bugs; the response curve is steep for Hard
+  (8% Medium moves ≈ −0.4 logits). Confirm on fresh seed sets — 240-game
+  sweeps swung ~±4%.

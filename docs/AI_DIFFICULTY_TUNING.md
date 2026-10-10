@@ -119,6 +119,45 @@ Based on desired human-facing win rates, the AI-vs-AI benchmarks should land nea
 
 Note: AI-vs-AI rates differ from AI-vs-human rates. A Hard AI that wins 70% vs Medium AI will likely win ~85% vs most human players because humans make suboptimal plays that heuristics exploit.
 
+## Ladder — even steps between levels (2026-10-10)
+
+**Rule: each level beats the one below it by about the same margin.** Measured
+as the stronger level's combined win rate over both seat orders, converted to
+a strength gap in logits (Elo-style; equal gaps = evenly spaced ladder).
+
+```bash
+npm run ai:ladder -- 200 41000      # adjacent steps only, both seats, parallel (~5 min)
+LADDER_BLEND_MEDIUM=0.3 LADDER_BLEND_HARD=0.1 npx tsx scripts/ai-ladder.ts 120 41000   # sweep
+```
+
+Easy and Expert are the anchors (beginner floor and top challenge stay
+unchanged); the middle two move. The total Easy→Expert span (~5 logits)
+split three ways puts every step at ~1.65 logits, **≈ 83% for the stronger
+level**. Acceptable band: every step 78–88%, no step's gap more than ~0.4
+logits from the others.
+
+Before (v1.4.1, seeds 41000, 400 games/step): Medium>Easy 75.8% (1.14),
+**Hard>Medium 92.8% (2.55)**, Expert>Hard 79.1% (1.33) — Hard was a cliff.
+
+Lever: `DIFFICULTY_BLEND` in `src/ai/difficulties/index.ts` — Medium hands
+a share of its decisions to Hard's search, Hard hands a share to Medium's
+heuristics (deterministic per decision via `blendRoll(state)`). Hard is very
+sensitive: 20% Medium moves already drops it below the midpoint.
+
+| Blend (medium / hard) | Medium>Easy | Hard>Medium | Expert>Hard | seeds, games/step |
+|---|---|---|---|---|
+| 0 / 0 (before) | 75.8% | 92.8% | 79.1% | 41000, 400 |
+| 0.30 / 0.20 | 84.4% | 74.8% | 89.0% | 41000, 240 |
+| 0.30 / 0.35 | 87.5% | 65.4% | 93.1% | 41000, 240 |
+| 0.30 / 0.08 | 84.8% | 80.1% | 82.4% | 41000, 400 |
+| 0.25 / 0.06 | 84.4% | 85.4% | 80.7% | 52000, 800 |
+| **0.22 / 0.08 (shipped)** | **83.5%** | **85.0%** | **81.2%** | 52000, 800 |
+| **0.22 / 0.08 (confirm)** | **82.4%** | **85.1%** | **81.6%** | 63000, 400 |
+
+No stalls in any run; first-seat skew within noise. Re-run the ladder after
+any AI or rules change that could move a level (e.g. the 2026-10-10 Throne
+fix) and retune the blend if a step leaves the band.
+
 ## Baseline Benchmark (2026-02-22, 300 games)
 
 | Matchup | P0 Win% | P1 Win% | Avg Turns | Stalls |
