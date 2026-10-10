@@ -1,4 +1,5 @@
 import type { GameState, GameAction, InteractionResponse, WareType, WareCardWares } from '../engine/types.ts';
+import { throneGiveOptions, throneStealOptions } from '../engine/market/throneSwap.ts';
 import { isAuctionBidding } from '../engine/responder.ts';
 import { WARE_TYPES, CONSTANTS } from '../engine/types.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
@@ -155,18 +156,13 @@ export function getRandomInteractionResponse(state: GameState, rng: RngFn): Inte
     }
 
     case 'WARE_THEFT_SWAP': {
-      if (pr.step === 'STEAL') {
-        const opponent: 0 | 1 = cp === 0 ? 1 : 0;
-        const opMarket = state.players[opponent].market;
-        const filledSlots = opMarket.map((w, i) => ({ w, i })).filter(s => s.w !== null);
-        // Resolver auto-resolves when opponent has no wares; send dummy to trigger guard
-        if (filledSlots.length === 0) return { type: 'SELECT_WARE', wareIndex: 0 };
-        return { type: 'SELECT_WARE', wareIndex: pick(filledSlots, rng).i };
-      }
-      const mySlots = player.market.map((w, i) => ({ w, i })).filter(s => s.w !== null);
-      // Resolver auto-resolves when player has no wares; send dummy to trigger guard
-      if (mySlots.length === 0) return { type: 'SELECT_WARE', wareIndex: 0 };
-      return { type: 'SELECT_WARE', wareIndex: pick(mySlots, rng).i };
+      // Only exchanges that change something (never tea for tea)
+      const options = pr.step === 'STEAL'
+        ? throneStealOptions(state, cp)
+        : throneGiveOptions(state, cp, pr.stolenWare);
+      // Resolver auto-resolves when no useful swap exists; send dummy to trigger guard
+      if (options.length === 0) return { type: 'SELECT_WARE', wareIndex: 0 };
+      return { type: 'SELECT_WARE', wareIndex: pick(options, rng) };
     }
 
 
@@ -477,11 +473,9 @@ export function getFallbackInteractionResponses(state: GameState): InteractionRe
     }
 
     case 'WARE_THEFT_SWAP': {
-      const target = pr.step === 'STEAL' ? opponent : cp;
-      const indices = state.players[target].market
-        .map((ware, index) => ({ ware, index }))
-        .filter(({ ware }) => ware !== null)
-        .map(({ index }) => index);
+      const indices = pr.step === 'STEAL'
+        ? throneStealOptions(state, cp)
+        : throneGiveOptions(state, cp, pr.stolenWare);
       return indices.length > 0
         ? indices.map(wareIndex => ({ type: 'SELECT_WARE', wareIndex }))
         : [{ type: 'SELECT_WARE', wareIndex: 0 }];

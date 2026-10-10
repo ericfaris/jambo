@@ -2,6 +2,7 @@
 // Action Validator - Pre-play validation for each card and action type
 // ============================================================================
 
+import { hasUsefulThroneSwap } from '../market/throneSwap.ts';
 import { canCancelAction } from '../cancelAction.ts';
 import type { GameState, DeckCardId, GameAction, WareType, InteractionResponse } from '../types.ts';
 import { WARE_TYPES } from '../types.ts';
@@ -356,6 +357,7 @@ export function validateActivateUtility(state: GameState, utilityIndex: number):
       if (!state.players[opponent].market.some(w => w !== null)) return fail('Cannot activate Throne: opponent has no wares');
       // Throne exchanges wares — you need one to give
       if (!player.market.some(w => w !== null)) return fail('Cannot activate Throne: you have no wares to exchange');
+      if (!hasUsefulThroneSwap(state, state.currentPlayer)) return fail('Cannot activate Throne: every swap would trade a ware for the same type');
       break;
     case 'drums':
       if (!player.market.some(w => w !== null)) return fail('Cannot activate Drums: no wares in market to return');

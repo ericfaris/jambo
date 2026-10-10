@@ -2,6 +2,7 @@
 // Card Resolver - Dispatches card play/activation to the correct resolver
 // ============================================================================
 
+import { hasUsefulThroneSwap } from '../market/throneSwap.ts';
 import type { GameState, DeckCardId, InteractionResponse, PendingResolution, WareType } from '../types.ts';
 import { getCard, isDesign } from './CardDatabase.ts';
 import { resolveWareTrade } from './resolvers/wareTradeResolver.ts';
@@ -51,6 +52,9 @@ export function initializeResolution(
         const opponentHasWares = state.players[opponent].market.some(w => w !== null);
         if (!opponentHasWares) {
           throw new Error('Cannot activate Throne: opponent has no wares');
+        }
+        if (!hasUsefulThroneSwap(state, state.currentPlayer)) {
+          throw new Error('Cannot activate Throne: every swap would trade a ware for the same type');
         }
         return { type: 'WARE_THEFT_SWAP', sourceCard: cardId, step: 'STEAL' };
       }

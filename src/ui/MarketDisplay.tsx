@@ -24,9 +24,13 @@ interface MarketDisplayProps {
   dashedBorder?: boolean;
   /** Tight single-row phone variant: no wrap, no outer padding. */
   compact?: boolean;
+  /** Filled slots that can't be picked right now (dimmed, not clickable). */
+  disabledSlots?: number[];
+  /** Tooltip / label for a disabled slot. */
+  disabledReason?: string;
 }
 
-function MarketDisplayComponent({ market, onSlotClick, selectedSlots, flashSlots, flashVariant = 'normal', label, columns, slotSize = 48, tokenSize, borderless, dashedBorder, compact = false }: MarketDisplayProps) {
+function MarketDisplayComponent({ market, onSlotClick, selectedSlots, flashSlots, flashVariant = 'normal', label, columns, slotSize = 48, tokenSize, borderless, dashedBorder, compact = false, disabledSlots, disabledReason }: MarketDisplayProps) {
   const isInteractive = !!onSlotClick;
 
   const sixthSpace = getSixthSpaceIndex(market);
@@ -53,8 +57,11 @@ function MarketDisplayComponent({ market, onSlotClick, selectedSlots, flashSlots
         padding: compact ? 0 : '10px 10px 10px 0',
         boxShadow: 'none',
       }}>
-        {market.map((ware, i) => (
-          <div key={i} className={`${borderless || dashedBorder ? '' : 'market-slot'}${flashSlots?.includes(i) ? ` market-slot-flash market-slot-flash-${flashVariant}` : ''}`} style={{
+        {market.map((ware, i) => {
+          const pickable = !!onSlotClick && !!ware && !disabledSlots?.includes(i);
+          const disabled = !!onSlotClick && !!ware && !pickable;
+          return (
+          <div key={i} title={disabled ? disabledReason : undefined} aria-disabled={disabled || undefined} className={`${borderless || dashedBorder ? '' : 'market-slot'}${flashSlots?.includes(i) ? ` market-slot-flash market-slot-flash-${flashVariant}` : ''}`} style={{
             width: slotSize,
             height: slotSize,
             borderRadius: compact ? 6 : 8,
@@ -64,10 +71,12 @@ function MarketDisplayComponent({ market, onSlotClick, selectedSlots, flashSlots
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            cursor: onSlotClick && ware ? 'pointer' : 'default',
+            cursor: pickable ? 'pointer' : 'default',
+            opacity: disabled ? 0.38 : 1,
+            filter: disabled ? 'grayscale(0.7)' : undefined,
           }}
-          onClick={onSlotClick && ware ? () => onSlotClick(i) : undefined}
-          {...buttonProps(onSlotClick && ware ? () => onSlotClick(i) : undefined, `${ware} in slot ${i + 1}`)}
+          onClick={pickable ? () => onSlotClick(i) : undefined}
+          {...buttonProps(pickable ? () => onSlotClick(i) : undefined, `${ware} in slot ${i + 1}`)}
           >
             {ware ? (
               // keyed by ware so a new arrival (or a swap) settles in
@@ -86,7 +95,8 @@ function MarketDisplayComponent({ market, onSlotClick, selectedSlots, flashSlots
               <span />
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

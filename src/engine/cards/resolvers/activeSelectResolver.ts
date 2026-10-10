@@ -2,6 +2,7 @@
 // Active Select Resolver - Throne (swap), Parrot (steal)
 // ============================================================================
 
+import { hasUsefulThroneSwap, throneStealOptions } from '../../market/throneSwap.ts';
 import type {
   GameState,
   PendingWareTheftSwap,
@@ -54,6 +55,15 @@ function resolveThrone(
       };
     }
 
+    // Guard: only same-type exchanges left (e.g. both markets hold just tea) — nothing would change
+    if (!hasUsefulThroneSwap(state, activePlayer)) {
+      return {
+        ...state,
+        pendingResolution: null,
+        log: [...state.log, { turn: state.turn, player: activePlayer, action: 'THRONE_SWAP', details: 'No exchange would change anything' }],
+      };
+    }
+
     // Step 1: Active player picks the opponent's ware to take
     if (response.type !== 'SELECT_WARE') {
       throw new Error('Expected SELECT_WARE for Throne steal step');
@@ -62,6 +72,9 @@ function resolveThrone(
     const ware = state.players[opponent].market[wareIndex];
     if (!ware) {
       throw new Error(`Opponent's slot ${wareIndex} is empty`);
+    }
+    if (!throneStealOptions(state, activePlayer).includes(wareIndex)) {
+      throw new Error(`Throne: you have no different ware to give for ${ware}`);
     }
 
     return {
@@ -85,6 +98,9 @@ function resolveThrone(
     const ware = state.players[activePlayer].market[wareIndex];
     if (!ware) {
       throw new Error(`Your slot ${wareIndex} is empty`);
+    }
+    if (ware === stolenWare) {
+      throw new Error(`Throne: give a ware other than ${stolenWare} — a same-type swap changes nothing`);
     }
 
     let newState = removeWareFromMarket(state, activePlayer, wareIndex).state;

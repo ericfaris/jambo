@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { throneGiveOptions, throneStealOptions } from '../engine/market/throneSwap.ts';
 import type { GameState, PendingResolution, InteractionResponse, WareType, DeckCardId } from '../engine/types.ts';
 import { WARE_TYPES } from '../engine/types.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
@@ -807,26 +808,47 @@ function WareTheftSinglePanel({ state, dispatch }: { state: GameState; dispatch:
 function WareTheftSwapPanel({ state, pr, dispatch }: { state: GameState; pr: Extract<PendingResolution, { type: 'WARE_THEFT_SWAP' }>; dispatch: InteractionPanelProps['dispatch'] }) {
   const cp = state.currentPlayer;
   const opponent: 0 | 1 = cp === 0 ? 1 : 0;
+  const market = pr.step === 'STEAL' ? state.players[opponent].market : state.players[cp].market;
+  // Same-type exchanges change nothing, so they're never offered (engine rejects them too)
+  const options = pr.step === 'STEAL' ? throneStealOptions(state, cp) : throneGiveOptions(state, cp, pr.stolenWare);
+  const disabledSlots = market.map((w, i) => (w !== null && !options.includes(i) ? i : -1)).filter((i) => i >= 0);
 
-  if (pr.step === 'STEAL') {
-    const opponentWareCount = state.players[opponent].market.filter(w => w !== null).length;
+  if (options.length === 0) {
     return (
       <div>
-        <div className="ui-prompt-text">
-          Step 1/2: pick 1 of your opponent's wares to take ({opponentWareCount} available).
-        </div>
-        <MarketDisplay market={state.players[opponent].market} onSlotClick={(i) => resolve(dispatch, { type: 'SELECT_WARE', wareIndex: i })} />
+        <div className="ui-prompt-text">No swap would change anything — every ware matches.</div>
+        <button onClick={() => resolve(dispatch, { type: 'SELECT_WARE', wareIndex: 0 })}>Continue</button>
       </div>
     );
   }
-  const myWareCount = state.players[cp].market.filter(w => w !== null).length;
+
+  if (pr.step === 'STEAL') {
+    return (
+      <div>
+        <div className="ui-prompt-text">
+          Step 1/2: pick 1 of your opponent's wares to take ({options.length} available).
+        </div>
+        <MarketDisplay
+          market={market}
+          onSlotClick={(i) => resolve(dispatch, { type: 'SELECT_WARE', wareIndex: i })}
+          disabledSlots={disabledSlots}
+          disabledReason="You have nothing different to give for this"
+        />
+      </div>
+    );
+  }
   return (
     <div>
       <div className="ui-prompt-text" style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-        Step 2/2: pick 1 of your wares ({myWareCount} available) to exchange for
+        Step 2/2: pick 1 of your wares ({options.length} available) to exchange for
         {pr.stolenWare && <WareToken type={pr.stolenWare} size={28} />}
       </div>
-      <MarketDisplay market={state.players[cp].market} onSlotClick={(i) => resolve(dispatch, { type: 'SELECT_WARE', wareIndex: i })} />
+      <MarketDisplay
+        market={market}
+        onSlotClick={(i) => resolve(dispatch, { type: 'SELECT_WARE', wareIndex: i })}
+        disabledSlots={disabledSlots}
+        disabledReason={pr.stolenWare ? `Same as the ${pr.stolenWare} you're taking` : undefined}
+      />
     </div>
   );
 }
