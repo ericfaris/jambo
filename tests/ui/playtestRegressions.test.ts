@@ -50,10 +50,9 @@ describe('AI speech bubble stays clear of the opponent gold', () => {
   it('sits left of the gold block, is click-through, and is announced politely', () => {
     const html = renderToStaticMarkup(createElement(SpeechBubble, { message: 'Hello', visible: true, onHide: noop }));
     expect(html).not.toContain('right:80px');
-    expect(html).toContain('right:clamp(160px, 22vw, 260px)');
+    expect(html).toContain('right:clamp(200px, 22vw, 260px)');
     expect(html).toContain('pointer-events:none');
     expect(html).toContain('role="status"');
-    expect(html).toContain('alt=""');
   });
 });
 

@@ -1,4 +1,5 @@
-import { memo, useState, useEffect } from 'react';
+import { memo, useState, useEffect, useRef } from 'react';
+import type { CSSProperties } from 'react';
 import type { DeckCardId } from '../engine/types.ts';
 import { CardFace } from './CardFace.tsx';
 import { splitIntoRows } from './fitLayout.ts';
@@ -34,6 +35,9 @@ export const SCROLL_HAND_SIZE = 12;
 
 function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaView, useWoodBackground = true, transparentBackground = false, showBorder = true, showHelperText = true, cardScale = 1, paddingBottom = 14, paddingX = 14, paddingLeft, paddingRight, paddingTop = 14, layoutMode = 'fan', fixedOverlapPx, rows = 1, gapPx = 8 }: HandDisplayProps) {
   const [isMobile, setIsMobile] = useState(false);
+  // The opening hand deals in one card after another; later draws arrive alone
+  const dealtRef = useRef(false);
+  useEffect(() => { dealtRef.current = true; }, []);
 
   // Detect mobile screen size
   useEffect(() => {
@@ -90,48 +94,65 @@ function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaVie
   const isFitRows = layoutMode === 'fitRows';
   const scrollsSideways = !isGrid3 && !isTwoRowAlternate && !isFitRows && hand.length >= SCROLL_HAND_SIZE;
 
-  const renderCardTile = (cardId: DeckCardId, index: number, marginLeft: number, zIndex: number) => (
-    <div
-      key={`${cardId}-${index}`}
-      style={{
-        marginLeft,
-        flexShrink: 0,
-        zIndex,
-        position: 'relative',
-      }}
-    >
-      <CardFace
-        cardId={cardId}
-        scale={cardScale}
-        onClick={!disabled && onPlayCard ? () => onPlayCard(cardId) : undefined}
-        onMegaView={onMegaView}
-      />
-      {cardError && cardError.cardId === cardId && (
-        <div style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(255, 0, 0, 0.8)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'white',
-          fontSize: 14,
-          fontWeight: 600,
-          textAlign: 'center',
-          padding: 8,
-          borderRadius: 8,
-          zIndex: 1000,
-          animation: 'cardErrorFadeOut 5s linear forwards',
-                overflow: 'hidden',
-        }}>
-          {cardError.message}
+  // Desktop fan: a slight arc (outer cards tilt out and sit lower). Pose is
+  // set with the independent rotate/translate properties (index.css › Living
+  // table) so it composes with each card's idle breathing.
+  const fanned = layoutMode === 'fan' && !isMobile && !scrollsSideways && hand.length > 1;
+  const fanStep = Math.min(1.8, 10 / hand.length);
+  const fanMid = (hand.length - 1) / 2;
+
+  const renderCardTile = (cardId: DeckCardId, index: number, marginLeft: number, zIndex: number) => {
+    const offset = index - fanMid;
+    const tileStyle: Record<string, string | number> = {
+      marginLeft,
+      flexShrink: 0,
+      zIndex,
+      position: 'relative',
+      '--i': index,
+      '--deal-i': dealtRef.current ? 0 : index,
+    };
+    if (fanned) {
+      tileStyle['--fan-rot'] = `${(offset * fanStep).toFixed(2)}deg`;
+      tileStyle['--fan-lift'] = `${Math.min(offset * offset * 1.2, 10).toFixed(1)}px`;
+    }
+    return (
+      <div key={cardId} className="hand-card" style={tileStyle as CSSProperties}>
+        <div className="hand-card-inner">
+          <CardFace
+            cardId={cardId}
+            scale={cardScale}
+            onClick={!disabled && onPlayCard ? () => onPlayCard(cardId) : undefined}
+            onMegaView={onMegaView}
+          />
         </div>
-      )}
-    </div>
-  );
+        {cardError && cardError.cardId === cardId && (
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(255, 0, 0, 0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'white',
+            fontSize: 'clamp(10px, 3vw, 14px)',
+            lineHeight: 1.2,
+            fontWeight: 600,
+            textAlign: 'center',
+            padding: 6,
+            borderRadius: 8,
+            zIndex: 1000,
+            animation: 'cardErrorFadeOut 5s linear forwards',
+            overflow: 'hidden',
+          }}>
+            {cardError.message}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const indexedCards = hand.map((cardId, index) => ({ cardId, index }));
   const topRow = indexedCards.length <= 6 ? indexedCards.slice(0, 3) : indexedCards.slice(0, 3);
@@ -154,7 +175,8 @@ function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaVie
   const resolvedPaddingRight = paddingRight ?? paddingX;
 
   return (
-    <div 
+    <div
+      className={!disabled && onPlayCard ? 'hand-live' : undefined}
       style={{
         position: 'relative',
         padding: `${paddingTop}px ${resolvedPaddingRight}px ${paddingBottom}px ${resolvedPaddingLeft}px`,
@@ -170,7 +192,7 @@ function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaVie
             }),
         border: showBorder ? '1px dashed var(--border)' : 'none',
         borderRadius: 10,
-        minHeight: isFitRows ? undefined : 200,
+        minHeight: isFitRows ? undefined : Math.min(200, Math.round(187 * cardScale) + paddingTop + paddingBottom),
         overflowX: isFitRows ? 'visible' : isGrid3 ? 'hidden' : (isMobile || isTwoRowAlternate || scrollsSideways ? 'auto' : 'hidden'),
         overflowY: isFitRows ? 'visible' : isGrid3 ? 'auto' : 'hidden',
         display: isGrid3 ? 'grid' : 'flex',
@@ -229,49 +251,7 @@ function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaVie
           </div>
         </>
       ) : (
-        hand.map((cardId, index) => (
-          <div
-            key={cardId}
-            style={{
-              marginLeft: isGrid3 ? 0 : (index === 0 ? 0 : spacing),
-              flexShrink: 0,
-              zIndex: isGrid3 ? 1 : index,
-              position: 'relative',
-            }}
-          >
-            <CardFace
-              cardId={cardId}
-              scale={cardScale}
-              onClick={!disabled && onPlayCard ? () => onPlayCard(cardId) : undefined}
-              onMegaView={onMegaView}
-            />
-            {cardError && cardError.cardId === cardId && (
-              <div style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundColor: 'rgba(255, 0, 0, 0.8)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontSize: 'clamp(10px, 3vw, 14px)',
-                lineHeight: 1.2,
-                fontWeight: 600,
-                textAlign: 'center',
-                padding: 6,
-                borderRadius: 8,
-                zIndex: 1000,
-                animation: 'cardErrorFadeOut 5s linear forwards',
-                overflow: 'hidden',
-              }}>
-                {cardError.message}
-              </div>
-            )}
-          </div>
-        ))
+        hand.map((cardId, index) => renderCardTile(cardId, index, isGrid3 ? 0 : (index === 0 ? 0 : spacing), isGrid3 ? 1 : index))
       )}
     </div>
   );

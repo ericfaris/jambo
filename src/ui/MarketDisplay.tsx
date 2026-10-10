@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import type { CSSProperties } from 'react';
 import type { WareType } from '../engine/types.ts';
 import { WareToken } from './CardFace.tsx';
 import { buttonProps } from './a11y.ts';
@@ -53,7 +54,7 @@ function MarketDisplayComponent({ market, onSlotClick, selectedSlots, flashSlots
         boxShadow: 'none',
       }}>
         {market.map((ware, i) => (
-          <div key={i} className={flashSlots?.includes(i) ? `market-slot-flash market-slot-flash-${flashVariant}` : undefined} style={{
+          <div key={i} className={`${borderless || dashedBorder ? '' : 'market-slot'}${flashSlots?.includes(i) ? ` market-slot-flash market-slot-flash-${flashVariant}` : ''}`} style={{
             width: slotSize,
             height: slotSize,
             borderRadius: compact ? 6 : 8,
@@ -69,7 +70,10 @@ function MarketDisplayComponent({ market, onSlotClick, selectedSlots, flashSlots
           {...buttonProps(onSlotClick && ware ? () => onSlotClick(i) : undefined, `${ware} in slot ${i + 1}`)}
           >
             {ware ? (
-              <WareToken type={ware} size={tokenSize} />
+              // keyed by ware so a new arrival (or a swap) settles in
+              <span key={ware} className="ware-in-slot" style={{ '--i': i } as CSSProperties}>
+                <WareToken type={ware} size={tokenSize} />
+              </span>
             ) : i === sixthSpace ? (
               <span
                 title="Filling the large stand's 6th space costs 2g"

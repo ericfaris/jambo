@@ -225,9 +225,10 @@ export function DrawModal({ state, dispatch, disabled, disabledReason, onClose, 
         ) : (
           <>
             <img
+              key={state.drawnCard}
               src={`/assets/cards/${getCard(state.drawnCard!).designId}.png`}
               alt={getCard(state.drawnCard!).name}
-              className="dialog-card-art"
+              className="dialog-card-art card-reveal"
               style={{
                 width: '100%',
                 borderRadius: 10,

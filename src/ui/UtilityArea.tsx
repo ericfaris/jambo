@@ -84,6 +84,7 @@ function UtilityAreaComponent({
         {utilities.map((u, i) => (
           <div
             key={u.cardId}
+            className={onActivate && !disabled && !u.usedThisTurn ? 'utility-ready' : undefined}
             style={{
               position: 'relative',
               flexShrink: 0,

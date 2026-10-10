@@ -147,7 +147,7 @@ function resolveTribalElder(state: GameState, pending: PendingBinaryChoice, choi
         turn: state.turn,
         player: activePlayer,
         action: 'TRIBAL_ELDER_DISCARD',
-        details: 'Chose opponent discard to 3',
+        details: 'Made opponent discard down to 3',
       }],
     };
   }

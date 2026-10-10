@@ -238,3 +238,26 @@ overwrites tracked files.)
 - Root causes: (1) `evaluateBoard` valued gold at 6.5 pts/g but a hand card at ~1 pt and market wares at ~0, so every draw/buy looked like a loss vs +1g; (2) Expert rollouts ran a fixed 16 *actions*, so an early END_TURN reached further into the next turn's sells than a line that spent actions — a built-in bias toward passing; (3) rollouts used MediumAI, which wastes gold (Wise Man after the sale, junk buys), so good setups got discredited.
 - Fixes: gold-equivalent asset values (wares 1.5g, cards 1.5g + a share of profit when the card can sell against the market, pending drawn card counts, stands 3g, all fading near 60g); rollouts stop at the start of the evaluator's next turn; greedy 1-ply rollout policy; Small Market Stand play bonus = best buy it unlocks (simulated).
 - Gotchas: a flat high stand value (8g) or a "cramped market" eval penalty made the AI build stands early / avoid buying and LOSE (40%) — value stands by the plays they open, at the action level, not in the static eval (else selling looks worse). Expert decisions are cheap (~14ms), so there's headroom for search. A/B against a frozen `git worktree` of HEAD with paired seeds and ≥200 games — 26-game shards swing ±15%.
+
+## 2026-10-09 — "Living table" UI pass (idle motion, desktop fit)
+- **Infinite CSS animations break Playwright clicks**: an element whose
+  transform loops is never "stable", so `click()`/`hover()` wait forever.
+  Every e2e/playtest context needs `reduced_motion='reduce'` (driver.py does
+  now). Also makes screenshots deterministic.
+- **Compose motion with the independent `rotate`/`translate` properties** —
+  the hand fan pose uses them, the breathing loop uses `transform` on an inner
+  wrapper, hover lift uses `transform` on the card itself. Two animations on
+  the same element that both touch `transform` silently cancel (the later one
+  wins), which is why deal-in, breathe, and hover each sit on their own layer.
+- **Fixed ambient layer at `z-index:-1`**, not 0 + `position:relative` on the
+  siblings: forcing siblings relative broke the `position:fixed` settings menu.
+- **Desktop board never fit a 900px laptop** (End Turn and half the hand were
+  below the fold) and jumped ~90px when the first utility landed. Reserving the
+  three utility slots and moving End Turn next to the action count fixed both;
+  a `max-height: 860px` query handles 1366×768.
+- **Vite HMR gotcha in scripted playthroughs**: after an edit, the app imports
+  `useGameStore.ts?t=…`; a test harness that `import()`s the bare path gets a
+  second store instance and its dispatches never reach the UI. Resolve the URL
+  from `performance.getEntriesByType('resource')` first.
+- Engine log lines are written from the actor's side; recaps shown to the
+  other seat must flip "opponent" → "you" (`formatLogRecap`).

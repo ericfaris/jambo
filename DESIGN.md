@@ -350,6 +350,68 @@ New phone components:
   9px and coins 12px. Named sizes on desktop (140/120/96) render exactly as
   before.
 
+## Life — the "living table" layer (2026-10-09)
+
+Goal: the board should feel like a real market table in late-afternoon
+light, not a static screenshot — small, constant, low-amplitude motion that
+never competes with game feedback. Rules:
+
+- **Transform/opacity only** (compositor-cheap; no box-shadow/size loops on
+  big surfaces — the active-panel glow animates a pseudo-element's opacity).
+- **Amplitude ≤ 2px / ≤ 0.5°** for idle loops; every element on its own
+  phase (`--i` × a negative delay) so nothing pulses in unison.
+- **Off switches**: `prefers-reduced-motion: reduce` and Settings ›
+  **Ambient Motion** (`html[data-ambient="off"]`, `jambo.ambientMotion` in
+  localStorage, `src/ui/life.tsx` `applyAmbient()`) both stop every loop.
+  Reduced motion also stops the one-shot flourishes; Ambient off keeps them.
+- **Hover physics only on `(hover: hover)`** so touch screens never get a
+  stuck lift.
+
+| Element | Class / helper | Motion | Token |
+|---|---|---|---|
+| Hand card | `.hand-card` > `.hand-card-inner` > `.card-face` | Deal-in (26px rise, staggered 70ms on the opening hand only), then **breathe** ±2px / ±0.35° (±0.5° when it's your turn: `.hand-live`) | `--life-breathe` 5.6s, `--life-deal` 420ms |
+| Desktop hand fan | `--fan-rot` / `--fan-lift` via the independent `rotate`/`translate` properties | Arc: `min(1.8°, 10°/n)` per card, outer cards drop ≤10px. Not in `fitRows` (phone) — the fit math assumes upright cards | — |
+| Playable card hover | `.card-face-playable:hover` | −8px, ×1.035, deeper shadow + gold hairline, spring | `--life-spring` |
+| Market ware | `.market-slot` (inset well) > `.ware-in-slot` | Settles in (drop + overshoot) when it arrives, then bobs 1.5px | `--life-bob` 4.2s |
+| Deck | `.deck-stack` + `deckThicknessShadow(n)` | Stacked edge layers, one per ~12 cards (max 8) — visibly thins | — |
+| Discard | `.discard-pile` + `.discard-ghost` × ≤2 | Loose cards peeking out at −6° / +5° | — |
+| Action pips | `ActionPips`, `.pip-spent-now` | Spent pip pops (×1.45, brighten) then settles | 420ms |
+| Gold totals | `GoldCount`, `useCountUp()` | Number rolls (ease-out cubic, 650ms); rising totals glint | `.gold-count-rising` |
+| Active panel | `.turn-emphasis-active::after` | Gold glow breathes (opacity 0.35↔1) | `--life-glow` 3.4s |
+| Ready utility | `.utility-ready` | Slow gold ember ring on utilities you can still use this turn | 2.8s |
+| Opponent hand | `OpponentHandFan`, `.opp-hand-card` | Card backs sway; shuffle faster while it's their turn (`-thinking`) | — |
+| AI speech | `.speech-bubble` | Parchment bubble (replaces the white comic PNG), pops in with a wobble; sits left of the opponent's name, inside their panel | — |
+| Draw reveal | `.card-reveal` | Drawn card turns over (rotateY 90°→−8°→0) | 460ms |
+| Ambience | `AmbientLayer` (`.ambient-lamp`, `.ambient-mote` × 9) | Warm lamp pool that drifts and flickers, dust motes rising through the light; fixed, `z-index:-1`, `aria-hidden` | 7s flicker, 23s drift, 24–39s motes |
+
+**Automation gotcha**: the breathing loop means Playwright never considers
+hand cards "stable", so clicks wait forever. E2E/playtest scripts must create
+their context with `reduced_motion="reduce"` (or set
+`localStorage['jambo.ambientMotion']='false'`).
+
+## Layout — Desktop board (2026-10-09)
+
+**Rule: fits the viewport with no scroll at 1440×900 and 1366×768**, and the
+board never jumps when a utility lands.
+
+```
+opponent panel   Market · Utilities (3 reserved slots, small) · name / gold / card-back fan
+center row       Deck stack · phase box · Discard pile ············ End Turn (right end)
+your panel       Market · Utilities (3 reserved slots, medium) · "You · your turn" / 34px gold / cards / Wise Man mods
+                 Your Hand (fanned)
+```
+
+- End Turn moved from under the hand (it fell below the fold at 900px) to
+  the right end of the center row, beside the action count (`CenterRow`
+  `endTurnSlot`).
+- `UtilityArea maxSlots={3}` reserves the row: the old empty state was a
+  one-line "No utilities", so the first utility pushed the whole board down
+  ~90px.
+- `SHORT_DESKTOP_MEDIA_QUERY` (`min-width 641px and max-height 860px`):
+  hand at 0.76×, your utilities small, tighter padding.
+- The opponent's name block keeps 44px right padding for the fixed
+  avatar/settings button.
+
 ## Backgrounds & Texture
 
 - **Page background**: `wood_1.png` (a wood-grain panel photo/illustration)
@@ -378,7 +440,7 @@ textiles, wildlife), consistent linework and palette across all pieces.
 | `public/assets/cards/*.png` (53 files) | Per-card-design illustrations + `card_back.png` + `cards_fanned_out.png` (tutorial/menu use) |
 | `public/assets/tokens/{trinkets,hides,tea,silk,fruit,salt}.png` | Ware token icons |
 | `public/assets/coins/coin_{3,4,5,10,11,12,18}.png`, `coins.png` | Gold-value coin art used in buy/sell dialogs |
-| `public/assets/bubble/speech_bubble.png` | AI/opponent speech bubble chrome |
+| `public/assets/bubble/speech_bubble.png` | AI speech bubble chrome — **unused since 2026-10-09** (replaced by CSS `.speech-bubble`) |
 
 ## Sound
 
@@ -463,6 +525,25 @@ existing set already covers the full identity; this pass's job was
 documenting it, fixing one duplication, and identifying the SFX gap.
 
 ## Changelog
+
+### 2026-10-09 — Living table: idle motion, ambience, desktop fit, playtest nits
+- New "Life" layer (see Life): breathing/fanned hand with a deal-in, spring
+  hover, settling + bobbing market wares, deck stack that thins, loose
+  discard pile, popping action pips, rolling gold counters, breathing
+  active-panel glow, utility "ready" ember, swaying opponent card backs,
+  parchment speech bubble, draw-reveal flip, lamp-light + dust ambience.
+  Settings › Ambient Motion turns the loops off; reduced motion stops all.
+- Desktop board fits 1440×900 and 1366×768 without scrolling (End Turn and
+  most of the hand used to be below the fold); no more layout jump on the
+  first utility; opponent name no longer under the avatar button.
+- Playtest fixes: tutorial Next/Close pinned (they were below the fold at
+  900px); recap no longer says "Player 2's turn begins" in solo ("You ended
+  your turn"); AI-authored recaps say "you/your" instead of "opponent"
+  ("Opponent: Made you discard down to 3"); card-error overlay text clamps
+  on every hand layout.
+- Tests: `tests/ui/life.test.ts` (helpers, fan math, phone never fans,
+  hover class only when playable, reserved utility slots, bubble), recap
+  perspective tests in `uiHints.test.ts`.
 
 ### 2026-10-04 — Market visible under dialogs; coin strip opens Buy/Sell
 - New `MarketSummary` row in the draw, Buy/Sell, zoom and resolve overlays,

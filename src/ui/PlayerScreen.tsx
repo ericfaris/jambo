@@ -12,6 +12,7 @@ import type { GameAction, DeckCardId, WareType, GameState } from '../engine/type
 import { getCard, isValidDeckCardId, ALL_DECK_CARD_IDS } from '../engine/cards/CardDatabase.ts';
 import { validatePlayCard, validateActivateUtility } from '../engine/validation/actionValidator.ts';
 import { UtilityArea } from './UtilityArea.tsx';
+import { ActionPips, AmbientLayer, GoldCount, applyAmbient, getInitialAmbient } from './life.tsx';
 import { HandDisplay } from './HandDisplay.tsx';
 import { InteractionPanel } from './InteractionPanel.tsx';
 import { ResolveMegaView } from './ResolveMegaView.tsx';
@@ -77,6 +78,8 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
   const [animationSpeed, setAnimationSpeed] = useState<AnimationSpeed>(() => getInitialAnimationSpeed());
   const [showDevTelemetry, setShowDevTelemetry] = useState(() => getInitialDevTelemetry());
   const [highContrast, setHighContrast] = useState(() => getInitialHighContrast());
+  // Ambient motion is set from the solo game's settings; honour it here too
+  useEffect(() => { applyAmbient(getInitialAmbient()); }, []);
   const [volume, setVolume] = useState(() => getVolume());
   const [muted, setMuted] = useState(() => getMuted());
   const { authUser, authError, avatarUrl, avatarLabel, logout: authLogout } = useAuthSession();
@@ -349,9 +352,10 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
 
   return (
     <div className="player-shell">
+      <AmbientLayer />
       {/* Top bar: gold · turn status · End Turn (avatar button is fixed top-right) */}
       <div className="player-topbar">
-        <span className="player-gold" aria-label={`${myPublic.gold} gold`}>{myPublic.gold}g</span>
+        <span className="player-gold" aria-label={`${myPublic.gold} gold`}><GoldCount value={myPublic.gold} /></span>
         <div className={`player-turn-status${isMyTurn ? ' player-turn-status-active' : ''}`}>
           <span>{turnStatus}</span>
           <span style={{ fontWeight: 400, letterSpacing: 0.4, textTransform: 'none', color: 'var(--text-muted)' }}>
@@ -374,11 +378,7 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
             aria-label={`End turn, ${pub.actionsLeft} actions left`}
           >
             End Turn
-            <div className="action-pips" aria-hidden="true">
-              {Array.from({ length: 5 }, (_, i) => (
-                <div key={i} className={`action-pip${i < pub.actionsLeft ? '' : ' action-pip-spent'}`} />
-              ))}
-            </div>
+            <ActionPips actionsLeft={pub.actionsLeft} />
           </button>
         )}
       </div>

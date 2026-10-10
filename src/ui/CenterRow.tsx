@@ -4,9 +4,10 @@ import { CardFace } from './CardFace.tsx';
 import type { VisualFeedbackState } from './useVisualFeedback.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
 import { useEffect, useRef, useState } from 'react';
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { FEEDBACK_TIMINGS } from './animationTimings.ts';
 import { formatLogRecap, formatTurnOwner } from './uiHints.ts';
+import { deckThicknessShadow, discardGhostPoses, useJustSpent } from './life.tsx';
 
 interface CenterRowProps {
   state: GameState;
@@ -20,9 +21,11 @@ interface CenterRowProps {
   hiddenPlayer?: 0 | 1 | null;
   /** Phone layout: smaller piles and phase box (~100px tall instead of ~180px) */
   compact?: boolean;
+  /** Desktop: the End Turn control, pinned to the right end of the row. */
+  endTurnSlot?: ReactNode;
 }
 
-export function CenterRow({ state, isLocalMode = true, showGlow = false, visualFeedback, actorLabels = ['Player 1', 'Player 2'], hiddenPlayer = null, compact = false }: CenterRowProps) {
+export function CenterRow({ state, isLocalMode = true, showGlow = false, visualFeedback, actorLabels = ['Player 1', 'Player 2'], hiddenPlayer = null, compact = false, endTurnSlot }: CenterRowProps) {
   const pileScale = compact ? 0.62 : 1;
   const pileW = Math.round(96 * pileScale);
   const pileH = Math.round(128 * pileScale);
@@ -33,6 +36,8 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
     : 'Game Over';
 
   const phaseColor = state.phase === 'DRAW' ? '#5a9ab0' : state.phase === 'PLAY' ? '#7a9a4a' : '#c04030';
+
+  const spentPips = useJustSpent(state.actionsLeft);
 
   const topDiscard = state.discardPile.length > 0
     ? state.discardPile[0]
@@ -206,7 +211,9 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
       {/* Deck */}
       <div ref={deckPileRef} key={`deck-${visualFeedback?.deckPulse ?? 0}`} className={deckPulseClass} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: compact ? 3 : 6 }}>
         {state.deck.length > 0 ? (
-          <CardFace cardId={state.deck[0]} faceDown small scale={pileScale} />
+          <div className="deck-stack" style={{ '--deck-thickness': deckThicknessShadow(state.deck.length) } as CSSProperties}>
+            <CardFace cardId={state.deck[0]} faceDown small scale={pileScale} />
+          </div>
         ) : (
           <div style={{
             width: pileW,
@@ -256,7 +263,7 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
           <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Actions:</span>
           <div style={{ display: 'flex', gap: 4 }}>
             {Array.from({ length: CONSTANTS.MAX_ACTIONS }, (_, i) => i < state.actionsLeft).map((active, i) => (
-              <div key={i} style={{
+              <div key={`${i}-${spentPips.includes(i) ? state.actionsLeft : 'x'}`} className={spentPips.includes(i) ? 'pip-spent-now' : undefined} style={{
                 width: 12,
                 height: 12,
                 borderRadius: '50%',
@@ -284,7 +291,11 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
           background: 'rgba(90,64,48,0.1)',
         })
       }}>
-        <div key={`discard-card-${displayDiscardCard ?? 'empty'}-${state.discardPile.length}`} className="discard-soft-fade">
+        <div className="discard-pile">
+        {displayDiscardCard && discardGhostPoses(state.discardPile.length).map((pose, i) => (
+          <span key={i} className="discard-ghost" style={{ transform: `translate(${pose.x}px, ${pose.y}px) rotate(${pose.rotate}deg)` }} />
+        ))}
+        <div key={`discard-card-${displayDiscardCard ?? 'empty'}-${state.discardPile.length}`} className="discard-soft-fade" style={{ position: 'relative' }}>
           {displayDiscardCard ? (
             <CardFace cardId={displayDiscardCard} small scale={pileScale} />
           ) : (
@@ -303,10 +314,17 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
             </div>
           )}
         </div>
+        </div>
         <div className="panel-section-title" style={{ marginBottom: 0 }}>
           Discard ({state.discardPile.length})
         </div>
       </div>
+
+      {endTurnSlot && (
+        <div style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)' }}>
+          {endTurnSlot}
+        </div>
+      )}
     </div>
   );
 }

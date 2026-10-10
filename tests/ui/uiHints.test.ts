@@ -49,13 +49,28 @@ describe('uiHints', () => {
 describe('formatLogRecap', () => {
   it('names the actor and replaces card ids with card names', () => {
     expect(formatLogRecap({ player: 1, action: 'CROCODILE_CLEANUP', details: "Discarded opponent's well_1 after Crocodile use" }, ['You', 'Opponent']))
-      .toBe("Opponent: Discarded opponent's Well after Crocodile use");
+      .toBe('Opponent: Discarded your Well after Crocodile use');
   });
 
-  it('never shows raw action codes', () => {
-    const text = formatLogRecap({ player: 0, action: 'END_TURN' }, ['You', 'Opponent']);
-    expect(text).toBe('You: End turn');
-    expect(text).not.toContain('END_TURN');
+  it("speaks from the viewer's side when the other seat acted", () => {
+    expect(formatLogRecap({ player: 1, action: 'BINARY_CHOICE', details: 'Made opponent discard down to 3' }, ['You', 'Opponent']))
+      .toBe('Opponent: Made you discard down to 3');
+    expect(formatLogRecap({ player: 1, action: 'CHEETAH_EFFECT', details: 'Opponent gave 2g' }, ['You', 'Opponent']))
+      .toBe('Opponent: You gave 2g');
+    // your own actions keep "opponent"
+    expect(formatLogRecap({ player: 0, action: 'SCALE_EFFECT', details: 'Kept scale_1, gave well_1 to opponent' }, ['You', 'Opponent']))
+      .toBe('You: Kept Scale, gave Well to opponent');
+    // hotseat seat names are left alone
+    expect(formatLogRecap({ player: 1, action: 'BINARY_CHOICE', details: 'Made opponent discard down to 3' }, ['Player 1', 'Player 2']))
+      .toBe('Player 2: Made opponent discard down to 3');
+  });
+
+  it('never shows raw action codes, nor engine seat numbers for a turn end', () => {
+    const mine = formatLogRecap({ player: 0, action: 'END_TURN', details: "Turn ended. Player 2's turn begins (turn 6)" }, ['You', 'Opponent']);
+    expect(mine).toBe('You ended your turn');
+    expect(mine).not.toContain('END_TURN');
+    expect(formatLogRecap({ player: 1, action: 'END_TURN', details: "Turn ended. Player 1's turn begins (turn 7)" }, ['You', 'Opponent']))
+      .toBe('Opponent ended their turn');
   });
 });
 

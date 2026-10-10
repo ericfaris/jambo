@@ -118,9 +118,23 @@ export function formatLogRecap(
   hiddenPlayer: 0 | 1 | null = null,
 ): string {
   const who = labels[entry.player];
-  const text = entry.details
+  const other = labels[entry.player === 0 ? 1 : 0];
+  if (entry.action === 'END_TURN') {
+    // the engine says "Player 2's turn begins (turn 6)" — say it in board terms
+    return who === 'You' ? 'You ended your turn' : `${who} ended their turn`;
+  }
+  let text = entry.details
     ? humanizeLogDetails(entry.details, entry.player === hiddenPlayer)
     : entry.action.toLowerCase().replace(/_/g, ' ');
+  if (other === 'You') {
+    // Log lines are written from the actor's side; when the actor is the
+    // other seat, "opponent" is the viewer.
+    text = text
+      .replace(/\bopponent's\b/g, 'your')
+      .replace(/\bOpponent's\b/g, 'Your')
+      .replace(/\bopponent\b/g, 'you')
+      .replace(/\bOpponent\b/g, 'You');
+  }
   return `${who}: ${text.charAt(0).toUpperCase()}${text.slice(1)}`;
 }
 

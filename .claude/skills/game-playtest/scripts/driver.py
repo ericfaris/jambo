@@ -450,7 +450,9 @@ def run_game(gid, mode, difficulty, human_policy, eps, seed):
         # PT_VIEWPORT=390x844 runs the game at phone size (phone GameScreen layout)
         vw, vh = (int(x) for x in os.environ.get('PT_VIEWPORT', '1400x900').split('x'))
         phone = vw <= 640
-        ctx = b.new_context(viewport={'width': vw, 'height': vh}, is_mobile=phone, has_touch=phone)
+        # reduced_motion: the board's idle breathing (DESIGN.md › Life) never lets
+        # Playwright see hand cards as "stable", so clicks would hang
+        ctx = b.new_context(viewport={'width': vw, 'height': vh}, is_mobile=phone, has_touch=phone, reduced_motion='reduce')
         tutorial_seen = 'true' if gid != 1 else 'false'
         ctx.add_init_script(f"if (!sessionStorage.getItem('pt-init')) {{ localStorage.setItem('jambo.tutorialSeen','{tutorial_seen}'); localStorage.setItem('jambo.uxDebugCounters','false'); sessionStorage.setItem('pt-init','1'); }}")
         pg = ctx.new_page()

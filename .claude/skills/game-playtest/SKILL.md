@@ -233,6 +233,9 @@ The UI can render something the engine never did, or the reverse.
 - AI turns and animations take time (`src/ui/animationTimings.ts`). Wait
   on a state change (whose turn it is, the gold value, hand size), not
   fixed sleeps.
+- Create every context with `reduced_motion='reduce'` — the board's idle
+  card breathing (DESIGN.md › Life) otherwise keeps elements "unstable" and
+  Playwright clicks hang.
 - Use a separate `browser.new_context()` per simulated player, not tabs in
   the same context, so each one gets its own WebSocket identity and
   reconnect token.

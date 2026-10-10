@@ -44,7 +44,7 @@ function SlideWelcome() {
       <img
         src="/assets/menu/main_menu.png"
         alt="African marketplace"
-        style={{ width: '100%', maxWidth: 420, borderRadius: 12, opacity: 0.8 }}
+        style={{ width: 'auto', maxWidth: '100%', maxHeight: '36dvh', borderRadius: 12, opacity: 0.8 }}
       />
       <p style={{ fontSize: 17, lineHeight: 1.6, color: 'var(--text)', margin: 0, maxWidth: 540 }}>
         You are a trader in a bustling African marketplace. Buy and sell exotic wares — trinkets, hides, tea, silk, fruit, and salt — to grow your fortune.
@@ -491,6 +491,19 @@ export function TutorialOverlay({ onClose }: TutorialOverlayProps) {
         {/* Slide content */}
         {slides[slideIndex]}
 
+        {/* Nav stays pinned to the bottom of the scroller: on a 900px laptop
+            the first slide's art used to push Next/Close below the fold */}
+        <div style={{
+          position: 'sticky',
+          bottom: -8,
+          width: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 12,
+          padding: '8px 0',
+          background: 'linear-gradient(to bottom, rgba(16,9,4,0), rgba(16,9,4,0.96) 22%)',
+        }}>
         {/* Divider before nav */}
         <div style={{
           width: '100%',
@@ -575,6 +588,7 @@ export function TutorialOverlay({ onClose }: TutorialOverlayProps) {
         {/* Page counter */}
         <div style={{ fontSize: 12, color: 'var(--text-muted)', opacity: 0.6 }}>
           {slideIndex + 1} / {TOTAL_SLIDES}
+        </div>
         </div>
       </div>
     </div>

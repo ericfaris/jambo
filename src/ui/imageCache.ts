@@ -95,7 +95,6 @@ export function getCoreImageManifest(): string[] {
 
   imagePaths.push('/assets/menu/main_menu.png');
   imagePaths.push('/assets/panels/wood_1.png');
-  imagePaths.push('/assets/bubble/speech_bubble.png');
 
   coreImageManifestCache = imagePaths;
   return imagePaths;

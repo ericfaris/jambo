@@ -394,6 +394,52 @@
     </div>
   </div>
 
+  <div class="ds-section" style="position:relative;">
+    <h2>Living table — idle motion &amp; ambience (2026-10-09)</h2>
+    <p class="ds-note">All live, from the real classes in <code>src/index.css</code> › "Living table". Everything here stops under <code>prefers-reduced-motion</code> and under Settings › Ambient Motion (<code>html[data-ambient="off"]</code>) — toggle it here:
+      <label style="margin-left:8px; color:var(--text);"><input type="checkbox" id="ambient-toggle" checked style="accent-color:var(--gold);"> Ambient motion</label></p>
+
+    <h3 style="font-size:15px; color:var(--text-muted); margin-bottom:10px;">Hand: fanned arc, per-card breathing, spring hover lift (desktop)</h3>
+    <div class="ds-component-demo hand-live" style="justify-content:center; padding:24px 12px 30px; gap:0;">
+      <div class="hand-card" style="--i:0; --fan-rot:-3.6deg; --fan-lift:4.8px; position:relative;"><div class="hand-card-inner"><div class="card-face card-face-playable linen-texture" tabindex="0" style="width:120px; height:160px; border-radius:10px; padding:2px; border:1px solid #a89880; box-shadow:0 2px 6px rgba(0,0,0,0.3); overflow:hidden; transition: box-shadow 150ms, transform 150ms;"><img src="/assets/cards/psychic.png" alt="" style="width:100%; height:100%; object-fit:cover; border-radius:6px; display:block;"></div></div></div>
+      <div class="hand-card" style="--i:1; --fan-rot:-1.8deg; --fan-lift:1.2px; position:relative; margin-left:8px;"><div class="hand-card-inner"><div class="card-face card-face-playable linen-texture" tabindex="0" style="width:120px; height:160px; border-radius:10px; padding:2px; border:1px solid #a89880; box-shadow:0 2px 6px rgba(0,0,0,0.3); overflow:hidden; transition: box-shadow 150ms, transform 150ms;"><img src="/assets/cards/ware_khl.png" alt="" style="width:100%; height:100%; object-fit:cover; border-radius:6px; display:block;"></div></div></div>
+      <div class="hand-card" style="--i:2; --fan-rot:0deg; --fan-lift:0px; position:relative; margin-left:8px;"><div class="hand-card-inner"><div class="card-face card-face-playable linen-texture" tabindex="0" style="width:120px; height:160px; border-radius:10px; padding:2px; border:1px solid #a89880; box-shadow:0 2px 6px rgba(0,0,0,0.3); overflow:hidden; transition: box-shadow 150ms, transform 150ms;"><img src="/assets/cards/crocodile.png" alt="" style="width:100%; height:100%; object-fit:cover; border-radius:6px; display:block;"></div></div></div>
+      <div class="hand-card" style="--i:3; --fan-rot:1.8deg; --fan-lift:1.2px; position:relative; margin-left:8px;"><div class="hand-card-inner"><div class="card-face card-face-playable linen-texture" tabindex="0" style="width:120px; height:160px; border-radius:10px; padding:2px; border:1px solid #a89880; box-shadow:0 2px 6px rgba(0,0,0,0.3); overflow:hidden; transition: box-shadow 150ms, transform 150ms;"><img src="/assets/cards/kettle.png" alt="" style="width:100%; height:100%; object-fit:cover; border-radius:6px; display:block;"></div></div></div>
+      <div class="hand-card" style="--i:4; --fan-rot:3.6deg; --fan-lift:4.8px; position:relative; margin-left:8px;"><div class="hand-card-inner"><div class="card-face card-face-playable linen-texture" tabindex="0" style="width:120px; height:160px; border-radius:10px; padding:2px; border:1px solid #a89880; box-shadow:0 2px 6px rgba(0,0,0,0.3); overflow:hidden; transition: box-shadow 150ms, transform 150ms;"><img src="/assets/cards/guard.png" alt="" style="width:100%; height:100%; object-fit:cover; border-radius:6px; display:block;"></div></div></div>
+    </div>
+
+    <h3 style="font-size:15px; color:var(--text-muted); margin:18px 0 10px;">Market wells, settling and bobbing wares (click to re-settle)</h3>
+    <div class="ds-component-demo" id="ds-market" style="gap:6px;"></div>
+
+    <h3 style="font-size:15px; color:var(--text-muted); margin:18px 0 10px;">Deck stack · loose discard · action pips (click to spend) · utility "ready" ember</h3>
+    <div class="ds-component-demo" style="gap:32px; align-items:center;">
+      <div class="deck-stack" id="ds-deck" style="width:96px; height:128px;"><div style="width:96px; height:128px; border-radius:10px; background:url(/assets/cards/card_back.png) center/cover; border:2px solid var(--border);"></div></div>
+      <div class="discard-pile" style="width:96px; height:128px;">
+        <span class="discard-ghost" style="transform:translate(-3px,2px) rotate(-6deg)"></span>
+        <span class="discard-ghost" style="transform:translate(4px,1px) rotate(5deg)"></span>
+        <img src="/assets/cards/snake.png" alt="" style="position:relative; width:96px; height:128px; object-fit:cover; border-radius:10px; border:1px solid #a89880;">
+      </div>
+      <button class="end-turn-button" id="ds-pips-btn" style="animation:none;">Spend an action<div class="action-pips" id="ds-pips"></div></button>
+      <div class="utility-ready"><div class="card-face" style="width:96px; height:128px; border-radius:10px; overflow:hidden; border:1px solid #a89880;"><img src="/assets/cards/well.png" alt="" style="width:100%; height:100%; object-fit:cover; display:block;"></div></div>
+    </div>
+
+    <h3 style="font-size:15px; color:var(--text-muted); margin:18px 0 10px;">Opponent: swaying card backs (idle / thinking), parchment speech bubble, active-turn glow</h3>
+    <div class="ds-component-demo turn-emphasis turn-emphasis-active" style="gap:40px; align-items:center; min-height:120px; border-radius:12px;">
+      <div><div class="ds-note" style="margin-bottom:4px;">idle</div><div class="opp-hand-fan" id="ds-fan-idle"></div></div>
+      <div><div class="ds-note" style="margin-bottom:4px;">thinking (their turn)</div><div class="opp-hand-fan opp-hand-fan-thinking" id="ds-fan-think"></div></div>
+      <div style="position:relative; width:260px; height:70px;"><div class="speech-bubble" id="ds-bubble" style="top:6px; right:14px;">Let me draw a card to see what I get!</div></div>
+      <div style="font-family:var(--font-heading); font-weight:700; color:var(--gold); font-size:34px;"><span class="gold-count" id="ds-gold">20g</span></div>
+    </div>
+
+    <h3 style="font-size:15px; color:var(--text-muted); margin:18px 0 10px;">Draw reveal (click to turn over)</h3>
+    <div class="ds-component-demo"><img id="ds-reveal" class="card-reveal" src="/assets/cards/shaman.png" alt="" style="width:140px; border-radius:10px; cursor:pointer;"></div>
+
+    <h3 style="font-size:15px; color:var(--text-muted); margin:18px 0 10px;">Ambience: lamp pool and dust motes (fixed layer behind the board)</h3>
+    <div class="ds-component-demo" style="position:relative; height:200px; overflow:hidden; background:url(/assets/panels/wood_1.png) center/cover; padding:0;">
+      <div class="ambient-layer" style="position:absolute; z-index:0;" id="ds-ambient"></div>
+    </div>
+  </div>
+
   <div class="ds-section">
     <h2>Card art sample</h2>
     <div class="ds-row">
@@ -421,6 +467,60 @@
   </div>
 </div>
 
+<script>
+/* Living table demos — same classes as the app, wired with tiny scripts */
+(function () {
+  const toggle = document.getElementById('ambient-toggle');
+  toggle.addEventListener('change', () => {
+    if (toggle.checked) document.documentElement.removeAttribute('data-ambient');
+    else document.documentElement.setAttribute('data-ambient', 'off');
+  });
+  const wares = ['trinkets', 'hides', 'tea', null, 'silk', 'fruit', null, 'salt'];
+  const market = document.getElementById('ds-market');
+  function renderMarket() {
+    market.innerHTML = '';
+    wares.forEach((w, i) => {
+      const slot = document.createElement('div');
+      slot.className = 'market-slot';
+      slot.style.cssText = 'width:48px;height:48px;border-radius:8px;border:2px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;';
+      if (w) slot.innerHTML = '<span class="ware-in-slot" style="--i:' + i + '"><img src="/assets/tokens/' + w + '.png" alt="' + w + '" style="width:42px;height:42px;border-radius:5px;"></span>';
+      market.appendChild(slot);
+    });
+  }
+  renderMarket();
+  market.addEventListener('click', renderMarket);
+  // deck thickness: same formula as life.tsx deckThicknessShadow(100)
+  const layers = []; for (let k = 1; k <= 8; k++) layers.push((k * 0.5) + 'px ' + k + 'px 0 ' + (k % 2 === 0 ? '#c9b48e' : '#8c7354'));
+  layers.push('5px 11px 8px rgba(0,0,0,0.55)');
+  document.getElementById('ds-deck').style.setProperty('--deck-thickness', layers.join(', '));
+  let left = 5; const pips = document.getElementById('ds-pips');
+  function renderPips(spent) {
+    pips.innerHTML = '';
+    for (let i = 0; i < 5; i++) {
+      const d = document.createElement('div');
+      d.className = 'action-pip' + (i < left ? '' : ' action-pip-spent') + (i === spent ? ' pip-spent-now' : '');
+      pips.appendChild(d);
+    }
+  }
+  renderPips(-1);
+  document.getElementById('ds-pips-btn').addEventListener('click', () => { left = left > 0 ? left - 1 : 5; renderPips(left < 5 ? left : -1); });
+  function fan(el, n) {
+    const mid = (n - 1) / 2;
+    for (let i = 0; i < n; i++) { const c = document.createElement('span'); c.className = 'opp-hand-card'; c.style.cssText = '--i:' + i + ';--sway-base:' + ((i - mid) * 5) + 'deg'; el.appendChild(c); }
+  }
+  fan(document.getElementById('ds-fan-idle'), 5); fan(document.getElementById('ds-fan-think'), 5);
+  const gold = document.getElementById('ds-gold'); let g = 20;
+  setInterval(() => {
+    const to = g + 6, from = g, start = performance.now(); g = to;
+    gold.classList.remove('gold-count-rising'); void gold.offsetWidth; gold.classList.add('gold-count-rising');
+    (function tick(now) { const t = Math.min(1, (now - start) / 650); gold.textContent = Math.round(from + (to - from) * (1 - Math.pow(1 - t, 3))) + 'g'; if (t < 1) requestAnimationFrame(tick); else if (g > 58) g = 20; })(start);
+  }, 3000);
+  const reveal = document.getElementById('ds-reveal');
+  reveal.addEventListener('click', () => { reveal.classList.remove('card-reveal'); void reveal.offsetWidth; reveal.classList.add('card-reveal'); });
+  const amb = document.getElementById('ds-ambient');
+  amb.innerHTML = '<div class="ambient-lamp"></div>' + [8,22,37,51,66,80,92].map((l, i) => '<span class="ambient-mote" style="left:' + l + '%;--size:' + (2 + i % 3) + 'px;--dur:' + (6 + i) + 's;--delay:-' + i * 1.3 + 's;--sway:' + (i % 2 ? -20 : 24) + 'px;--peak:0.7"></span>').join('');
+})();
+</script>
 <script>
 function readVar(name) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();

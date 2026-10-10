@@ -77,6 +77,15 @@ export function CardFace({ cardId, onClick, selected, small, medium, large, extr
     );
   }
 
+  // Hover lift / press physics live in index.css (`.card-face-playable`),
+  // gated on (hover: hover) so touch screens never get a stuck lift.
+  const faceClass = (extra?: string) => [
+    'card-face',
+    onClick ? 'card-face-playable' : '',
+    selected ? 'card-face-selected' : '',
+    extra ?? '',
+  ].filter(Boolean).join(' ');
+
   const card = getCard(cardId);
   const hasImage = CARDS_WITH_IMAGES.has(card.designId) && !imgError;
   const headerColor = CARD_TYPE_COLORS[card.type] || '#666';
@@ -118,7 +127,7 @@ export function CardFace({ cardId, onClick, selected, small, medium, large, extr
         title={tooltip}
         onClick={onClick}
         {...buttonProps(onClick, card.name)}
-        className="linen-texture"
+        className={faceClass('linen-texture')}
         style={{
           width: faceWidth,
           height: faceHeight,
@@ -133,12 +142,6 @@ export function CardFace({ cardId, onClick, selected, small, medium, large, extr
           overflow: 'hidden',
           flexShrink: 0,
           transition: 'border-color var(--motion-fast) var(--anim-ease-standard), box-shadow var(--motion-fast) var(--anim-ease-standard), transform var(--motion-fast) var(--anim-ease-standard)',
-        }}
-        onMouseEnter={(e) => {
-          if (onClick) (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-4px)';
-        }}
-        onMouseLeave={(e) => {
-          (e.currentTarget as HTMLDivElement).style.transform = '';
         }}
       >
         <div style={{
@@ -303,6 +306,7 @@ export function CardFace({ cardId, onClick, selected, small, medium, large, extr
       title={tooltip}
       onClick={onClick}
       {...buttonProps(onClick, card.name)}
+      className={faceClass()}
       style={{
         width: fallbackWidth,
         height: fallbackHeight,
@@ -315,12 +319,6 @@ export function CardFace({ cardId, onClick, selected, small, medium, large, extr
         overflow: 'hidden',
         flexShrink: 0,
         transition: 'border-color var(--motion-fast) var(--anim-ease-standard), transform var(--motion-fast) var(--anim-ease-standard)',
-      }}
-      onMouseEnter={(e) => {
-        if (onClick) (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-4px)';
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLDivElement).style.transform = '';
       }}
     >
       {/* Header bar with type color */}

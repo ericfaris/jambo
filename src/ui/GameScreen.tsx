@@ -22,6 +22,7 @@ import { ResolveMegaView } from './ResolveMegaView.tsx';
 import { isHandInteraction } from './HandReferenceStrip.tsx';
 import { MegaView } from './MegaView.tsx';
 import { TutorialOverlay } from './TutorialOverlay.tsx';
+import { ActionPips, AmbientLayer, GoldCount, applyAmbient, getInitialAmbient } from './life.tsx';
 import { PassDeviceScreen, needsHandoff } from './PassDeviceScreen.tsx';
 import { shouldAiAct, isWareDialogValid, shouldShowResolvePanel } from './gameScreenLogic.ts';
 import { useVisualFeedback } from './useVisualFeedback.ts';
@@ -33,7 +34,7 @@ import { getWinner, getFinalScores } from '../engine/endgame/EndgameManager.ts';
 import { useAuthSession } from './useAuthSession.ts';
 import { useLocalActionAudio } from './useAudioEvents.ts';
 import { saveLocalGame, setGameActiveInTab } from '../persistence/savedGame.ts';
-import { useMediaQuery, PHONE_MEDIA_QUERY } from './useMediaQuery.ts';
+import { useMediaQuery, PHONE_MEDIA_QUERY, SHORT_DESKTOP_MEDIA_QUERY } from './useMediaQuery.ts';
 import { useElementSize } from './useElementSize.ts';
 import { fitCardsToBox, fitMarketSlots } from './fitLayout.ts';
 
@@ -107,6 +108,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   const [animationSpeed, setAnimationSpeed] = useState<AnimationSpeed>(() => getInitialAnimationSpeed());
   const [showDevTelemetry, setShowDevTelemetry] = useState(() => getInitialDevTelemetry());
   const [highContrast, setHighContrast] = useState(() => getInitialHighContrast());
+  const [ambientMotion, setAmbientMotion] = useState(() => getInitialAmbient());
   const [volume, setVolume] = useState(() => getVolume());
   const [muted, setMuted] = useState(() => getMuted());
   const [showUxDebug, setShowUxDebug] = useState(() => getInitialUxDebug());
@@ -122,6 +124,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   const [uxDebugCounts, setUxDebugCounts] = useState({ longPending: 0, blockedPlay: 0, blockedDraw: 0 });
   const menuRef = useRef<HTMLDivElement>(null);
   const isPhone = useMediaQuery(PHONE_MEDIA_QUERY);
+  const isShortDesktop = useMediaQuery(SHORT_DESKTOP_MEDIA_QUERY);
   const [phoneBoardRef, phoneBoardSize] = useElementSize<HTMLDivElement>();
   const [phoneHandRef, phoneHandSize] = useElementSize<HTMLDivElement>();
   const replayInputRef = useRef<HTMLInputElement>(null);
@@ -151,6 +154,10 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
     }
     window.localStorage.setItem(HIGH_CONTRAST_STORAGE_KEY, String(highContrast));
   }, [highContrast]);
+
+  useEffect(() => {
+    applyAmbient(ambientMotion);
+  }, [ambientMotion]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -527,13 +534,14 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   }
 
   return (
-    <div className={showUxDebug ? 'ux-debug' : undefined} style={isPhone ? { position: 'relative' } : {
+    <div className={`game-root${showUxDebug ? ' ux-debug' : ''}`} style={isPhone ? { position: 'relative' } : {
       display: 'flex',
       gap: 16,
-      padding: '16px 20px',
+      padding: isShortDesktop ? '8px 20px' : '16px 20px',
       minHeight: '100vh',
       position: 'relative',
     }}>
+      <AmbientLayer />
       {isPhone ? (() => {
         // Phone: fits 100dvh, never scrolls (DESIGN.md › Layout › Phone solo board).
         const viewer = state.players[viewerPlayer];
@@ -561,7 +569,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
           <div className="player-shell phone-game">
             <div className="player-topbar">
               <span key={`my-gold-${myGoldDelta}`} className={`player-gold${myGoldDelta !== 0 ? ' gold-pop gold-pop-soft' : ''}`} style={{ position: 'relative' }} aria-label={`${viewer.gold} gold`}>
-                {viewer.gold}g
+                <GoldCount value={viewer.gold} />
                 {myGoldDelta !== 0 && (
                   <span className="gold-delta-text gold-delta-text-soft" style={{
                     position: 'absolute', top: -12, right: -26, fontSize: 12, fontWeight: 700,
@@ -590,11 +598,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
                   aria-label={`End turn, ${state.actionsLeft} actions left`}
                 >
                   End Turn
-                  <div className="action-pips" aria-hidden="true">
-                    {Array.from({ length: 5 }, (_, i) => (
-                      <div key={i} className={`action-pip${i < state.actionsLeft ? '' : ' action-pip-spent'}`} />
-                    ))}
-                  </div>
+                  <ActionPips actionsLeft={state.actionsLeft} />
                 </button>
               )}
             </div>
@@ -608,6 +612,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
                 goldDelta={visualFeedback.goldDeltas[opponentPlayer]}
                 marketFlashSlots={visualFeedback.marketFlashSlots[opponentPlayer]}
                 label={localMultiplayer ? `Player ${opponentPlayer + 1}` : 'Opponent (AI)'}
+                isActive={state.currentPlayer === opponentPlayer}
                 onMegaView={setMegaCardId}
                 slotSize={oppMarket.slotSize}
                 marketColumns={oppMarket.rows > 1 ? oppMarket.columns : undefined}
@@ -724,12 +729,32 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
             goldDelta={visualFeedback.goldDeltas[opponentPlayer]}
             marketFlashSlots={visualFeedback.marketFlashSlots[opponentPlayer]}
             label={localMultiplayer ? `Opponent (Player ${opponentPlayer + 1})` : 'Opponent (AI)'}
+            isActive={state.currentPlayer === opponentPlayer}
           />
         </div>
 
-        {/* Center row */}
-        <div>
-          <CenterRow state={state} dispatch={dispatch} isLocalMode={true} showGlow={false} visualFeedback={visualFeedback} actorLabels={localMultiplayer ? ['Player 1', 'Player 2'] : ['You', 'Opponent']} hiddenPlayer={localMultiplayer ? null : 1} />
+        {/* Center row — End Turn sits at its right end, next to the action count */}
+        <div style={isShortDesktop ? { margin: '-8px 0' } : undefined}>
+          <CenterRow
+            state={state}
+            dispatch={dispatch}
+            isLocalMode={true}
+            showGlow={false}
+            visualFeedback={visualFeedback}
+            actorLabels={localMultiplayer ? ['Player 1', 'Player 2'] : ['You', 'Opponent']}
+            hiddenPlayer={localMultiplayer ? null : 1}
+            endTurnSlot={state.phase === 'PLAY' && state.currentPlayer === viewerPlayer ? (
+              <button
+                className="end-turn-button"
+                onClick={() => dispatch({ type: 'END_TURN' })}
+                style={{ padding: '12px 28px', fontSize: 16 }}
+                aria-label={`End turn, ${state.actionsLeft} actions left`}
+              >
+                End Turn
+                <ActionPips actionsLeft={state.actionsLeft} />
+              </button>
+            ) : undefined}
+          />
         </div>
 
         {/* Player sections */}
@@ -739,25 +764,8 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
           background: 'rgba(20,10,5,0.75)',
           backdropFilter: 'blur(3px)',
         }} data-center-target="bottom">
-          {/* Player board */}
-          <div className="etched-wood-border" style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 14,
-            background: 'rgba(20,10,5,0.5)',
-            borderRadius: 10,
-            padding: 14,
-            marginBottom: 10,
-          }}>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
-            {(state.turnModifiers.buyDiscount > 0 || state.turnModifiers.sellBonus > 0) && (
-              <span style={{ fontSize: 13, color: '#6a8a40', fontWeight: 600 }}>
-                {state.turnModifiers.buyDiscount > 0 && `Buy -${state.turnModifiers.buyDiscount}g `}
-                {state.turnModifiers.sellBonus > 0 && `Sell +${state.turnModifiers.sellBonus}g`}
-              </span>
-            )}
-          </div>
-          <div style={{ position: 'relative', display: 'flex', gap: 20, alignItems: 'flex-start', paddingBottom: 36 }}>
+          {/* Player board: market · utilities · you (name, gold, turn modifiers) */}
+          <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', padding: '2px 4px 10px' }}>
             <MarketDisplay
               market={state.players[viewerPlayer].market}
               flashSlots={visualFeedback.marketFlashSlots[viewerPlayer]}
@@ -779,43 +787,46 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
               disabled={playActionsDisabled}
               cardError={cardError}
               label={localMultiplayer ? `Player ${viewerPlayer + 1} Utilities` : 'Your Utilities'}
-              cardSize="medium"
+              cardSize={isShortDesktop ? 'small' : 'medium'}
+              maxSlots={3}
               showHelperText={false}
             />
-            <span style={{
-              position: 'absolute',
-              left: 0,
-              bottom: 0,
-              fontFamily: 'var(--font-heading)',
-              fontWeight: 700,
-              fontSize: 18,
-              color: state.currentPlayer === viewerPlayer ? 'var(--gold)' : 'var(--text)',
-              textShadow: '0 2px 12px rgba(0,0,0,0.6)',
-            }}>
-              {localMultiplayer ? `Player ${viewerPlayer + 1}` : 'You'} {state.currentPlayer === viewerPlayer && '(Active)'}
-            </span>
-            <div style={{ position: 'absolute', right: 0, bottom: 0, display: 'flex', gap: 16, alignItems: 'center' }}>
-              <span key={`my-gold-${visualFeedback.goldDeltas[viewerPlayer]}`} className={visualFeedback.goldDeltas[viewerPlayer] !== 0 ? 'gold-pop gold-pop-soft' : undefined} style={{ fontFamily: 'var(--font-heading)', color: 'var(--gold)', fontWeight: 700, fontSize: 20, textShadow: '0 0 8px rgba(212,168,80,0.4)', position: 'relative' }}>
-                {state.players[viewerPlayer].gold}g
+            <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, paddingTop: 2 }}>
+              <span style={{
+                fontFamily: 'var(--font-heading)',
+                fontWeight: 700,
+                fontSize: 18,
+                color: state.currentPlayer === viewerPlayer ? 'var(--gold)' : 'var(--text)',
+                textShadow: '0 2px 12px rgba(0,0,0,0.6)',
+              }}>
+                {localMultiplayer ? `Player ${viewerPlayer + 1}` : 'You'}{state.currentPlayer === viewerPlayer && ' · your turn'}
+              </span>
+              <span key={`my-gold-${visualFeedback.goldDeltas[viewerPlayer]}`} className={visualFeedback.goldDeltas[viewerPlayer] !== 0 ? 'gold-pop gold-pop-soft' : undefined} style={{ fontFamily: 'var(--font-heading)', color: 'var(--gold)', fontWeight: 700, fontSize: 34, lineHeight: 1.1, textShadow: '0 0 10px rgba(212,168,80,0.4)', position: 'relative' }} aria-label={`${state.players[viewerPlayer].gold} gold`}>
+                <GoldCount value={state.players[viewerPlayer].gold} />
                 {visualFeedback.goldDeltas[viewerPlayer] !== 0 && (
                   <span className="gold-delta-text gold-delta-text-soft" style={{
                     position: 'absolute',
-                    top: -18,
-                    right: -20,
+                    top: -14,
+                    right: -22,
                     color: visualFeedback.goldDeltas[viewerPlayer] > 0 ? 'var(--accent-green)' : 'var(--accent-red)',
-                    fontSize: 12,
+                    fontSize: 14,
                     fontWeight: 700,
                   }}>
                     {visualFeedback.goldDeltas[viewerPlayer] > 0 ? `+${visualFeedback.goldDeltas[viewerPlayer]}g` : `${visualFeedback.goldDeltas[viewerPlayer]}g`}
                   </span>
                 )}
               </span>
-              <span style={{ color: 'var(--text-muted)', fontSize: 15 }}>
-                {state.players[viewerPlayer].hand.length} cards
+              <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>
+                {state.players[viewerPlayer].hand.length} {state.players[viewerPlayer].hand.length === 1 ? 'card' : 'cards'} in hand
               </span>
+              {(state.turnModifiers.buyDiscount > 0 || state.turnModifiers.sellBonus > 0) && (
+                <span style={{ fontSize: 13, color: 'var(--accent-green)', fontWeight: 700 }}>
+                  {state.turnModifiers.buyDiscount > 0 && `Buy −${state.turnModifiers.buyDiscount}g `}
+                  {state.turnModifiers.sellBonus > 0 && `Sell +${state.turnModifiers.sellBonus}g`}
+                </span>
+              )}
             </div>
           </div>
-        </div>
 
         {/* Action buttons */}
         <ActionButtons 
@@ -846,31 +857,12 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
             transparentBackground={false}
             showHelperText={false}
             onMegaView={setMegaCardId}
+            cardScale={isShortDesktop ? 0.76 : 1}
+            paddingTop={isShortDesktop ? 8 : 14}
+            paddingBottom={isShortDesktop ? 8 : 14}
           />
         </div>
 
-        {/* End Turn button */}
-        {state.phase === 'PLAY' && state.currentPlayer === viewerPlayer && (
-          <div style={{
-            display: 'flex',
-            justifyContent: 'center',
-            marginTop: 16,
-          }}>
-            <button
-              className="end-turn-button"
-              onClick={() => dispatch({ type: 'END_TURN' })}
-              style={{ padding: '12px 28px', fontSize: 16 }}
-              aria-label={`End turn, ${state.actionsLeft} actions left`}
-            >
-              End Turn
-              <div className="action-pips" aria-hidden="true">
-                {Array.from({ length: 5 }, (_, i) => (
-                  <div key={i} className={`action-pip${i < state.actionsLeft ? '' : ' action-pip-spent'}`} />
-                ))}
-              </div>
-            </button>
-          </div>
-        )}
         </div>
       </div>
       )}
@@ -1158,6 +1150,24 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
                 type="checkbox"
                 checked={highContrast}
                 onChange={() => setHighContrast((previous) => !previous)}
+                style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
+              />
+            </label>
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10,
+              marginTop: 10,
+              cursor: 'pointer',
+              fontSize: 15,
+              color: 'var(--text)',
+            }}>
+              Ambient Motion
+              <input
+                type="checkbox"
+                checked={ambientMotion}
+                onChange={() => setAmbientMotion((previous) => !previous)}
                 style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
               />
             </label>
