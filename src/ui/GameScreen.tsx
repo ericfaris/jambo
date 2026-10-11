@@ -19,6 +19,7 @@ import { ActionLogButton, ActionLogDrawer } from './ActionLogDrawer.tsx';
 import { OpponentPlaySpotlight } from './OpponentPlaySpotlight.tsx';
 import { countUnread } from './actionLog.ts';
 import { GoldTrack } from './GoldTrack.tsx';
+import { WareSupply, supplyWareFromError } from './WareSupply.tsx';
 import { FinalTurnBanner } from './FinalTurnBanner.tsx';
 import { computeHandHints, endTurnBonus } from './handHints.ts';
 import { EndgameOverlay } from './EndgameOverlay.tsx';
@@ -476,6 +477,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   const lastLog = state.log.length > 0 ? state.log[state.log.length - 1] : null;
   const handHints = useMemo(() => computeHandHints(state, viewerPlayer), [state, viewerPlayer]);
   const turnBonus = endTurnBonus(state.actionsLeft);
+  const supplyAlert = supplyWareFromError(cardError?.message);
   const logLabels: readonly [string, string] = localMultiplayer ? HOTSEAT_LABELS : SOLO_LABELS;
   const logUnread = logVisible ? 0 : countUnread(state.log, logSeenLength, opponentPlayer);
   const visualFeedback = useVisualFeedback({
@@ -692,6 +694,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
             </div>
 
             <CenterRow compact state={state} dispatch={dispatch} isLocalMode={true} showGlow={false} visualFeedback={visualFeedback} actorLabels={localMultiplayer ? ['Player 1', 'Player 2'] : ['You', 'Opponent']} hiddenPlayer={opponentPlayer} spotlitPlayer={localMultiplayer ? null : opponentPlayer} />
+            <WareSupply supply={state.wareSupply} compact highlight={supplyAlert} />
 
             {playActionsDisabled && state.phase === 'PLAY' && playDisabledReason && (
               <div className="disabled-hint" style={{ marginBottom: 0, flexShrink: 0 }}>
@@ -819,6 +822,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
             actorLabels={localMultiplayer ? ['Player 1', 'Player 2'] : ['You', 'Opponent']}
             hiddenPlayer={opponentPlayer}
             spotlitPlayer={localMultiplayer ? null : opponentPlayer}
+            supplySlot={<WareSupply supply={state.wareSupply} highlight={supplyAlert} />}
             endTurnSlot={state.phase === 'PLAY' && state.currentPlayer === viewerPlayer ? (
               <button
                 className="end-turn-button"

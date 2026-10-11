@@ -24,11 +24,13 @@ interface CenterRowProps {
   compact?: boolean;
   /** Desktop: the End Turn control, pinned to the right end of the row. */
   endTurnSlot?: ReactNode;
+  /** Desktop: the ware supply, pinned to the left end of the row. */
+  supplySlot?: ReactNode;
   /** Seat whose face-up plays get the big spotlight — skip the duplicate recap pill. */
   spotlitPlayer?: 0 | 1 | null;
 }
 
-export function CenterRow({ state, isLocalMode = true, showGlow = false, visualFeedback, actorLabels = ['Player 1', 'Player 2'], hiddenPlayer = null, compact = false, endTurnSlot, spotlitPlayer = null }: CenterRowProps) {
+export function CenterRow({ state, isLocalMode = true, showGlow = false, visualFeedback, actorLabels = ['Player 1', 'Player 2'], hiddenPlayer = null, compact = false, endTurnSlot, supplySlot, spotlitPlayer = null }: CenterRowProps) {
   const pileScale = compact ? 0.62 : 1;
   const pileW = Math.round(96 * pileScale);
   const pileH = Math.round(128 * pileScale);
@@ -327,6 +329,12 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
           Discard ({state.discardPile.length})
         </div>
       </div>
+
+      {supplySlot && (
+        <div style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)' }}>
+          {supplySlot}
+        </div>
+      )}
 
       {endTurnSlot && (
         <div style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)' }}>

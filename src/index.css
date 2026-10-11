@@ -1939,3 +1939,65 @@ button.brown:hover:not(:disabled) {
   .final-turn-banner-band { animation: none; }
   .gold-track-fill { transition: none; }
 }
+
+/* --- Ware supply: six baskets with live counts --------------------------- */
+.ware-supply { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.ware-supply-title { margin: 0; font-size: 12px; }
+.ware-supply-grid { display: grid; grid-template-columns: repeat(3, 34px); gap: 6px; }
+.ware-basket {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  /* a woven-basket rim */
+  background:
+    repeating-conic-gradient(from 0deg, rgba(122,90,62,0.55) 0deg 10deg, rgba(74,53,34,0.55) 10deg 20deg);
+  box-shadow: inset 0 0 0 3px rgba(20,10,5,0.75), 0 2px 6px rgba(0,0,0,0.4);
+  transition: opacity var(--motion-base), filter var(--motion-base);
+}
+.ware-basket img { width: 24px; height: 24px; object-fit: contain; }
+.ware-basket-count {
+  position: absolute;
+  right: -5px;
+  bottom: -4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  color: var(--text);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.ware-basket-low .ware-basket-count { border-color: var(--gold); color: var(--gold); }
+.ware-basket-empty { opacity: 0.38; filter: grayscale(1); }
+.ware-basket-empty .ware-basket-count { color: var(--accent-red); border-color: var(--accent-red); }
+.ware-basket-alert { animation: basket-alert 0.5s ease-in-out 3; }
+@keyframes basket-alert {
+  0%, 100% { transform: none; box-shadow: inset 0 0 0 3px rgba(20,10,5,0.75), 0 2px 6px rgba(0,0,0,0.4); }
+  50% { transform: scale(1.18); box-shadow: inset 0 0 0 3px rgba(20,10,5,0.75), 0 0 0 3px var(--accent-red); }
+}
+/* phone: one slim line under the center row */
+.ware-supply-compact { flex-direction: row; justify-content: center; flex-shrink: 0; margin: -2px 0 2px; }
+.ware-supply-compact .ware-supply-grid { grid-template-columns: repeat(6, auto); gap: 12px; }
+.ware-supply-compact .ware-basket { width: 22px; height: 22px; box-shadow: inset 0 0 0 2px rgba(20,10,5,0.75); }
+.ware-supply-compact .ware-basket img { width: 16px; height: 16px; }
+.ware-supply-compact .ware-basket-count { min-width: 13px; height: 13px; line-height: 11px; font-size: 9px; right: -8px; bottom: -3px; }
+@media (prefers-reduced-motion: reduce) { .ware-basket-alert { animation: none; outline: 2px solid var(--accent-red); } }
+/* Phones: the bonus floats as a corner badge so End Turn keeps its width
+   (inline it squeezed the status text to "Y…" at 360px) */
+.player-topbar .end-turn-button { position: relative; }
+.player-topbar .end-turn-bonus {
+  position: absolute;
+  top: -7px;
+  right: -6px;
+  margin: 0;
+  font-size: 10px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
