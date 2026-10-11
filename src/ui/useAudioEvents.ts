@@ -10,6 +10,7 @@ import type { AudioEvent } from '../multiplayer/types.ts';
 import type { GameState } from '../engine/types.ts';
 import { getEffectiveVolume } from './audioSettings.ts';
 import { detectAudioEvent, detectOutcomeSounds, DUCKING_SOUNDS } from '../multiplayer/audioEvents.ts';
+import type { OutcomeView } from '../multiplayer/audioEvents.ts';
 import type { TaggedAction } from '../hooks/useGameStore.ts';
 
 const sfx = (name: string) => `/audio/sfx/${name}.mp3`;
@@ -101,6 +102,23 @@ export function useLocalActionAudio(taggedActions: TaggedAction[], state?: GameS
     lastCount.current = count;
     prevState.current = state;
   }, [taggedActions, state, viewer]);
+}
+
+/**
+ * Cast phones and the TV: the server sends one sound per action, so the
+ * outcome sounds (gavel, final turn, win/lose) are worked out here from the
+ * public state stream. `viewer` is this phone's seat; null on the TV.
+ */
+export function useOutcomeAudio(state: OutcomeView | null, viewer: 0 | 1 | null): void {
+  const prev = useRef<OutcomeView | null>(null);
+  useEffect(() => {
+    if (!state) return;
+    const before = prev.current;
+    prev.current = state;
+    // the first state after (re)joining is history, not news
+    if (!before || state.log.length < before.log.length) return;
+    for (const event of detectOutcomeSounds(before, state, viewer)) playSfx(event);
+  }, [state, viewer]);
 }
 
 export function useAudioEvents(audioEvent: AudioEvent | null, clearAudioEvent: () => void): void {

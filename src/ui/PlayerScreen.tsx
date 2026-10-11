@@ -19,7 +19,7 @@ import { endTurnBonus } from './handHints.ts';
 import { ResolveMegaView } from './ResolveMegaView.tsx';
 import { MegaView } from './MegaView.tsx';
 import { CardPlayDialog, DrawModal as SharedDrawModal } from './ActionButtons.tsx';
-import { useAudioEvents } from './useAudioEvents.ts';
+import { useAudioEvents, useOutcomeAudio } from './useAudioEvents.ts';
 import { useVisualFeedback } from './useVisualFeedback.ts';
 import { getVolume, setVolume as saveVolume, getMuted, setMuted as saveMuted, resetAudioSettings } from './audioSettings.ts';
 import { getPlayDisabledReason, getDrawDisabledReason, friendlyPlayError } from './uiHints.ts';
@@ -89,6 +89,7 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
   const [boardRef, boardSize] = useElementSize<HTMLDivElement>();
   const [handBoxRef, handBoxSize] = useElementSize<HTMLDivElement>();
   useAudioEvents(ws.audioEvent, ws.clearAudioEvent);
+  useOutcomeAudio(pub, slot ?? null);
 
   const isCardActionValidationError = (message: string) => (
     message.startsWith('Invalid action PLAY_CARD:') ||

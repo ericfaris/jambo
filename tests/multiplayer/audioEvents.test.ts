@@ -100,3 +100,18 @@ describe('sound pass 2', () => {
     expect(DUCKING_SOUNDS.has('coin-out')).toBe(false);
   });
 });
+
+describe('Cast phones and TV hear the outcomes too', () => {
+  it('works from the public state stream (win/lose per seat, TV always the flourish)', async () => {
+    const { extractPublicState } = await import('../../src/multiplayer/stateSplitter.ts');
+    const base = createTestState();
+    const final = { ...base, phase: 'PLAY' as const, endgame: { triggerPlayer: 1 as const, finalTurnPlayer: 0 as const, isFinalTurn: true } };
+    const players = [{ ...base.players[0], gold: 58 }, { ...base.players[1], gold: 64 }] as typeof base.players;
+    const over = { ...final, phase: 'GAME_OVER' as const, players, log: [...final.log, { turn: 9, player: 0 as const, action: 'GAME_OVER', details: 'Game has ended' }] };
+    const a = extractPublicState(final);
+    const b = extractPublicState(over);
+    expect(detectOutcomeSounds(a, b, 1)).toEqual(['win']);
+    expect(detectOutcomeSounds(a, b, 0)).toEqual(['lose']);
+    expect(detectOutcomeSounds(a, b, null)).toEqual(['win']);
+  });
+});

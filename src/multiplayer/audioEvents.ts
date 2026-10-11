@@ -8,6 +8,10 @@ import type { GameAction, GameState } from '../engine/types.ts';
 import type { AnimalSound, AudioEvent, UtilitySound } from './types.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
 import { getWinner } from '../engine/endgame/EndgameManager.ts';
+import type { ScoringView } from '../engine/endgame/EndgameManager.ts';
+
+/** What outcome sounds read — GameState or the Cast public state. */
+export type OutcomeView = ScoringView & { log: readonly { action: string }[] };
 
 const ANIMAL_SOUNDS: Record<string, AnimalSound> = {
   parrot: 'parrot', elephant: 'elephant', snake: 'snake', hyena: 'hyena',
@@ -53,7 +57,7 @@ export function detectAudioEvent(action: GameAction, before?: GameState): AudioE
  * `viewer` is the seat at this screen (null on the TV / in hotseat, where
  * every ending gets the victory flourish).
  */
-export function detectOutcomeSounds(prev: GameState, next: GameState, viewer: 0 | 1 | null): AudioEvent[] {
+export function detectOutcomeSounds(prev: OutcomeView, next: OutcomeView, viewer: 0 | 1 | null): AudioEvent[] {
   const out: AudioEvent[] = [];
   if (next.log.length > prev.log.length && next.log.slice(prev.log.length).some((e) => e.action === 'AUCTION_WON')) {
     out.push('gavel');

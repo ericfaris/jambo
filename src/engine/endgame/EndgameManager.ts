@@ -99,7 +99,13 @@ export function isFinalTurn(state: GameState): boolean {
  * - On a tie, the final-turn player wins (NOT the trigger player).
  * - If the final-turn player has more gold, the final-turn player wins.
  */
-export function getWinner(state: GameState): 0 | 1 | null {
+/** The fields scoring needs — satisfied by GameState and by the Cast
+ *  public state, so phones and the TV can score too. */
+export type ScoringView = Pick<GameState, 'phase' | 'endgame'> & {
+  players: readonly [{ gold: number }, { gold: number }];
+};
+
+export function getWinner(state: ScoringView): 0 | 1 | null {
   if (state.phase !== 'GAME_OVER' || state.endgame === null) {
     return null;
   }
