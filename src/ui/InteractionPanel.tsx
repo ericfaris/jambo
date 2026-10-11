@@ -740,6 +740,11 @@ function WareCashPanel({ state, pr, dispatch, onMegaView }: { state: GameState; 
   return <div className="ui-helper-text">Processing...</div>;
 }
 
+/** Indices of the market slots holding a ware — Portuguese's "Select all". */
+export function filledMarketSlots(market: readonly (string | null)[]): number[] {
+  return market.flatMap((ware, i) => (ware ? [i] : []));
+}
+
 function WareSellBulkPanel({ state, pr, dispatch }: { state: GameState; pr: Extract<PendingResolution, { type: 'WARE_SELL_BULK' }>; dispatch: InteractionPanelProps['dispatch'] }) {
   const [selected, setSelected] = useState<number[]>([]);
   const cp = state.currentPlayer;
@@ -748,6 +753,8 @@ function WareSellBulkPanel({ state, pr, dispatch }: { state: GameState; pr: Extr
   const toggleSlot = (i: number) => {
     setSelected(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i]);
   };
+  const filledSlots = filledMarketSlots(player.market);
+  const allSelected = filledSlots.length > 0 && filledSlots.every(i => selected.includes(i));
 
   if (!player.market.some(w => w !== null)) {
     return (
@@ -770,9 +777,14 @@ function WareSellBulkPanel({ state, pr, dispatch }: { state: GameState; pr: Extr
         Select wares to sell at {pr.pricePerWare}g each ({selected.length} selected = {sellTotal}g{wiseBonus ? `, incl. +${wiseBonus}g Wise Man` : ''}):
       </div>
       <MarketDisplay market={player.market} onSlotClick={toggleSlot} selectedSlots={selected} />
-      <button className="primary" disabled={selected.length === 0} onClick={() => { resolve(dispatch, { type: 'SELL_WARES', wareIndices: selected }); setSelected([]); }} style={{ margin: '8px auto 0', display: 'block' }}>
-        Sell ({sellTotal}g)
-      </button>
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap', marginTop: 8 }}>
+        <button onClick={() => setSelected(allSelected ? [] : filledSlots)} aria-pressed={allSelected}>
+          {allSelected ? 'Clear' : `Select all (${filledSlots.length})`}
+        </button>
+        <button className="primary" disabled={selected.length === 0} onClick={() => { resolve(dispatch, { type: 'SELL_WARES', wareIndices: selected }); setSelected([]); }}>
+          Sell ({sellTotal}g)
+        </button>
+      </div>
     </div>
   );
 }
