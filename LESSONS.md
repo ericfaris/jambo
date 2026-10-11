@@ -312,3 +312,27 @@ overwrites tracked files.)
   intentional "hold the panel" delay becomes a false UI_GAP.
 - Port 3001 is taken by another lab container (`lango-frontend`); local Cast
   testing needs `PORT=3031` plus a matching Vite proxy target.
+
+## 2026-10-11 — Design review phases 1–3 shipped (v1.6.2, v1.7.0, v1.8.0)
+- **Animate state diffs, not actions**: one pure planner (`ui/flights.ts`)
+  diffs consecutive GameStates — market slots, supply, gold, hand counts —
+  and every move that changes hands animates, including AI and Cast-driven
+  ones, with no per-card wiring. Matching rules: across-markets first, then
+  supply budget, then "the table". Guard against multi-entry jumps
+  (resume/new game) by bounding the log delta.
+- **Hide the destination until the flight lands** (`[data-incoming]` set
+  imperatively in a layout effect before paint), or the ware is visible in
+  its slot while its token is still flying.
+- **Cheap per-moment sounds come from the log, not the action**: the
+  engine's `card` tag on log entries (and the pre-action state on the Cast
+  server) is what lets a utility activation name its utility.
+- **ElevenLabs flow statuses are huge** (each signed URL three times):
+  request one session per sound, and run loudness/silence analysis before
+  shipping — 1 of 20 takes was near-silent (−51 LUFS).
+- **Pacing budget**: per-move pauses fixed the dead air, but spotlights then
+  dominated busy turns (3–4 plays ≈ 7s). Routine re-use of a utility gets a
+  short hold; novel plays keep the beat.
+- **Playtest driver indexing**: ware-pick responses are market-slot indices;
+  mapping them through filled wares in screen order was the source of every
+  "Dancer UI_GAP" for two sessions. Verify a recurring finding with real
+  clicks before writing it off as timing.
