@@ -2210,3 +2210,37 @@ button.brown:hover:not(:disabled) {
   100% { transform: translateY(105vh) rotateY(720deg); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) { .coin-shower { display: none; } }
+
+/* --- Named traders (step 11) ---------------------------------------------- */
+.trader-portrait {
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--surface);
+  box-shadow: 0 0 0 2px var(--gold-dim), 0 4px 12px rgba(0,0,0,0.45);
+}
+.trader-portrait img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: opacity 280ms ease;
+}
+.trader-portrait-speaking { animation: trader-speaking 0.9s ease-in-out infinite alternate; }
+@keyframes trader-speaking {
+  from { box-shadow: 0 0 0 2px var(--gold-dim), 0 4px 12px rgba(0,0,0,0.45); }
+  to { box-shadow: 0 0 0 3px var(--gold), 0 0 14px rgba(239,193,101,0.6); }
+}
+.trader-portrait[data-mood='annoyed'] { box-shadow: 0 0 0 2px #b85a40, 0 4px 12px rgba(0,0,0,0.45); }
+.trader-portrait[data-mood='pleased'] { box-shadow: 0 0 0 2px var(--gold), 0 4px 12px rgba(0,0,0,0.45); }
+@media (prefers-reduced-motion: reduce) {
+  .trader-portrait img { transition: none; }
+  .trader-portrait-speaking { animation: none; box-shadow: 0 0 0 3px var(--gold); }
+}
+.endgame-score-opponent { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.trader-picker { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 480px) { .trader-picker { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.trader-picker > button { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }

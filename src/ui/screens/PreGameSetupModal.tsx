@@ -1,3 +1,6 @@
+import type { ReactNode } from 'react';
+import { traderFor } from '../../ai/traders.ts';
+import { TraderPortrait } from '../TraderPortrait.tsx';
 import { useState } from 'react';
 import type { AIDifficulty } from '../../ai/difficulties/index.ts';
 
@@ -99,32 +102,22 @@ export function PreGameSetupModal({ mode, aiDifficulty: initialDifficulty, onCan
         {/* AI difficulty (solo only) */}
         {mode === 'solo' && (
           <div style={{ width: '100%' }}>
-            <div style={sectionLabelStyle}>AI Difficulty</div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <OptionButton
-                selected={difficulty === 'easy'}
-                onClick={() => setDifficulty('easy')}
-                label="Easy"
-                description="Simple decisions"
-              />
-              <OptionButton
-                selected={difficulty === 'medium'}
-                onClick={() => setDifficulty('medium')}
-                label="Medium"
-                description="Basic strategy"
-              />
-              <OptionButton
-                selected={difficulty === 'hard'}
-                onClick={() => setDifficulty('hard')}
-                label="Hard"
-                description="Deep evaluation"
-              />
-              <OptionButton
-                selected={difficulty === 'expert'}
-                onClick={() => setDifficulty('expert')}
-                label="Expert"
-                description="Simulates future turns"
-              />
+            <div style={sectionLabelStyle}>Choose your trader</div>
+            <div className="trader-picker">
+              {(['easy', 'medium', 'hard', 'expert'] as const).map((d) => {
+                const t = traderFor(d);
+                return (
+                  <OptionButton
+                    key={d}
+                    selected={difficulty === d}
+                    onClick={() => setDifficulty(d)}
+                    label={`${d.charAt(0).toUpperCase()}${d.slice(1)}`}
+                    title={t.name}
+                    description={t.tagline}
+                    image={<TraderPortrait trader={t} size={52} />}
+                  />
+                );
+              })}
             </div>
           </div>
         )}
@@ -182,11 +175,14 @@ export function PreGameSetupModal({ mode, aiDifficulty: initialDifficulty, onCan
   );
 }
 
-function OptionButton({ selected, onClick, label, description }: {
+function OptionButton({ selected, onClick, label, description, title, image }: {
   selected: boolean;
   onClick: () => void;
   label: string;
   description: string;
+  /** A trader's name, shown above the difficulty */
+  title?: string;
+  image?: ReactNode;
 }) {
   return (
     <button
@@ -203,7 +199,9 @@ function OptionButton({ selected, onClick, label, description }: {
         transition: 'border-color 0.15s, background 0.15s',
       }}
     >
-      <div style={{ fontSize: 15, fontWeight: 700 }}>{label}</div>
+      {image && <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}>{image}</div>}
+      {title && <div style={{ fontFamily: 'var(--font-heading)', fontSize: 15, fontWeight: 700 }}>{title}</div>}
+      <div style={{ fontSize: title ? 12 : 15, fontWeight: 700, color: title ? 'var(--text-muted)' : undefined, textTransform: title ? 'uppercase' : undefined, letterSpacing: title ? 0.8 : undefined }}>{label}</div>
       <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{description}</div>
     </button>
   );

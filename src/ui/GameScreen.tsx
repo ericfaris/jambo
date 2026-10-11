@@ -29,6 +29,9 @@ import { EndgameOverlay } from './EndgameOverlay.tsx';
 import { FirstPlayerReveal } from './FirstPlayerReveal.tsx';
 import { buildGameStory } from './gameStory.ts';
 import { createStartingState } from '../persistence/replayLog.ts';
+import { traderFor } from '../ai/traders.ts';
+import { TraderPortrait } from './TraderPortrait.tsx';
+import { useTrader, getInitialTraderVoices, TRADER_VOICES_STORAGE_KEY } from './useTrader.ts';
 import { ResolveMegaView } from './ResolveMegaView.tsx';
 import { isHandInteraction } from './HandReferenceStrip.tsx';
 import { MegaView } from './MegaView.tsx';
@@ -52,9 +55,7 @@ import { useElementSize } from './useElementSize.ts';
 import { fitCardsToBox, fitMarketSlots } from './fitLayout.ts';
 
 type AnimationSpeed = 'normal' | 'fast';
-const SOLO_LABELS = ['You', 'Opponent'] as const;
 const HOTSEAT_LABELS = ['Player 1', 'Player 2'] as const;
-const ENDGAME_SOLO_LABELS = ['You', 'AI'] as const;
 const ANIMATION_SPEED_STORAGE_KEY = 'jambo.animationSpeed';
 const DEV_TELEMETRY_STORAGE_KEY = 'jambo.devTelemetry';
 const HIGH_CONTRAST_STORAGE_KEY = 'jambo.highContrast';
@@ -127,6 +128,11 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
     }
   });
   const [logOpen, setLogOpen] = useState(false);
+  // Solo: the AI is a named trader with a face and a voice (step 11)
+  const trader = useMemo(() => (localMultiplayer ? null : traderFor(aiDifficulty)), [localMultiplayer, aiDifficulty]);
+  const soloLabels = useMemo<readonly [string, string] | null>(() => (trader ? ['You', trader.name] : null), [trader]);
+  const difficultyLabel = `${aiDifficulty.charAt(0).toUpperCase()}${aiDifficulty.slice(1)}`;
+  const [traderVoices, setTraderVoices] = useState(() => getInitialTraderVoices());
   // Rematch: a fresh coin toss decides who goes first (as from the menu)
   const [rematchReveal, setRematchReveal] = useState<0 | 1 | null>(null);
   const [logPinnedPref, setLogPinnedPref] = useState(() => getInitialLogPinned());
@@ -500,6 +506,18 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   });
 
   const lastLog = state.log.length > 0 ? state.log[state.log.length - 1] : null;
+  const { mood: traderMood, speaking: traderSpeaking } = useTrader({
+    state,
+    trader,
+    seat: opponentPlayer,
+    voices: traderVoices,
+    onLine: setAiMessage,
+  });
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(TRADER_VOICES_STORAGE_KEY, String(traderVoices));
+    } catch { /* storage blocked */ }
+  }, [traderVoices]);
   // The story of a finished game: replayed from the seeded start
   const isGameOver = state.phase === 'GAME_OVER';
   const gameStory = useMemo(() => {
@@ -524,7 +542,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   const handHints = useMemo(() => computeHandHints(state, viewerPlayer), [state, viewerPlayer]);
   const turnBonus = endTurnBonus(state.actionsLeft);
   const supplyAlert = supplyWareFromError(cardError?.message);
-  const logLabels: readonly [string, string] = localMultiplayer ? HOTSEAT_LABELS : SOLO_LABELS;
+  const logLabels: readonly [string, string] = soloLabels ?? HOTSEAT_LABELS;
   const logUnread = logVisible ? 0 : countUnread(state.log, logSeenLength, opponentPlayer);
   const visualFeedback = useVisualFeedback({
     phase: state.phase,
@@ -617,6 +635,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   const resetUiPrefs = useCallback(() => {
     setLogPinnedPref(false);
     setAiSpeed('normal');
+    setTraderVoices(true);
     setAnimationSpeed('normal');
     setShowDevTelemetry(false);
     setHighContrast(false);
@@ -632,6 +651,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
       window.localStorage.removeItem('jambo.showGameLog'); // retired sidebar setting
       window.localStorage.removeItem(LOG_PINNED_STORAGE_KEY);
       window.localStorage.removeItem(AI_SPEED_STORAGE_KEY);
+      window.localStorage.removeItem(TRADER_VOICES_STORAGE_KEY);
       window.localStorage.removeItem(ANIMATION_SPEED_STORAGE_KEY);
       window.localStorage.removeItem(DEV_TELEMETRY_STORAGE_KEY);
       window.localStorage.removeItem(HIGH_CONTRAST_STORAGE_KEY);
@@ -732,7 +752,8 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
                 onMessageHide={handleAiMessageHide}
                 goldDelta={visualFeedback.goldDeltas[opponentPlayer]}
                 marketFlashSlots={visualFeedback.marketFlashSlots[opponentPlayer]}
-                label={localMultiplayer ? `Player ${opponentPlayer + 1}` : 'Opponent (AI)'}
+                label={trader ? trader.name : `Player ${opponentPlayer + 1}`}
+                compactPortrait={trader ? <TraderPortrait trader={trader} mood={traderMood} speaking={traderSpeaking} size={26} /> : undefined}
                 isActive={state.currentPlayer === opponentPlayer}
                 onMegaView={setMegaCardId}
                 slotSize={oppMarket.slotSize}
@@ -740,7 +761,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
               />
             </div>
 
-            <CenterRow compact state={state} dispatch={dispatch} isLocalMode={true} showGlow={false} visualFeedback={visualFeedback} actorLabels={localMultiplayer ? ['Player 1', 'Player 2'] : ['You', 'Opponent']} hiddenPlayer={opponentPlayer} spotlitPlayer={localMultiplayer ? null : opponentPlayer} heldDiscardCard={spotlitDiscard} />
+            <CenterRow compact state={state} dispatch={dispatch} isLocalMode={true} showGlow={false} visualFeedback={visualFeedback} actorLabels={logLabels} hiddenPlayer={opponentPlayer} spotlitPlayer={localMultiplayer ? null : opponentPlayer} heldDiscardCard={spotlitDiscard} />
             <WareSupply supply={state.wareSupply} compact highlight={supplyAlert} />
 
             {playActionsDisabled && state.phase === 'PLAY' && playDisabledReason && (
@@ -854,7 +875,9 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
             onMessageHide={handleAiMessageHide}
             goldDelta={visualFeedback.goldDeltas[opponentPlayer]}
             marketFlashSlots={visualFeedback.marketFlashSlots[opponentPlayer]}
-            label={localMultiplayer ? `Opponent (Player ${opponentPlayer + 1})` : 'Opponent (AI)'}
+            label={trader ? trader.name : `Opponent (Player ${opponentPlayer + 1})`}
+            subtitle={trader ? `${trader.title} · ${difficultyLabel}` : undefined}
+            portrait={trader ? <TraderPortrait trader={trader} mood={traderMood} speaking={traderSpeaking} size={72} /> : undefined}
             isActive={state.currentPlayer === opponentPlayer}
             onMegaView={setMegaCardId}
           />
@@ -868,7 +891,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
             isLocalMode={true}
             showGlow={false}
             visualFeedback={visualFeedback}
-            actorLabels={localMultiplayer ? ['Player 1', 'Player 2'] : ['You', 'Opponent']}
+            actorLabels={logLabels}
             hiddenPlayer={opponentPlayer}
             spotlitPlayer={localMultiplayer ? null : opponentPlayer}
             heldDiscardCard={spotlitDiscard}
@@ -1217,6 +1240,27 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
                 </select>
               </label>
             )}
+            {!localMultiplayer && (
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 10,
+                marginTop: 10,
+                cursor: 'pointer',
+                fontSize: 15,
+                color: 'var(--text)',
+              }}>
+                Trader Voices
+                <input
+                  id="trader-voices"
+                  type="checkbox"
+                  checked={traderVoices}
+                  onChange={() => setTraderVoices((v) => !v)}
+                  style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
+                />
+              </label>
+            )}
             <label style={{
               display: 'flex',
               alignItems: 'center',
@@ -1497,10 +1541,11 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
       <EndgameOverlay
         state={state}
         story={gameStory}
-        labels={localMultiplayer ? HOTSEAT_LABELS : ENDGAME_SOLO_LABELS}
+        labels={logLabels}
+        opponentPortrait={trader ? <TraderPortrait trader={trader} mood={traderMood} size={56} /> : undefined}
         viewer={localMultiplayer ? null : 0}
         onRematch={handleRematch}
-        rematchLabel={localMultiplayer ? 'Rematch' : `Rematch · ${aiDifficulty.charAt(0).toUpperCase()}${aiDifficulty.slice(1)}`}
+        rematchLabel={trader ? `Rematch ${trader.name} · ${difficultyLabel}` : 'Rematch'}
         onMainMenu={onBackToMenu}
         record={endgameRecord}
       />
@@ -1525,7 +1570,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
       <OpponentPlaySpotlight
         log={state.log}
         viewer={viewerPlayer}
-        actorLabel="Opponent"
+        actorLabel={trader?.name ?? 'Opponent'}
         enabled={!localMultiplayer && state.phase !== 'GAME_OVER'}
         onActiveChange={setSpotlightActive}
         unobtrusive={state.currentPlayer === viewerPlayer}

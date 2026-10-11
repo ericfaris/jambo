@@ -6,9 +6,11 @@ interface SpeechBubbleProps {
   onHide: () => void;
   /** Phone: a small pill on the opponent strip instead of the 240px bubble art. */
   compact?: boolean;
+  /** Desktop: distance from the panel's right edge (clears a portrait). */
+  right?: string;
 }
 
-export function SpeechBubble({ message, visible, onHide, compact = false }: SpeechBubbleProps) {
+export function SpeechBubble({ message, visible, onHide, compact = false, right = 'clamp(200px, 22vw, 260px)' }: SpeechBubbleProps) {
   useEffect(() => {
     if (visible) {
       const isTurnDone = message === "My turn is done, your move!";
@@ -33,7 +35,7 @@ export function SpeechBubble({ message, visible, onHide, compact = false }: Spee
     // never covers End Turn on the centre row); the tail points at the name.
     <div role="status" aria-live="polite" className="speech-bubble" key={message} style={{
       top: 26,
-      right: 'clamp(200px, 22vw, 260px)',
+      right,
       pointerEvents: 'none',
     }}>
       {message}

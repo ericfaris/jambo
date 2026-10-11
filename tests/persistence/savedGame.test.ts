@@ -90,7 +90,8 @@ describe('local game autosave', () => {
   it('describes the save for the Resume button', () => {
     const state = midGame();
     const text = describeSavedGame({ ...base(state), version: 1, savedAt: 0 });
-    expect(text).toContain('vs Hard AI');
+    expect(text).toContain('vs Baraka (Hard)');
+    expect(text).toContain('Baraka');
     expect(text).toContain(`turn ${state.turn}`);
     expect(text).toContain(`you ${state.players[0].gold}g`);
     expect(describeSavedGame({ ...base(state), mode: 'multiplayer', version: 1, savedAt: 0 })).toContain('Pass & play');

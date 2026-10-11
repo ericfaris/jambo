@@ -11,6 +11,7 @@
 // drops straight back into the game; a fresh visit shows "Resume game".
 // ============================================================================
 
+import { traderFor } from '../ai/traders.ts';
 import type { GameAction, GameState } from '../engine/types.ts';
 import type { AIDifficulty } from '../ai/difficulties/index.ts';
 import type { TaggedAction } from '../hooks/useGameStore.ts';
@@ -101,8 +102,10 @@ export function isGameActiveInTab(storage: KV | null = session()): boolean {
 
 /** One-line description for the Resume button. */
 export function describeSavedGame(game: SavedGame): string {
-  const opponent = game.mode === 'solo' ? `vs ${game.aiDifficulty[0].toUpperCase()}${game.aiDifficulty.slice(1)} AI` : 'Pass & play';
+  const trader = game.mode === 'solo' ? traderFor(game.aiDifficulty).name : null;
+  const level = `${game.aiDifficulty[0].toUpperCase()}${game.aiDifficulty.slice(1)}`;
+  const opponent = trader ? `vs ${trader} (${level})` : 'Pass & play';
   const [a, b] = game.state.players.map((p) => p.gold);
-  const score = game.mode === 'solo' ? `you ${a}g · AI ${b}g` : `P1 ${a}g · P2 ${b}g`;
+  const score = trader ? `you ${a}g · ${trader} ${b}g` : `P1 ${a}g · P2 ${b}g`;
   return `${opponent} · turn ${game.state.turn} · ${score}`;
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import type { GameState, DeckCardId } from '../engine/types.ts';
 import { getWinner, getFinalScores } from '../engine/endgame/EndgameManager.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
@@ -20,6 +20,8 @@ interface EndgameOverlayProps {
   onMainMenu?: () => void;
   /** Your record against this difficulty, after this game. */
   record?: { wins: number; losses: number } | null;
+  /** Solo: the trader's portrait, shown over their score. */
+  opponentPortrait?: ReactNode;
 }
 
 /** "You win!" / "AI wins!" / "Player 2 wins!" */
@@ -34,7 +36,7 @@ function cardName(id: DeckCardId): string {
 
 const COINS = Array.from({ length: 16 }, (_, i) => i);
 
-export function EndgameOverlay({ state, story = null, labels = ['You', 'AI'], viewer = 0, onRematch, rematchLabel = 'Rematch', onMainMenu, record = null }: EndgameOverlayProps) {
+export function EndgameOverlay({ state, story = null, labels = ['You', 'AI'], viewer = 0, onRematch, rematchLabel = 'Rematch', onMainMenu, record = null, opponentPortrait }: EndgameOverlayProps) {
   const rematchRef = useRef<HTMLButtonElement | null>(null);
   const isOver = state.phase === 'GAME_OVER';
   useEffect(() => {
@@ -70,7 +72,8 @@ export function EndgameOverlay({ state, story = null, labels = ['You', 'AI'], vi
             <div className="endgame-score endgame-score-0">{scores.player0}g</div>
           </div>
           <div className="endgame-vs">vs</div>
-          <div>
+          <div className="endgame-score-opponent">
+            {opponentPortrait}
             <div className="endgame-score-label">{labels[1]}</div>
             <div className="endgame-score endgame-score-1">{scores.player1}g</div>
           </div>

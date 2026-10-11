@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import type { ReactNode } from 'react';
 import type { PlayerState } from '../engine/types.ts';
 import { MarketDisplay } from './MarketDisplay.tsx';
 import { UtilityArea, UtilityChips } from './UtilityArea.tsx';
@@ -25,9 +26,15 @@ interface OpponentAreaProps {
   isActive?: boolean;
   /** This player's seat — anchors for the trade animations. */
   seat?: 0 | 1;
+  /** The AI trader's portrait (solo), beside the name. */
+  portrait?: ReactNode;
+  /** compact: a smaller portrait for the phone strip. */
+  compactPortrait?: ReactNode;
+  /** Under the name, e.g. "Spice merchant · Hard". */
+  subtitle?: string;
 }
 
-function OpponentAreaComponent({ player, aiMessage, onMessageHide, goldDelta = 0, marketFlashSlots, label = 'Opponent (AI)', compact = false, onMegaView, slotSize = 26, marketColumns, isActive = false, seat }: OpponentAreaProps) {
+function OpponentAreaComponent({ player, aiMessage, onMessageHide, goldDelta = 0, marketFlashSlots, label = 'Opponent (AI)', compact = false, onMegaView, slotSize = 26, marketColumns, isActive = false, seat, portrait, compactPortrait, subtitle }: OpponentAreaProps) {
   const goldEl = (
     <span key={`opp-gold-${goldDelta}`} data-gold-anchor={seat} className={goldDelta !== 0 ? 'gold-pop gold-pop-strong' : undefined} style={{ color: 'var(--gold)', fontWeight: 700, fontSize: compact ? 15 : 20, fontFamily: 'var(--font-heading)', position: 'relative' }} aria-label={`${player.gold} gold`}>
       <GoldCount value={player.gold} />
@@ -57,6 +64,7 @@ function OpponentAreaComponent({ player, aiMessage, onMessageHide, goldDelta = 0
         />
         <div className="phone-opp">
           <div className="phone-opp-head">
+            {compactPortrait}
             <span className="phone-opp-name">{label}</span>
             {goldEl}
             <span className="ui-helper-text" data-hand-anchor={seat}>{player.hand.length} cards</span>
@@ -86,6 +94,7 @@ function OpponentAreaComponent({ player, aiMessage, onMessageHide, goldDelta = 0
         message={aiMessage || ''}
         visible={!!aiMessage}
         onHide={onMessageHide || (() => {})}
+        right={portrait ? 'clamp(290px, 30vw, 350px)' : undefined}
       />
       <div className="etched-wood-border" style={{
         background: 'rgba(20,10,5,0.5)',
@@ -101,7 +110,9 @@ function OpponentAreaComponent({ player, aiMessage, onMessageHide, goldDelta = 0
           <UtilityArea utilities={player.utilities} disabled label="Utilities" cardSize="small" maxSlots={3} onMegaView={onMegaView} />
         </div>
         {/* right padding keeps the name clear of the fixed avatar/settings button */}
-        <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, paddingTop: 2, paddingRight: 44 }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 14, alignItems: 'flex-start', paddingRight: 44 }}>
+        {portrait}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, paddingTop: 2 }}>
           <span style={{
             fontFamily: 'var(--font-heading)',
             fontWeight: 700,
@@ -111,6 +122,7 @@ function OpponentAreaComponent({ player, aiMessage, onMessageHide, goldDelta = 0
           }}>
             {label}
           </span>
+          {subtitle && <span style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: -4 }}>{subtitle}</span>}
           <div style={{ display: 'flex', gap: 14, alignItems: 'baseline' }}>
             {goldEl}
             <span style={{ color: 'var(--text-muted)', fontSize: 15 }}>
@@ -121,6 +133,7 @@ function OpponentAreaComponent({ player, aiMessage, onMessageHide, goldDelta = 0
           <div data-hand-anchor={seat}>
             <OpponentHandFan count={player.hand.length} thinking={isActive} />
           </div>
+        </div>
         </div>
       </div>
     </div>
