@@ -95,31 +95,20 @@ function UtilityAreaComponent({
               marginLeft: (isMobile || overlapOnDesktop) && i > 0 ? -overlapAmount : 0,
             }}
           >
-            <CardFace
-              cardId={u.cardId}
-              small={cardSize === 'small'}
-              medium={cardSize === 'medium'}
-              large={cardSize === 'large'}
-              scale={cardScale}
-              onClick={!disabled && onActivate && !u.usedThisTurn ? () => onActivate(i) : undefined}
-              onMegaView={onMegaView}
-            />
-            {u.usedThisTurn && (
-              <div className="overlay-fade" style={{
-                position: 'absolute',
-                inset: 0,
-                background: 'rgba(20,10,5,0.7)',
-                borderRadius: 8,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 13,
-                fontWeight: 700,
-                color: '#a08060',
-              }}>
-                USED
-              </div>
-            )}
+            {/* A used utility turns sideways like a tapped card — the art stays
+                visible (it used to sit under a dark "USED" overlay) */}
+            <div className={u.usedThisTurn ? 'utility-card utility-card-tapped' : 'utility-card'}>
+              <CardFace
+                cardId={u.cardId}
+                small={cardSize === 'small'}
+                medium={cardSize === 'medium'}
+                large={cardSize === 'large'}
+                scale={cardScale}
+                onClick={!disabled && onActivate && !u.usedThisTurn ? () => onActivate(i) : undefined}
+                onMegaView={onMegaView}
+              />
+            </div>
+            {u.usedThisTurn && <span className="utility-used-pill">Used</span>}
             {cardError && cardError.cardId === u.cardId && (
               <div style={{
                 position: 'absolute',

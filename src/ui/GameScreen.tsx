@@ -23,6 +23,7 @@ import { GoldTrack } from './GoldTrack.tsx';
 import { WareSupply, supplyWareFromError } from './WareSupply.tsx';
 import { FinalTurnBanner } from './FinalTurnBanner.tsx';
 import { FlightLayer } from './FlightLayer.tsx';
+import { TurnSweep } from './TurnSweep.tsx';
 import { computeHandHints, endTurnBonus } from './handHints.ts';
 import { EndgameOverlay } from './EndgameOverlay.tsx';
 import { ResolveMegaView } from './ResolveMegaView.tsx';
@@ -1490,6 +1491,8 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
       />
 
       <FinalTurnBanner state={state} labels={logLabels} />
+      {/* hotseat: the pass-device screen already says whose turn it is */}
+      <TurnSweep state={state} viewer={viewerPlayer} enabled={!localMultiplayer} />
 
       {/* Wares, coins and cards travel between markets, supply, gold and hands */}
       <FlightLayer
