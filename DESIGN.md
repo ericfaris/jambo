@@ -542,6 +542,17 @@ existing set already covers the full identity; this pass's job was
 documenting it, fixing one duplication, and identifying the SFX gap.
 
 ## Changelog
+### 2026-10-11 — Endgame story + Rematch (v1.9.0)
+- `EndgameOverlay` tells the game's story from `buildGameStory()`
+  (`ui/gameStory.ts`: replays the recorded actions from the seeded start —
+  the log has no gold totals): `GoldChart` (SVG, to scale, 60g dashed line,
+  biggest-swing turn ringed), facts grid (biggest swing, each side's best
+  payday, MVP card with art), record at this level, coin shower on a win.
+- "Rematch · <difficulty>" keeps the level and runs a fresh coin toss (the
+  AI waits for it). Hotseat headlines name the seat; facts follow the winner.
+- Spotlights still queued at game over are dropped; the "More below" pill
+  moved bottom-right so it never covers centered panel buttons.
+
 ### 2026-10-11 — Design review phases 1–3 (v1.6.2 → v1.8.0)
 - **Announcements**: opponent plays are spotlit mid-table (non-blocking and
   small on your own turn); center-row tags name the real play ("You bought
