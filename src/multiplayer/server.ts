@@ -327,7 +327,7 @@ function scheduleAiTurn(room: Room): void {
     try {
       room.state = processAction(decisionState, action);
       room.lastActivity = Date.now();
-      const audioEvent = detectAudioEvent(action);
+      const audioEvent = detectAudioEvent(action, decisionState);
       const aiMessage = getAiActionDescription(action, room.state);
       broadcastState(room, audioEvent, aiMessage);
 
@@ -648,10 +648,11 @@ function handleGameAction(ws: WebSocket, action: GameAction): void {
   }
 
   try {
+    const before = room.state;
     room.state = processAction(room.state, action);
     room.lastActivity = Date.now();
 
-    const audioEvent = detectAudioEvent(action);
+    const audioEvent = detectAudioEvent(action, before);
     broadcastState(room, audioEvent, null);
 
     // Check game over

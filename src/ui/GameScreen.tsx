@@ -40,7 +40,8 @@ import { fetchUserStatsSummary, fetchDifficultyBreakdown, recordCompletedGame } 
 import type { UserStatsSummary, DifficultyBreakdown } from '../persistence/userStatsApi.ts';
 import { getWinner, getFinalScores } from '../engine/endgame/EndgameManager.ts';
 import { useAuthSession } from './useAuthSession.ts';
-import { useLocalActionAudio } from './useAudioEvents.ts';
+import { useLocalActionAudio, playSfx } from './useAudioEvents.ts';
+import type { Flight } from './flights.ts';
 import { saveLocalGame, setGameActiveInTab } from '../persistence/savedGame.ts';
 import { useMediaQuery, PHONE_MEDIA_QUERY, SHORT_DESKTOP_MEDIA_QUERY } from './useMediaQuery.ts';
 import { useElementSize } from './useElementSize.ts';
@@ -93,7 +94,8 @@ function isDevMode(): boolean {
 
 export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultiplayer = false }: { onBackToMenu?: () => void; aiDifficulty?: AIDifficulty; localMultiplayer?: boolean }) {
   const { state, dispatch, error, newGame, exportReplay, importReplay, replayActions, taggedActions } = useGameStore();
-  useLocalActionAudio(taggedActions);
+  // Hotseat: every ending gets the victory flourish (both players are here)
+  useLocalActionAudio(taggedActions, state, localMultiplayer ? null : 0);
 
   // Autosave after every action so a refresh can't lose the game
   // (persistence/savedGame.ts). A finished game clears the save.
@@ -125,6 +127,15 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   const [logSeenLength, setLogSeenLength] = useState(() => state.log.length);
   const [spotlightActive, setSpotlightActive] = useState(false);
   const [spotlitDiscard, setSpotlitDiscard] = useState<DeckCardId | null>(null);
+  // A soft tap as each ware lands — throttled so a 6-ware buy doesn't clatter
+  const lastLandSound = useRef(0);
+  const handleFlightLand = useCallback((flight: Flight) => {
+    if (flight.kind !== 'ware' || flight.to.type !== 'slot') return;
+    const now = Date.now();
+    if (now - lastLandSound.current < 70) return;
+    lastLandSound.current = now;
+    playSfx('ware-land');
+  }, []);
   const handleSpotlightCurrent = useCallback((spot: PlaySpotlight | null) => {
     setSpotlitDiscard(spot && spot.destination === 'discard' ? spot.cardId : null);
   }, []);
@@ -1486,6 +1497,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
         viewer={viewerPlayer}
         spotlightEnabled={!localMultiplayer}
         spotlightActive={spotlightActive}
+        onLand={handleFlightLand}
       />
 
       {/* Action log: left tab on desktop, topbar button on phones */}

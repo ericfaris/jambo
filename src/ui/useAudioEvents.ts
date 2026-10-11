@@ -7,18 +7,44 @@
 
 import { useEffect, useRef } from 'react';
 import type { AudioEvent } from '../multiplayer/types.ts';
+import type { GameState } from '../engine/types.ts';
 import { getEffectiveVolume } from './audioSettings.ts';
-import { detectAudioEvent } from '../multiplayer/audioEvents.ts';
+import { detectAudioEvent, detectOutcomeSounds, DUCKING_SOUNDS } from '../multiplayer/audioEvents.ts';
 import type { TaggedAction } from '../hooks/useGameStore.ts';
 
+const sfx = (name: string) => `/audio/sfx/${name}.mp3`;
+
 export const AUDIO_FILES: Record<AudioEvent, string> = {
-  'coin': '/audio/sfx/coin.mp3',
-  'card-play': '/audio/sfx/card-play.mp3',
-  'card-draw': '/audio/sfx/card-draw.mp3',
-  'turn-end': '/audio/sfx/turn-end.mp3',
-  'attack': '/audio/sfx/attack.mp3',
-  'guard': '/audio/sfx/guard.mp3',
+  'coin': sfx('coin'),
+  'coin-out': sfx('coin-out'),
+  'card-play': sfx('card-play'),
+  'card-draw': sfx('card-draw'),
+  'turn-end': sfx('turn-end'),
+  'attack': sfx('attack'),
+  'guard': sfx('guard'),
+  'ware-land': sfx('ware-land'),
+  'win': sfx('win'),
+  'lose': sfx('lose'),
+  'final-turn': sfx('final-turn'),
+  'gavel': sfx('gavel'),
+  'parrot': sfx('parrot'),
+  'elephant': sfx('elephant'),
+  'snake': sfx('snake'),
+  'hyena': sfx('hyena'),
+  'crocodile': sfx('crocodile'),
+  'ape': sfx('ape'),
+  'lion': sfx('lion'),
+  'cheetah': sfx('cheetah'),
+  'drums': sfx('drums'),
+  'well': sfx('well'),
+  'kettle': sfx('kettle'),
+  'boat': sfx('boat'),
+  'scale': sfx('scale'),
+  'weapons': sfx('weapons'),
 };
+
+/** How long the music dips under a big sound (useBackgroundMusic listens). */
+export const MUSIC_DUCK_MS = 1600;
 
 const SFX_BASE_VOLUME = 0.5;
 
@@ -27,6 +53,9 @@ export function playSfx(event: AudioEvent): void {
   if (typeof Audio === 'undefined') return;
   const volume = getEffectiveVolume() * SFX_BASE_VOLUME;
   if (volume <= 0) return;
+  if (DUCKING_SOUNDS.has(event) && typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('jambo-music-duck', { detail: MUSIC_DUCK_MS }));
+  }
   const audio = new Audio(AUDIO_FILES[event]);
   audio.volume = volume;
   audio.play().catch(() => {
@@ -34,11 +63,12 @@ export function playSfx(event: AudioEvent): void {
   });
 }
 
-/** Sounds for actions[from..], in order, de-duplicated. Pure — exported for tests. */
-export function newActionSounds(actions: TaggedAction[], from: number): AudioEvent[] {
+/** Sounds for actions[from..], in order, de-duplicated. Pure — exported for tests.
+ *  `before` is the state the first of them was applied to (names utilities). */
+export function newActionSounds(actions: TaggedAction[], from: number, before?: GameState): AudioEvent[] {
   const events: AudioEvent[] = [];
   for (const { action } of actions.slice(Math.max(0, from))) {
-    const event = detectAudioEvent(action);
+    const event = detectAudioEvent(action, before);
     if (event && !events.includes(event)) events.push(event);
   }
   return events;
@@ -49,16 +79,28 @@ export function newActionSounds(actions: TaggedAction[], from: number): AudioEve
  * Keyed on the action count so a re-render never replays a sound, and a new
  * game (count drops back to 0) starts clean.
  */
-export function useLocalActionAudio(taggedActions: TaggedAction[]): void {
+export function useLocalActionAudio(taggedActions: TaggedAction[], state?: GameState, viewer: 0 | 1 | null = 0): void {
   const lastCount = useRef(taggedActions.length);
+  const prevState = useRef(state);
   useEffect(() => {
     const count = taggedActions.length;
+    const before = prevState.current;
+    const played: AudioEvent[] = [];
     if (count > lastCount.current) {
       // Every action applied since the last render, each sound at most once
-      for (const event of newActionSounds(taggedActions, lastCount.current)) playSfx(event);
+      for (const event of newActionSounds(taggedActions, lastCount.current, before)) {
+        playSfx(event);
+        played.push(event);
+      }
+    }
+    if (before && state && before !== state && count >= lastCount.current) {
+      for (const event of detectOutcomeSounds(before, state, viewer)) {
+        if (!played.includes(event)) playSfx(event);
+      }
     }
     lastCount.current = count;
-  }, [taggedActions]);
+    prevState.current = state;
+  }, [taggedActions, state, viewer]);
 }
 
 export function useAudioEvents(audioEvent: AudioEvent | null, clearAudioEvent: () => void): void {

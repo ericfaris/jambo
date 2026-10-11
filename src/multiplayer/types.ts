@@ -43,13 +43,26 @@ export type ServerMessage =
 
 // --- Audio Events ---
 
+/** Each animal has its own call (they all used the same big-cat growl). */
+export type AnimalSound = 'parrot' | 'elephant' | 'snake' | 'hyena' | 'crocodile' | 'ape' | 'lion' | 'cheetah';
+/** Utilities you activate every turn get a tactile sound of their own. */
+export type UtilitySound = 'drums' | 'well' | 'kettle' | 'boat' | 'scale' | 'weapons';
+
 export type AudioEvent =
-  | 'coin'
+  | 'coin'        // coins onto a pile — selling
+  | 'coin-out'    // purse jingle — buying
   | 'card-play'
   | 'card-draw'
   | 'turn-end'
-  | 'attack'
-  | 'guard';
+  | 'attack'      // fallback animal growl
+  | 'guard'
+  | 'ware-land'   // a ware token landing in a market slot
+  | 'win'
+  | 'lose'
+  | 'final-turn'
+  | 'gavel'       // auction won
+  | AnimalSound
+  | UtilitySound;
 
 // --- Public Game State (visible on TV and both players) ---
 

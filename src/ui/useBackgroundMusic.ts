@@ -110,12 +110,27 @@ export function useBackgroundMusic(): void {
     };
     window.addEventListener('jambo-volume-change', handleVolumeChange);
 
+    // Big sound effects dip the music ~6 dB so they cut through, then restore
+    let duckTimer: number | null = null;
+    const handleDuck = (event: Event) => {
+      const ms = (event as CustomEvent<number>).detail ?? 1500;
+      audio.volume = getEffectiveVolume() * MUSIC_BASE_VOLUME * 0.5;
+      if (duckTimer !== null) window.clearTimeout(duckTimer);
+      duckTimer = window.setTimeout(() => {
+        duckTimer = null;
+        audio.volume = getEffectiveVolume() * MUSIC_BASE_VOLUME;
+      }, ms);
+    };
+    window.addEventListener('jambo-music-duck', handleDuck);
+
     return () => {
       cleaned = true;
       if (retryTimer !== null) window.clearTimeout(retryTimer);
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('error', handleError);
       window.removeEventListener('jambo-volume-change', handleVolumeChange);
+      window.removeEventListener('jambo-music-duck', handleDuck);
+      if (duckTimer !== null) window.clearTimeout(duckTimer);
       document.removeEventListener('click', resumeOnInteraction);
       document.removeEventListener('touchstart', resumeOnInteraction);
       audio.pause();

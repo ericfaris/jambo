@@ -4,20 +4,39 @@
 // the same sounds for the same moves.
 // ============================================================================
 
-import type { GameAction } from '../engine/types.ts';
-import type { AudioEvent } from './types.ts';
+import type { GameAction, GameState } from '../engine/types.ts';
+import type { AnimalSound, AudioEvent, UtilitySound } from './types.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
+import { getWinner } from '../engine/endgame/EndgameManager.ts';
 
-export function detectAudioEvent(action: GameAction): AudioEvent | null {
+const ANIMAL_SOUNDS: Record<string, AnimalSound> = {
+  parrot: 'parrot', elephant: 'elephant', snake: 'snake', hyena: 'hyena',
+  crocodile: 'crocodile', ape: 'ape', lion: 'lion', cheetah: 'cheetah',
+};
+const UTILITY_SOUNDS: Record<string, UtilitySound> = {
+  drums: 'drums', well: 'well', kettle: 'kettle', boat: 'boat', scale: 'scale', weapons: 'weapons',
+};
+
+/**
+ * The sound for one action. `before` (the state the action was applied to)
+ * lets a utility activation name its utility; without it activations stay
+ * quiet, as before.
+ */
+export function detectAudioEvent(action: GameAction, before?: GameState): AudioEvent | null {
   switch (action.type) {
     case 'DRAW_CARD':
     case 'KEEP_CARD':
       return 'card-draw';
     case 'PLAY_CARD': {
-      if (action.wareMode) return 'coin';
+      if (action.wareMode) return action.wareMode === 'buy' ? 'coin-out' : 'coin';
       const card = getCard(action.cardId);
-      if (card.type === 'animal') return 'attack';
+      if (card.type === 'animal') return ANIMAL_SOUNDS[card.designId] ?? 'attack';
       return 'card-play';
+    }
+    case 'ACTIVATE_UTILITY': {
+      if (!before) return null;
+      const utility = before.players[before.currentPlayer].utilities[action.utilityIndex];
+      return (utility && UTILITY_SOUNDS[utility.designId]) ?? (utility ? 'card-play' : null);
     }
     case 'END_TURN':
       return 'turn-end';
@@ -27,3 +46,28 @@ export function detectAudioEvent(action: GameAction): AudioEvent | null {
       return null;
   }
 }
+
+/**
+ * Sounds for what *happened* between two states rather than for an action:
+ * an auction knocked down, the final turn beginning, the game ending.
+ * `viewer` is the seat at this screen (null on the TV / in hotseat, where
+ * every ending gets the victory flourish).
+ */
+export function detectOutcomeSounds(prev: GameState, next: GameState, viewer: 0 | 1 | null): AudioEvent[] {
+  const out: AudioEvent[] = [];
+  if (next.log.length > prev.log.length && next.log.slice(prev.log.length).some((e) => e.action === 'AUCTION_WON')) {
+    out.push('gavel');
+  }
+  if (next.endgame?.isFinalTurn && !prev.endgame?.isFinalTurn && next.phase !== 'GAME_OVER') out.push('final-turn');
+  if (next.phase === 'GAME_OVER' && prev.phase !== 'GAME_OVER') {
+    const winner = getWinner(next);
+    out.push(viewer === null || winner === viewer ? 'win' : 'lose');
+  }
+  return out;
+}
+
+/** Big moments duck the background music so they cut through. */
+export const DUCKING_SOUNDS: ReadonlySet<AudioEvent> = new Set<AudioEvent>([
+  'attack', 'guard', 'win', 'lose', 'final-turn',
+  'parrot', 'elephant', 'snake', 'hyena', 'crocodile', 'ape', 'lion', 'cheetah',
+]);
