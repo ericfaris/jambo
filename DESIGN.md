@@ -470,6 +470,23 @@ solo/hotseat `GameScreen` plays it locally via `useLocalActionAudio()`
 | `turn-end` | `END_TURN` | `turn-end.mp3` | 1.23s | -2 dB | single deep djembe hit |
 | `guard` | Guard played as a reaction | `guard.mp3` | 0.73s | -1.5 dB | spear shaft on a hide shield |
 
+**Sound pass 2** (2026-10-11, flow "Jambo SFX 2", same trim / fade / peak
+treatment, each 0.3–1.7s and < 17 KB):
+
+| Event | Fires on | Sound |
+|---|---|---|
+| `coin-out` | buying with a ware card | purse jingle (selling keeps `coin`) |
+| `parrot` … `cheetah` | each animal card | its own call (squawk, trumpet, hiss, cackle, jaw snap, hoots, roar, chirp-growl); `attack` is the fallback |
+| `drums`, `well`, `kettle`, `boat`, `scale`, `weapons` | activating that utility (`detectAudioEvent(action, stateBefore)`) | drum phrase, bucket splash, bubbling, oar stroke, brass tick, blade ring |
+| `ware-land` | each ware token landing in a slot (`FlightLayer.onLand`, ≥70ms apart) | soft clay tap, peak −9 dB |
+| `gavel` | an auction won | wooden knock |
+| `final-turn` | the final turn begins | low frame-drum heartbeat |
+| `win` / `lose` | game over, from the viewer's seat (hotseat: always `win`) | djembe roll into a bell / soft descending balafon |
+
+Outcome sounds come from `detectOutcomeSounds(prev, next, viewer)`.
+`DUCKING_SOUNDS` (animals, guard, stingers) dispatch `jambo-music-duck`;
+`useBackgroundMusic` halves the music for 1.6s.
+
 Mix intent: table sounds (draw, play) sit low so a busy turn never gets
 noisy; the confrontations (attack, guard) and the turn boundary are loudest.
 
@@ -525,6 +542,29 @@ existing set already covers the full identity; this pass's job was
 documenting it, fixing one duplication, and identifying the SFX gap.
 
 ## Changelog
+### 2026-10-11 — Design review phases 1–3 (v1.6.2 → v1.8.0)
+- **Announcements**: opponent plays are spotlit mid-table (non-blocking and
+  small on your own turn); center-row tags name the real play ("You bought
+  with Tea Stall"); one label at a time on phones; the AI's line clears
+  while its play is spotlit. Action log drawer (pinnable on desktop).
+- **AI pacing**: per-move pauses (~0.75s hidden, 1.2s plays), the AI waits
+  for spotlights; Settings › AI Speed (Relaxed / Normal / Brisk).
+- **Clarity**: unplayable hand cards dim with the reason as tooltip; a gold
+  "Sell ✓" coin on wares you can sell now; End Turn shows "+1g"; brass
+  race-to-60 tracks (`GoldTrack`) under both gold totals; full-width
+  final-turn banner + live "you need 22g" line; the ware supply on the board
+  (`WareSupply`: six woven baskets, empty → grey, low → gold, alert pulse).
+- **Flights** (`FlightLayer` + pure planner `ui/flights.ts`): wares fly
+  supply ↔ slots and market ↔ market, coins gold ↔ table / player ↔ player,
+  card backs hand ↔ hand. Anchors are `data-market-slot="p-i"`,
+  `data-supply-ware`, `data-gold-anchor`, `data-hand-anchor`, and the
+  discard pile (`data-spotlight-target="discard"`). Arriving slots stay empty
+  (`[data-incoming]`) until their ware lands, then pop. The discard pile holds
+  a spotlit card back until the spotlight lands there.
+- **Ceremony**: coin-toss first-player reveal; "Your turn" sweep; used
+  utilities turn sideways (`.utility-card-tapped`) instead of a USED overlay.
+- **Sound pass 2**: 20 new clips (see Sound); big moments duck the music.
+
 
 ### 2026-10-09 — Living table: idle motion, ambience, desktop fit, playtest nits
 - New "Life" layer (see Life): breathing/fanned hand with a deal-in, spring
