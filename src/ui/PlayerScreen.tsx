@@ -1123,7 +1123,9 @@ function getLatestOpponentAction(pub: PublicGameState, slot: 0 | 1): OpponentAct
     if (!isOpponentActionForPanel(entry.action)) continue;
     const actionInfo = parseOpponentAction(entry.action, entry.details ?? '', pub, opponent);
     if (!actionInfo) continue;
-    return actionInfo;
+    // The engine tags face-up plays with the exact card — better than
+    // matching names in the details text.
+    return entry.card && actionInfo.cardId ? { ...actionInfo, cardId: entry.card } : actionInfo;
   }
   return null;
 }
@@ -1328,6 +1330,11 @@ export function parseOpponentAction(
       cardId: null,
       message: humanDetails || 'Opponent replaced a utility card.',
     };
+  }
+
+  if (action === 'AUCTION_WON' && humanDetails) {
+    // logged under the winner: "Won the auction for …"
+    return { cardId: null, message: `Opponent ${humanDetails.charAt(0).toLowerCase()}${humanDetails.slice(1)}.` };
   }
 
   if (action === 'AUCTION_WON' || action === 'AUCTION_NO_WINNER' || action === 'DRAFT_COMPLETE') {

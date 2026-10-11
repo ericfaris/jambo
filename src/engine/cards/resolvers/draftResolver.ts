@@ -98,7 +98,7 @@ function resolveWareDraft(
         turn: state.turn,
         player: state.currentPlayer,
         action: 'DRAFT_COMPLETE',
-        details: `Ware draft finished: P0 got [${newPicks[0].join(',')}], P1 got [${newPicks[1].join(',')}]`,
+        details: `Ware draft finished: took ${describePicks(newPicks[state.currentPlayer])}; opponent took ${describePicks(newPicks[state.currentPlayer === 0 ? 1 : 0])}`,
       }],
     };
   }
@@ -261,3 +261,7 @@ function resolveUtilityDraft(
   };
 }
 
+/** "tea, tea, salt" / "nothing" for the draft summary log line. */
+function describePicks(picks: readonly string[]): string {
+  return picks.length > 0 ? picks.join(', ') : 'nothing';
+}

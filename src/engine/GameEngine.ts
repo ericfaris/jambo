@@ -41,14 +41,23 @@ import { getSmallStandCost } from './market/standCost.ts';
 function logEntry(
   state: GameState,
   action: string,
-  details?: string
+  details?: string,
+  extra?: LogExtra
 ): GameLogEntry {
-  return {
+  const entry: GameLogEntry = {
     turn: state.turn,
-    player: state.currentPlayer,
+    player: extra?.player ?? state.currentPlayer,
     action,
     details,
   };
+  return extra?.card ? { ...entry, card: extra.card } : entry;
+}
+
+/** Optional log fields: the face-up card involved, and the acting player when
+ *  it isn't the current player (reactions are played on the opponent's turn). */
+interface LogExtra {
+  card?: DeckCardId;
+  player?: 0 | 1;
 }
 
 /**
@@ -57,11 +66,12 @@ function logEntry(
 function withLog(
   state: GameState,
   action: string,
-  details?: string
+  details?: string,
+  extra?: LogExtra
 ): GameState {
   return {
     ...state,
-    log: [...state.log, logEntry(state, action, details)],
+    log: [...state.log, logEntry(state, action, details, extra)],
   };
 }
 
@@ -387,7 +397,7 @@ export function handlePlayCard(
 
     default:
       next = discardCard(next, cardId);
-      next = withLog(next, 'PLAY_CARD', `Played ${cardDef.name} (discarded)`);
+      next = withLog(next, 'PLAY_CARD', `Played ${cardDef.name} (discarded)`, { card: cardId });
       break;
   }
 
@@ -439,7 +449,7 @@ function handleWareCard(
     });
 
     next = discardCard(next, cardId);
-    next = withLog(next, 'PLAY_WARE_SELL', `Sold wares for ${sellGold}g via ${cardId}`);
+    next = withLog(next, 'PLAY_WARE_SELL', `Sold wares for ${sellGold}g via ${cardId}`, { card: cardId });
   } else {
     // --- BUY ---
     if (!canBuyWaresForCard(next, cp, wares.buyPrice, wares.types.length)) {
@@ -458,7 +468,7 @@ function handleWareCard(
     next = addWaresToMarket(next, cp, wares.types);
 
     next = discardCard(next, cardId);
-    next = withLog(next, 'PLAY_WARE_BUY', `Bought wares for ${effectivePrice}g via ${cardId}`);
+    next = withLog(next, 'PLAY_WARE_BUY', `Bought wares for ${effectivePrice}g via ${cardId}`, { card: cardId });
   }
 
   // Check if opponent has Rain Maker in hand
@@ -512,7 +522,7 @@ function handlePlayUtility(
     utilities: newUtilities,
   });
 
-  next = withLog(next, 'PLAY_UTILITY', `Placed ${cardId} in play area`);
+  next = withLog(next, 'PLAY_UTILITY', `Placed ${cardId} in play area`, { card: cardId });
 
   return next;
 }
@@ -542,7 +552,7 @@ function handlePlayStand(state: GameState, cardId: DeckCardId): GameState {
 
   // Discard the stand card
   next = discardCard(next, cardId);
-  next = withLog(next, 'PLAY_STAND', `Purchased Small Market Stand for ${cost}g (market now ${next.players[cp].market.length} slots)`);
+  next = withLog(next, 'PLAY_STAND', `Purchased Small Market Stand for ${cost}g (market now ${next.players[cp].market.length} slots)`, { card: cardId });
 
   return next;
 }
@@ -560,7 +570,7 @@ function handlePlayPeople(
   // REACTION cards (Guard, Rain Maker) are not played via PLAY_CARD action
   if (cardDef.interactionType === 'REACTION') {
     next = discardCard(next, cardId);
-    next = withLog(next, 'PLAY_PEOPLE', `Played ${cardDef.name} (reaction card)`);
+    next = withLog(next, 'PLAY_PEOPLE', `Played ${cardDef.name} (reaction card)`, { card: cardId });
     return next;
   }
 
@@ -577,7 +587,7 @@ function handlePlayPeople(
       };
     }
     next = discardCard(next, cardId);
-    next = withLog(next, 'PLAY_PEOPLE', `Played ${cardDef.name} (turn modifier applied)`);
+    next = withLog(next, 'PLAY_PEOPLE', `Played ${cardDef.name} (turn modifier applied)`, { card: cardId });
     return next;
   }
 
@@ -588,11 +598,11 @@ function handlePlayPeople(
       ...next,
       pendingResolution: pending,
     };
-    next = withLog(next, 'PLAY_PEOPLE', `Played ${cardDef.name} - awaiting resolution`);
+    next = withLog(next, 'PLAY_PEOPLE', `Played ${cardDef.name} - awaiting resolution`, { card: cardId });
   } else {
     // No resolution needed — discard
     next = discardCard(next, cardId);
-    next = withLog(next, 'PLAY_PEOPLE', `Played ${cardDef.name}`);
+    next = withLog(next, 'PLAY_PEOPLE', `Played ${cardDef.name}`, { card: cardId });
   }
 
   return next;
@@ -623,7 +633,7 @@ function handlePlayAnimal(
         targetPlayer: opponent,
       },
     };
-    next = withLog(next, 'PLAY_ANIMAL', `Played ${cardDef.name} - awaiting Guard reaction from opponent`);
+    next = withLog(next, 'PLAY_ANIMAL', `Played ${cardDef.name} - awaiting Guard reaction from opponent`, { card: cardId });
   } else {
     // No guard — proceed directly to animal effect
     next = initiateAnimalEffect(next, cardId, cardDef.name);
@@ -639,7 +649,9 @@ function handlePlayAnimal(
 function initiateAnimalEffect(
   state: GameState,
   cardId: DeckCardId,
-  cardName: string
+  cardName: string,
+  /** false after a declined Guard: the play was already announced */
+  revealed = true
 ): GameState {
   let next = state;
   const pending = initializeResolution(next, cardId);
@@ -664,10 +676,10 @@ function initiateAnimalEffect(
       }
     }
 
-    next = withLog(next, 'PLAY_ANIMAL', `Played ${cardName} - awaiting resolution`);
+    next = withLog(next, 'PLAY_ANIMAL', `Played ${cardName} - awaiting resolution`, revealed ? { card: cardId } : undefined);
   } else {
     next = discardCard(next, cardId);
-    next = withLog(next, 'PLAY_ANIMAL', `Played ${cardName}`);
+    next = withLog(next, 'PLAY_ANIMAL', `Played ${cardName}`, revealed ? { card: cardId } : undefined);
   }
   return next;
 }
@@ -720,9 +732,9 @@ export function handleActivateUtility(
         next = drawResult.state;
         const newHand = [...next.players[cp].hand, drawResult.card];
         next = withPlayer(next, cp, { hand: newHand });
-        next = withLog(next, 'ACTIVATE_UTILITY', `Well: paid 1g, drew ${drawResult.card}`);
+        next = withLog(next, 'ACTIVATE_UTILITY', `Well: paid 1g, drew ${drawResult.card}`, { card: utility.cardId });
       } else {
-        next = withLog(next, 'ACTIVATE_UTILITY', 'Well: paid 1g, but deck is empty (deadlock)');
+        next = withLog(next, 'ACTIVATE_UTILITY', 'Well: paid 1g, but deck is empty (deadlock)', { card: utility.cardId });
       }
       break;
     }
@@ -735,9 +747,9 @@ export function handleActivateUtility(
           ...next,
           pendingResolution: pending,
         };
-        next = withLog(next, 'ACTIVATE_UTILITY', `Activated ${cardDef.name} - awaiting resolution`);
+        next = withLog(next, 'ACTIVATE_UTILITY', `Activated ${cardDef.name} - awaiting resolution`, { card: utility.cardId });
       } else {
-        next = withLog(next, 'ACTIVATE_UTILITY', `Activated ${cardDef.name}`);
+        next = withLog(next, 'ACTIVATE_UTILITY', `Activated ${cardDef.name}`, { card: utility.cardId });
       }
       break;
     }
@@ -836,11 +848,11 @@ function handleGuardReaction(state: GameState, play: boolean): GameState {
 
     // Clear guard reaction
     next = { ...next, pendingGuardReaction: null };
-    next = withLog(next, 'GUARD_PLAYED', `Guard cancelled ${animalDef.name}`);
+    next = withLog(next, 'GUARD_PLAYED', `Guard cancelled ${animalDef.name}`, { card: guardCardId, player: opponent });
   } else {
     // Opponent declines — clear guard reaction and proceed with animal effect
     next = { ...next, pendingGuardReaction: null };
-    next = initiateAnimalEffect(next, animalCard, animalDef.name);
+    next = initiateAnimalEffect(next, animalCard, animalDef.name, false);
   }
 
   return next;
@@ -889,10 +901,10 @@ function handleWareCardReaction(state: GameState, play: boolean): GameState {
     next = discardCard(next, rmCardId);
 
     next = { ...next, pendingWareCardReaction: null };
-    next = withLog(next, 'RAIN_MAKER_PLAYED', `Rain Maker took ${reaction.wareCardId} from discard`);
+    next = withLog(next, 'RAIN_MAKER_PLAYED', `Rain Maker took ${reaction.wareCardId} from discard`, { card: rmCardId, player: target });
   } else {
     next = { ...next, pendingWareCardReaction: null };
-    next = withLog(next, 'RAIN_MAKER_DECLINED', 'Opponent declined Rain Maker reaction');
+    next = withLog(next, 'RAIN_MAKER_DECLINED', 'Declined Rain Maker reaction', { player: target });
   }
 
   return next;

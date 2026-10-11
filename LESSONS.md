@@ -279,3 +279,24 @@ overwrites tracked files.)
   No new decision logic, so no new bugs; the response curve is steep for Hard
   (8% Medium moves ≈ −0.4 logits). Confirm on fresh seed sets — 240-game
   sweeps swung ~±4%.
+
+## 2026-10-11 — Opponent play spotlight + action log drawer
+- **Tag public cards on the log entry, don't parse them back out of text**:
+  `GameLogEntry.card` is set only for face-up plays (played, placed,
+  activated, Guard/Rain Maker). The spotlight keys off it, so a hidden draw
+  can never be announced. The Cast phone panel used to regex card names out
+  of `details` (and grabbed the first deck copy with that name).
+- **Redact hidden cards by pattern, not wholesale**: the solo log redacted
+  *every* card id for the AI ("Sold wares via a card"), while hotseat
+  redacted *nothing* (the device holder could read the other seat's draws).
+  Both now use `engine/logRedaction.ts` (Drew/Kept/picked), same as Cast.
+- **Log `player` = the actor, not `currentPlayer`**: Guard/Rain Maker are
+  played on the opponent's turn, but were logged under the animal/ware
+  player, so Cast told the *defender* "Opponent played Guard". Auction and
+  Carrier lines printed 0-based "Player 0 won…"; they're now actor-relative.
+- **Playwright's fake clock doesn't drive CSS animations/transitions** —
+  screenshots right after `clock.run_for()` catch them at frame 0. Add a
+  real `time.sleep()` before shooting animated UI.
+- Fuzzer `AI_RESPONSE_REJECTED` (11/300 games) were real Easy-AI bugs:
+  dummy Basket Maker/Carrier picks when the market was short (resolver
+  allows partial placement) and paying for Supplies with 0g.

@@ -131,18 +131,18 @@ export function getRandomInteractionResponse(state: GameState, rng: RngFn): Inte
     }
 
     case 'WARE_SELECT_MULTIPLE': {
-      // Need supply >= count and market space >= count
-      const emptySlots = player.market.filter(s => s === null).length;
+      // Need supply >= count. Market room isn't required: the resolver places
+      // what fits and auto-resolves on its own when nothing fits — a dummy
+      // pick here was rejected whenever trinkets were short.
       const available = availableWareTypes(state).filter(w => state.wareSupply[w] >= pr.count);
-      if (available.length === 0 || emptySlots < pr.count) return { type: 'SELECT_WARE_TYPE', wareType: 'trinkets' }; // guard handles
+      if (available.length === 0) return { type: 'SELECT_WARE_TYPE', wareType: 'trinkets' }; // guard handles
       return { type: 'SELECT_WARE_TYPE', wareType: pickBestWareType(state, cp, available) };
     }
 
     case 'CARRIER_WARE_SELECT': {
-      const target = state.players[pr.targetPlayer];
-      const emptySlots = target.market.filter(s => s === null).length;
+      // The resolver auto-resolves when the target has no room (incl. the paid 6th space)
       const available = availableWareTypes(state).filter(w => state.wareSupply[w] >= 1);
-      if (available.length === 0 || emptySlots < 1) return { type: 'SELECT_WARE_TYPE', wareType: 'trinkets' };
+      if (available.length === 0) return { type: 'SELECT_WARE_TYPE', wareType: 'trinkets' };
       return { type: 'SELECT_WARE_TYPE', wareType: pickBestWareType(state, pr.targetPlayer, available) };
     }
 
@@ -178,6 +178,8 @@ export function getRandomInteractionResponse(state: GameState, rng: RngFn): Inte
     }
 
     case 'BINARY_CHOICE':
+      // Supplies: paying 1g is only legal with at least 1g
+      if (getCard(pr.sourceCard).designId === 'supplies' && player.gold < 1) return { type: 'BINARY_CHOICE', choice: 1 };
       return { type: 'BINARY_CHOICE', choice: rng() < 0.5 ? 0 : 1 };
 
     case 'OPPONENT_CHOICE': {

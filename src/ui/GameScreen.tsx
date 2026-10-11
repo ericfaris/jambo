@@ -16,7 +16,9 @@ import { UtilityArea } from './UtilityArea.tsx';
 import { HandDisplay } from './HandDisplay.tsx';
 import { ActionButtons, CardPlayDialog, DrawModal } from './ActionButtons.tsx';
 import { InteractionPanel } from './InteractionPanel.tsx';
-import { GameLog } from './GameLog.tsx';
+import { ActionLogButton, ActionLogDrawer } from './ActionLogDrawer.tsx';
+import { OpponentPlaySpotlight } from './OpponentPlaySpotlight.tsx';
+import { countUnread } from './actionLog.ts';
 import { EndgameOverlay } from './EndgameOverlay.tsx';
 import { ResolveMegaView } from './ResolveMegaView.tsx';
 import { isHandInteraction } from './HandReferenceStrip.tsx';
@@ -39,22 +41,27 @@ import { useElementSize } from './useElementSize.ts';
 import { fitCardsToBox, fitMarketSlots } from './fitLayout.ts';
 
 type AnimationSpeed = 'normal' | 'fast';
+const SOLO_LABELS = ['You', 'Opponent'] as const;
+const HOTSEAT_LABELS = ['Player 1', 'Player 2'] as const;
 const ANIMATION_SPEED_STORAGE_KEY = 'jambo.animationSpeed';
-const SHOW_LOG_STORAGE_KEY = 'jambo.showGameLog';
 const DEV_TELEMETRY_STORAGE_KEY = 'jambo.devTelemetry';
 const HIGH_CONTRAST_STORAGE_KEY = 'jambo.highContrast';
 const UX_DEBUG_STORAGE_KEY = 'jambo.uxDebugCounters';
 const TUTORIAL_SEEN_STORAGE_KEY = 'jambo.tutorialSeen';
+const LOG_PINNED_STORAGE_KEY = 'jambo.logPinned';
+
+function getInitialLogPinned(): boolean {
+  try {
+    return typeof window !== 'undefined' && window.localStorage.getItem(LOG_PINNED_STORAGE_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
 
 function getInitialAnimationSpeed(): AnimationSpeed {
   if (typeof window === 'undefined') return 'normal';
   const saved = window.localStorage.getItem(ANIMATION_SPEED_STORAGE_KEY);
   return saved === 'fast' ? 'fast' : 'normal';
-}
-
-function getInitialShowLog(): boolean {
-  if (typeof window === 'undefined') return false;
-  return window.localStorage.getItem(SHOW_LOG_STORAGE_KEY) === 'true';
 }
 
 function getInitialDevTelemetry(): boolean {
@@ -98,7 +105,11 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
     setGameActiveInTab(true);
   }, []);
   const [wareDialog, setWareDialog] = useState<DeckCardId | null>(null);
-  const [showLog, setShowLog] = useState(() => getInitialShowLog());
+  const [logOpen, setLogOpen] = useState(false);
+  const [logPinnedPref, setLogPinnedPref] = useState(() => getInitialLogPinned());
+  // Log length when the drawer was last open — newer opponent entries are "unread"
+  const [logSeenLength, setLogSeenLength] = useState(() => state.log.length);
+  const [spotlightActive, setSpotlightActive] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [drawModalOpen, setDrawModalOpen] = useState(false);
   const [cardError, setCardError] = useState<{cardId: DeckCardId, message: string} | null>(null);
@@ -124,6 +135,9 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   const [uxDebugCounts, setUxDebugCounts] = useState({ longPending: 0, blockedPlay: 0, blockedDraw: 0 });
   const menuRef = useRef<HTMLDivElement>(null);
   const isPhone = useMediaQuery(PHONE_MEDIA_QUERY);
+  // A phone has no room to dock the log; the pin preference waits for a wider screen
+  const logPinned = logPinnedPref && !isPhone;
+  const logVisible = logOpen || logPinned;
   const isShortDesktop = useMediaQuery(SHORT_DESKTOP_MEDIA_QUERY);
   const [phoneBoardRef, phoneBoardSize] = useElementSize<HTMLDivElement>();
   const [phoneHandRef, phoneHandSize] = useElementSize<HTMLDivElement>();
@@ -160,9 +174,19 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   }, [ambientMotion]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem(SHOW_LOG_STORAGE_KEY, String(showLog));
-  }, [showLog]);
+    // While open, everything is read; a shorter log means a new game started
+    if (logVisible || state.log.length < logSeenLength) setLogSeenLength(state.log.length);
+  }, [logVisible, state.log.length, logSeenLength]);
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(LOG_PINNED_STORAGE_KEY, String(logPinnedPref));
+    } catch { /* storage blocked — the pin just won't persist */ }
+  }, [logPinnedPref]);
+  const toggleLogPin = useCallback(() => {
+    setLogPinnedPref((p) => !p);
+    setLogOpen(false);
+  }, []);
+  const closeLog = useCallback(() => setLogOpen(false), []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -412,6 +436,8 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   });
 
   const lastLog = state.log.length > 0 ? state.log[state.log.length - 1] : null;
+  const logLabels: readonly [string, string] = localMultiplayer ? HOTSEAT_LABELS : SOLO_LABELS;
+  const logUnread = logVisible ? 0 : countUnread(state.log, logSeenLength, opponentPlayer);
   const visualFeedback = useVisualFeedback({
     phase: state.phase,
     actionsLeft: state.actionsLeft,
@@ -501,7 +527,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   }, []);
 
   const resetUiPrefs = useCallback(() => {
-    setShowLog(false);
+    setLogPinnedPref(false);
     setAnimationSpeed('normal');
     setShowDevTelemetry(false);
     setHighContrast(false);
@@ -514,7 +540,8 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
     blockedPlaySecondsRef.current = 0;
     blockedDrawSecondsRef.current = 0;
     if (typeof window !== 'undefined') {
-      window.localStorage.removeItem(SHOW_LOG_STORAGE_KEY);
+      window.localStorage.removeItem('jambo.showGameLog'); // retired sidebar setting
+      window.localStorage.removeItem(LOG_PINNED_STORAGE_KEY);
       window.localStorage.removeItem(ANIMATION_SPEED_STORAGE_KEY);
       window.localStorage.removeItem(DEV_TELEMETRY_STORAGE_KEY);
       window.localStorage.removeItem(HIGH_CONTRAST_STORAGE_KEY);
@@ -537,7 +564,8 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
     <div className={`game-root${showUxDebug ? ' ux-debug' : ''}`} style={isPhone ? { position: 'relative' } : {
       display: 'flex',
       gap: 16,
-      padding: isShortDesktop ? '8px 20px' : '16px 20px',
+      // extra left gutter keeps the board clear of the Action Log tab
+      padding: `${isShortDesktop ? 8 : 16}px 20px ${isShortDesktop ? 8 : 16}px ${logPinned ? 20 : 44}px`,
       minHeight: '100vh',
       position: 'relative',
     }}>
@@ -591,6 +619,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
                 )}
               </div>
               <div style={{ marginLeft: 'auto' }} />
+              <ActionLogButton compact onClick={() => setLogOpen(true)} unread={logUnread} />
               {state.phase === 'PLAY' && isMyTurnNow && (
                 <button
                   className="end-turn-button"
@@ -619,7 +648,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
               />
             </div>
 
-            <CenterRow compact state={state} dispatch={dispatch} isLocalMode={true} showGlow={false} visualFeedback={visualFeedback} actorLabels={localMultiplayer ? ['Player 1', 'Player 2'] : ['You', 'Opponent']} hiddenPlayer={localMultiplayer ? null : 1} />
+            <CenterRow compact state={state} dispatch={dispatch} isLocalMode={true} showGlow={false} visualFeedback={visualFeedback} actorLabels={localMultiplayer ? ['Player 1', 'Player 2'] : ['You', 'Opponent']} hiddenPlayer={opponentPlayer} spotlitPlayer={localMultiplayer ? null : opponentPlayer} />
 
             {playActionsDisabled && state.phase === 'PLAY' && playDisabledReason && (
               <div className="disabled-hint" style={{ marginBottom: 0, flexShrink: 0 }}>
@@ -661,6 +690,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
                     dispatch({ type: 'ACTIVATE_UTILITY', utilityIndex: i });
                   }}
                   disabled={playActionsDisabled}
+                  onMegaView={setMegaCardId}
                   cardError={cardError}
                   cardSize="default"
                   cardScale={utilFit.scale}
@@ -730,6 +760,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
             marketFlashSlots={visualFeedback.marketFlashSlots[opponentPlayer]}
             label={localMultiplayer ? `Opponent (Player ${opponentPlayer + 1})` : 'Opponent (AI)'}
             isActive={state.currentPlayer === opponentPlayer}
+            onMegaView={setMegaCardId}
           />
         </div>
 
@@ -742,7 +773,8 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
             showGlow={false}
             visualFeedback={visualFeedback}
             actorLabels={localMultiplayer ? ['Player 1', 'Player 2'] : ['You', 'Opponent']}
-            hiddenPlayer={localMultiplayer ? null : 1}
+            hiddenPlayer={opponentPlayer}
+            spotlitPlayer={localMultiplayer ? null : opponentPlayer}
             endTurnSlot={state.phase === 'PLAY' && state.currentPlayer === viewerPlayer ? (
               <button
                 className="end-turn-button"
@@ -785,6 +817,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
                 dispatch({ type: 'ACTIVATE_UTILITY', utilityIndex: i });
               }}
               disabled={playActionsDisabled}
+              onMegaView={setMegaCardId}
               cardError={cardError}
               label={localMultiplayer ? `Player ${viewerPlayer + 1} Utilities` : 'Your Utilities'}
               cardSize={isShortDesktop ? 'small' : 'medium'}
@@ -865,22 +898,6 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
 
         </div>
       </div>
-      )}
-
-      {/* Right sidebar — Game log */}
-      {showLog && !isPhone && (
-        <div style={{
-          width: 280,
-          flexShrink: 0,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 6,
-        }}>
-          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 15, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.5 }}>
-            Game Log
-          </div>
-          <GameLog log={state.log} labels={localMultiplayer ? ['Player 1', 'Player 2'] : ['You', 'Opponent']} hiddenPlayer={localMultiplayer ? null : 1} />
-        </div>
       )}
 
       {/* Settings hamburger menu */}
@@ -1049,24 +1066,6 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
               alignItems: 'center',
               justifyContent: 'space-between',
               gap: 10,
-              cursor: 'pointer',
-              fontSize: 15,
-              color: 'var(--text)',
-            }}>
-              Show Game Log
-              <input
-                type="checkbox"
-                checked={showLog}
-                onChange={() => setShowLog(prev => !prev)}
-                style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
-              />
-            </label>
-            <label style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 10,
-              marginTop: 10,
               fontSize: 15,
               color: 'var(--text)',
             }}>
@@ -1367,7 +1366,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
       <EndgameOverlay state={state} onNewGame={() => newGame()} onMainMenu={onBackToMenu} />
 
       {/* Resolve mega view — also stay visible during drafts when AI is picking */}
-      {shouldShowResolvePanel(hasPendingInteraction, isAiTurn, state.pendingResolution?.type) && (
+      {shouldShowResolvePanel(hasPendingInteraction, isAiTurn, state.pendingResolution?.type, spotlightActive) && (
         <ResolveMegaView
           verticalAlign="center"
           hand={state.players[viewerPlayer].hand}
@@ -1378,6 +1377,29 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
           <InteractionPanel state={state} dispatch={dispatch} viewerPlayer={viewerPlayer} onMegaView={setMegaCardId} />
         </ResolveMegaView>
       )}
+
+      {/* Opponent's face-up plays, announced big and then put away */}
+      <OpponentPlaySpotlight
+        log={state.log}
+        viewer={viewerPlayer}
+        actorLabel="Opponent"
+        enabled={!localMultiplayer}
+        onActiveChange={setSpotlightActive}
+      />
+
+      {/* Action log: left tab on desktop, topbar button on phones */}
+      {!isPhone && !logPinned && <ActionLogButton onClick={() => setLogOpen(true)} unread={logUnread} />}
+      <ActionLogDrawer
+        pinned={logPinned}
+        onTogglePin={isPhone ? undefined : toggleLogPin}
+        open={logOpen}
+        onClose={closeLog}
+        log={state.log}
+        labels={logLabels}
+        hiddenPlayer={opponentPlayer}
+        viewer={viewerPlayer}
+        onMegaView={setMegaCardId}
+      />
 
       {/* Mega view */}
       {megaCardId && (

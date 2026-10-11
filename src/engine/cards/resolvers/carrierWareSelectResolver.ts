@@ -25,9 +25,9 @@ export function resolveCarrierWareSelect(
       pendingResolution: null,
       log: [...state.log, {
         turn: state.turn,
-        player: state.currentPlayer,
+        player: target,
         action: 'CARRIER_WARES',
-        details: `Player ${target} has no empty market slots`,
+        details: 'No empty market slots for the Carrier wares',
       }],
     };
   }
@@ -74,9 +74,9 @@ export function resolveCarrierWareSelect(
     pendingResolution: null,
     log: [...next.log, {
       turn: state.turn,
-      player: state.currentPlayer,
+      player: target,
       action: 'CARRIER_WARES',
-      details: `Player ${target} received ${toAdd}x ${wareType} from supply`,
+      details: `Received ${toAdd} ${wareType} from the supply`,
     }],
   };
 

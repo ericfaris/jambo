@@ -367,6 +367,10 @@ export interface GameLogEntry {
   player: 0 | 1;
   action: string;
   details?: string;
+  /** A card this entry revealed face-up (played, placed, activated or
+   *  reacted with) — public to both players. Never set for draws or picks
+   *  that stay hidden. Optional so older saves/logs still load. */
+  card?: DeckCardId;
 }
 
 // --- Actions ---

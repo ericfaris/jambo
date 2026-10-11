@@ -2,6 +2,7 @@ import { isAuctionBidding } from '../engine/responder.ts';
 import type { GameState, PendingResolution } from '../engine/types.ts';
 import { validatePlayCard } from '../engine/validation/actionValidator.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
+import { redactHiddenCardDetails } from '../engine/logRedaction.ts';
 
 interface PlayDisabledReasonInput {
   phase: 'DRAW' | 'PLAY' | 'GAME_OVER';
@@ -93,18 +94,54 @@ export function humanizeToken(token: string): string {
 const CARD_ID_PATTERN = /\b[a-z]+(?:_[a-z0-9]+)*_\d+\b/g;
 
 /**
- * Log details for display: card ids become card names (well_1 → Well), or
- * "a card" when the entry belongs to a player whose cards the viewer can't see.
+ * Log details for display: card ids become card names (well_1 → Well). With
+ * `redactCards` (an entry by a player whose hand the viewer can't see), cards
+ * that stayed hidden — draws, kept cards, Psychic picks — read "a card";
+ * cards played or discarded face-up keep their names.
  */
 export function humanizeLogDetails(details: string, redactCards: boolean): string {
-  return details.replace(CARD_ID_PATTERN, (id) => {
+  const visible = redactCards ? redactHiddenCardDetails(details) : details;
+  return visible.replace(CARD_ID_PATTERN, (id) => {
     try {
-      const name = getCard(id).name;
-      return redactCards ? 'a card' : name;
+      return getCard(id).name;
     } catch {
       return id;
     }
   });
+}
+
+/** Engine status suffixes that mean nothing to a player reading the log. */
+const LOG_NOISE_SUFFIX = / - awaiting (?:resolution|Guard reaction from opponent)$/;
+
+/**
+ * One log entry as plain words, without the actor's name: card names instead
+ * of ids, hidden cards redacted for `hiddenPlayer`, and "opponent" flipped to
+ * "you" when the other seat acted and the viewer is "You".
+ */
+export function describeLogEntry(
+  entry: { player: 0 | 1; action: string; details?: string },
+  labels: readonly [string, string],
+  hiddenPlayer: 0 | 1 | null = null,
+): string {
+  const who = labels[entry.player];
+  const other = labels[entry.player === 0 ? 1 : 0];
+  if (entry.action === 'END_TURN') {
+    // the engine says "Player 2's turn begins (turn 6)" — say it in board terms
+    return who === 'You' ? 'Ended your turn' : 'Ended their turn';
+  }
+  let text = entry.details
+    ? humanizeLogDetails(entry.details, entry.player === hiddenPlayer).replace(LOG_NOISE_SUFFIX, '')
+    : entry.action.toLowerCase().replace(/_/g, ' ');
+  if (other === 'You') {
+    // Log lines are written from the actor's side; when the actor is the
+    // other seat, "opponent" is the viewer.
+    text = text
+      .replace(/\bopponent's\b/g, 'your')
+      .replace(/\bOpponent's\b/g, 'Your')
+      .replace(/\bopponent\b/g, 'you')
+      .replace(/\bOpponent\b/g, 'You');
+  }
+  return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
 }
 
 /**
@@ -118,24 +155,10 @@ export function formatLogRecap(
   hiddenPlayer: 0 | 1 | null = null,
 ): string {
   const who = labels[entry.player];
-  const other = labels[entry.player === 0 ? 1 : 0];
   if (entry.action === 'END_TURN') {
-    // the engine says "Player 2's turn begins (turn 6)" — say it in board terms
     return who === 'You' ? 'You ended your turn' : `${who} ended their turn`;
   }
-  let text = entry.details
-    ? humanizeLogDetails(entry.details, entry.player === hiddenPlayer)
-    : entry.action.toLowerCase().replace(/_/g, ' ');
-  if (other === 'You') {
-    // Log lines are written from the actor's side; when the actor is the
-    // other seat, "opponent" is the viewer.
-    text = text
-      .replace(/\bopponent's\b/g, 'your')
-      .replace(/\bOpponent's\b/g, 'Your')
-      .replace(/\bopponent\b/g, 'you')
-      .replace(/\bOpponent\b/g, 'You');
-  }
-  return `${who}: ${text.charAt(0).toUpperCase()}${text.slice(1)}`;
+  return `${who}: ${describeLogEntry(entry, labels, hiddenPlayer)}`;
 }
 
 /** Status-pill owner text: "Your turn" for the local player, "Opponent's turn" / "Player 2's turn" otherwise. */

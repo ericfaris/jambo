@@ -23,9 +23,11 @@ interface CenterRowProps {
   compact?: boolean;
   /** Desktop: the End Turn control, pinned to the right end of the row. */
   endTurnSlot?: ReactNode;
+  /** Seat whose face-up plays get the big spotlight — skip the duplicate recap pill. */
+  spotlitPlayer?: 0 | 1 | null;
 }
 
-export function CenterRow({ state, isLocalMode = true, showGlow = false, visualFeedback, actorLabels = ['Player 1', 'Player 2'], hiddenPlayer = null, compact = false, endTurnSlot }: CenterRowProps) {
+export function CenterRow({ state, isLocalMode = true, showGlow = false, visualFeedback, actorLabels = ['Player 1', 'Player 2'], hiddenPlayer = null, compact = false, endTurnSlot, spotlitPlayer = null }: CenterRowProps) {
   const pileScale = compact ? 0.62 : 1;
   const pileW = Math.round(96 * pileScale);
   const pileH = Math.round(128 * pileScale);
@@ -81,6 +83,10 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
   useEffect(() => {
     if (state.log.length === 0) return;
     const latest = state.log[state.log.length - 1];
+    if (latest.card && latest.player === spotlitPlayer) {
+      setLastActionRecap(null);
+      return;
+    }
     setLastActionRecap(formatLogRecap(latest, actorLabels, hiddenPlayer));
 
     const timer = window.setTimeout(() => setLastActionRecap(null), 2500);
@@ -279,7 +285,7 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
       </div>
 
       {/* Discard */}
-      <div ref={discardPileRef} key={`discard-${visualFeedback?.discardPulse ?? 0}`} className={discardPulseClass} style={{
+      <div ref={discardPileRef} key={`discard-${visualFeedback?.discardPulse ?? 0}`} className={discardPulseClass} data-spotlight-target="discard" style={{
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',

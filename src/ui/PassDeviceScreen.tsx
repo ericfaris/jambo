@@ -4,6 +4,9 @@
 // ============================================================================
 
 import type { GameState } from '../engine/types.ts';
+import { recapSinceLastMove } from './actionLog.ts';
+
+const SEAT_LABELS = ['Player 1', 'Player 2'] as const;
 
 /** Hotseat needs a handoff when someone other than the confirmed viewer must act. */
 export function needsHandoff(
@@ -25,6 +28,7 @@ export function getHandoffReason(state: GameState, viewerPlayer: 0 | 1): string 
 }
 
 export function PassDeviceScreen({ state, viewerPlayer, onReady }: { state: GameState; viewerPlayer: 0 | 1; onReady: () => void }) {
+  const recap = recapSinceLastMove(state.log, viewerPlayer, SEAT_LABELS);
   return (
     <div
       role="dialog"
@@ -63,6 +67,16 @@ export function PassDeviceScreen({ state, viewerPlayer, onReady }: { state: Game
           Player {viewerPlayer + 1}
         </h2>
         <div style={{ color: 'var(--text-muted)' }}>{getHandoffReason(state, viewerPlayer)}</div>
+        {recap.length > 0 && (
+          <div style={{ width: '100%', textAlign: 'left', background: 'rgba(20,10,5,0.5)', borderRadius: 8, padding: '8px 12px' }}>
+            <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-muted)', marginBottom: 4 }}>
+              Since your last move, Player {(viewerPlayer === 0 ? 1 : 0) + 1}:
+            </div>
+            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14, lineHeight: 1.5 }}>
+              {recap.map((line, i) => <li key={i}>{line}</li>)}
+            </ul>
+          </div>
+        )}
         <button className="primary" onClick={onReady} autoFocus style={{ marginTop: 8, padding: '10px 20px' }}>
           I'm Player {viewerPlayer + 1} — show my hand
         </button>

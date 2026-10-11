@@ -21,6 +21,8 @@ interface UtilityAreaProps {
   maxSlots?: number;
   /** Gap between non-overlapping cards (defaults: 0 on mobile, 8 on desktop). */
   gapPx?: number;
+  /** Tapping a card's caption bar zooms it (the body still activates). */
+  onMegaView?: (cardId: DeckCardId) => void;
 }
 
 function UtilityAreaComponent({
@@ -38,6 +40,7 @@ function UtilityAreaComponent({
   hideScrollbar = false,
   maxSlots,
   gapPx,
+  onMegaView,
 }: UtilityAreaProps) {
   const [isMobile, setIsMobile] = useState(false);
 
@@ -99,6 +102,7 @@ function UtilityAreaComponent({
               large={cardSize === 'large'}
               scale={cardScale}
               onClick={!disabled && onActivate && !u.usedThisTurn ? () => onActivate(i) : undefined}
+              onMegaView={onMegaView}
             />
             {u.usedThisTurn && (
               <div className="overlay-fade" style={{

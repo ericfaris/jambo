@@ -22,7 +22,9 @@ export function isWareDialogValid(wareDialog: DeckCardId | null, canTakePlayActi
  * only for drafts and auctions, which stay visible read-only so the human
  * can follow the pool / the bidding (the panels render a "waiting" state).
  */
-export function shouldShowResolvePanel(hasPendingInteraction: boolean, isAiTurn: boolean, pendingType: string | null | undefined): boolean {
+export function shouldShowResolvePanel(hasPendingInteraction: boolean, isAiTurn: boolean, pendingType: string | null | undefined, spotlightActive = false): boolean {
   if (!hasPendingInteraction) return false;
+  // Let the opponent's card announcement land before asking for a response
+  if (spotlightActive) return false;
   return !isAiTurn || pendingType === 'DRAFT' || pendingType === 'AUCTION';
 }

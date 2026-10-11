@@ -8,7 +8,7 @@ import { createElement } from 'react';
 import type { GameAction } from '../../src/engine/types.ts';
 import { shouldAiAct, isWareDialogValid, MAX_AI_ATTEMPTS } from '../../src/ui/gameScreenLogic.ts';
 import { SpeechBubble } from '../../src/ui/SpeechBubble.tsx';
-import { GameLog } from '../../src/ui/GameLog.tsx';
+import { ActionLogDrawer } from '../../src/ui/ActionLogDrawer.tsx';
 import { ResolveMegaView, HAND_STRIP_RESERVE_PX } from '../../src/ui/ResolveMegaView.tsx';
 import { CenterRow } from '../../src/ui/CenterRow.tsx';
 import { PreGameSetupModal } from '../../src/ui/screens/PreGameSetupModal.tsx';
@@ -56,20 +56,20 @@ describe('AI speech bubble stays clear of the opponent gold', () => {
   });
 });
 
-describe('Game Log speaks plainly and hides the AI’s private cards', () => {
+describe('Action log speaks plainly and hides the AI’s private cards', () => {
   it('uses names, not P1/P2 or raw codes, and redacts the hidden player', () => {
     const log = [
       { turn: 1, player: 1 as const, action: 'DRAW_CARD', details: 'Drew scale_1' },
       { turn: 1, player: 0 as const, action: 'DRAW_CARD', details: 'Drew well_2' },
       { turn: 1, player: 0 as const, action: 'END_TURN' },
     ];
-    const html = renderToStaticMarkup(createElement(GameLog, { log, labels: ['You', 'Opponent'], hiddenPlayer: 1 }));
+    const html = renderToStaticMarkup(createElement(ActionLogDrawer, { open: true, onClose: noop, log, labels: ['You', 'Opponent'], hiddenPlayer: 1, viewer: 0 }));
     expect(html).toContain('Opponent');
     expect(html).toContain('Drew a card');
     expect(html).not.toContain('scale_1');
     expect(html).not.toContain('Scale');
     expect(html).toContain('Drew Well');
-    expect(html).toContain('end turn');
+    expect(html).toContain('Ended your turn');
     expect(html).not.toContain('END_TURN');
     expect(html).not.toMatch(/>P[12]</);
   });

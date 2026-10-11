@@ -135,9 +135,9 @@ export function resolveAuction(
         pendingResolution: null,
         log: [...newState.log, {
           turn: state.turn,
-          player: state.currentPlayer,
+          player: cardWinner,
           action: 'AUCTION_WON',
-          details: `Player ${cardWinner} won ${revealedCards.length} cards at ${pending.currentBid}g`,
+          details: `Won the auction for ${revealedCards.length} cards at ${pending.currentBid}g`,
         }],
       };
     }
@@ -181,9 +181,9 @@ export function resolveAuction(
       pendingResolution: null,
       log: [...newState.log, {
         turn: state.turn,
-        player: state.currentPlayer,
+        player: winner,
         action: 'AUCTION_WON',
-        details: `Player ${winner} won auction for ${pending.wares.join(', ')} at ${pending.currentBid}g`,
+        details: `Won the auction for ${pending.wares.join(', ')} at ${pending.currentBid}g`,
       }],
     };
   }
