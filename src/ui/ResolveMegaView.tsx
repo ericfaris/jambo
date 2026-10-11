@@ -86,7 +86,9 @@ export function ResolveMegaView({ children, verticalAlign = 'top', hand, onMegaV
               position: 'sticky',
               bottom: 8,
               display: 'block',
-              margin: '0 auto',
+              // bottom-right: panel buttons (Confirm, Sell) are centered, and a
+              // centered pill sat on top of them (1366x768 Dancer, 2026-10-11)
+              margin: '0 8px 0 auto',
               zIndex: 2,
               borderRadius: 999,
               padding: '6px 16px',

@@ -108,6 +108,8 @@ describe('endgame overlay', () => {
     const { end } = playGame(4242);
     const html = renderToStaticMarkup(createElement(EndgameOverlay, { state: end, labels: ['Player 1', 'Player 2'], viewer: null, onRematch: () => {} }));
     expect(html).not.toContain('AI');
-    expect(html).toMatch(/Player [12] wins!/);
+    const winner = html.match(/Player ([12]) wins!/)![1];
+    // the facts follow the winner, not always Player 1
+    if (html.includes('MVP card')) expect(html).toContain(`Player ${winner}&#x27;s MVP card`);
   });
 });

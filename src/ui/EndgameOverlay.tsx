@@ -47,7 +47,8 @@ export function EndgameOverlay({ state, story = null, labels = ['You', 'AI'], vi
   // Hotseat: someone at the table always won
   const celebrate = viewer === null || winner === viewer;
   const accent = celebrate ? 'var(--gold)' : 'var(--accent-red)';
-  const me = viewer ?? 0;
+  // Hotseat: the facts follow the winner
+  const me: 0 | 1 = viewer ?? winner ?? 0;
   const mvp = story?.mvp[me] ?? null;
   const payday = story?.bestPayday[me] ?? null;
   const theirPayday = story?.bestPayday[me === 0 ? 1 : 0] ?? null;
@@ -88,7 +89,7 @@ export function EndgameOverlay({ state, story = null, labels = ['You', 'AI'], vi
             )}
             {payday && (
               <div className="endgame-fact">
-                <div className="endgame-fact-label">{viewer === null ? `${labels[0]}'s best payday` : 'Your best payday'}</div>
+                <div className="endgame-fact-label">{viewer === null ? `${labels[me]}'s best payday` : 'Your best payday'}</div>
                 <div className="endgame-fact-value">+{payday.gold}g</div>
                 <div className="endgame-fact-detail">{cardName(payday.cardId)}, turn {payday.turn + 1}</div>
               </div>
@@ -104,7 +105,7 @@ export function EndgameOverlay({ state, story = null, labels = ['You', 'AI'], vi
               <div className="endgame-fact endgame-fact-mvp">
                 <img src={`/assets/cards/${getCard(mvp.cardId).designId}.png`} alt="" />
                 <div>
-                  <div className="endgame-fact-label">{viewer === null ? `${labels[0]}'s MVP card` : 'Your MVP card'}</div>
+                  <div className="endgame-fact-label">{viewer === null ? `${labels[me]}'s MVP card` : 'Your MVP card'}</div>
                   <div className="endgame-fact-value">{cardName(mvp.cardId)}</div>
                   <div className="endgame-fact-detail">+{mvp.gold}g net over {mvp.plays} {mvp.plays === 1 ? 'play' : 'plays'}</div>
                 </div>
