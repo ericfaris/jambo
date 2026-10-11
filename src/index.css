@@ -2127,3 +2127,86 @@ button.brown:hover:not(:disabled) {
   .coin-toss-spinning, .coin-toss-spinning + .coin-toss-shadow, .turn-sweep-band { animation: none; }
   .utility-card { transition: none; }
 }
+
+/* --- Endgame story (2026-10-11, step 10) --------------------------------- */
+.endgame-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(20,10,5,0.92);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  overflow-y: auto;
+}
+.endgame-card {
+  position: relative;
+  width: min(560px, 100%);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  background: rgba(20,10,5,0.95);
+  border: 2px solid var(--gold);
+  border-radius: 16px;
+  padding: 24px 24px 20px;
+  text-align: center;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.55);
+}
+.endgame-eyebrow { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-muted); }
+.endgame-title { font-family: var(--font-heading); font-size: clamp(30px, 7vw, 42px); margin: 4px 0 10px; text-shadow: 0 2px 12px rgba(0,0,0,0.6); }
+.endgame-scores { display: flex; justify-content: center; gap: 24px; align-items: center; margin-bottom: 8px; }
+.endgame-score-label { font-family: var(--font-heading); font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.4px; color: var(--text-muted); }
+.endgame-score { font-family: var(--font-heading); font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.endgame-score-0 { color: var(--gold); }
+.endgame-score-1 { color: #d4a574; }
+.endgame-vs { color: var(--text-muted); }
+.gold-chart { margin: 4px 0 12px; }
+.gold-chart svg { width: 100%; height: auto; display: block; }
+.gold-chart-grid { stroke: rgba(122,90,62,0.35); stroke-width: 1; }
+.gold-chart-goal { stroke: var(--gold-dim); stroke-width: 1; stroke-dasharray: 4 3; }
+.gold-chart-axis { font-size: 9px; fill: var(--text-muted); font-family: var(--font-body); }
+.gold-chart-goal-label { fill: var(--gold); }
+.gold-chart-line { stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; }
+.gold-chart-line-0 { stroke: var(--gold); }
+.gold-chart-line-1 { stroke: #b98a5e; }
+.gold-chart-end-0 { fill: var(--gold); }
+.gold-chart-end-1 { fill: #b98a5e; }
+.gold-chart-mark { fill: none; stroke: #fff3c4; stroke-width: 1.5; }
+.gold-chart-legend { display: flex; justify-content: center; gap: 16px; font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.gold-chart-key::before { content: ''; display: inline-block; width: 14px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+.gold-chart-key-0::before { background: var(--gold); }
+.gold-chart-key-1::before { background: #b98a5e; }
+.endgame-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; text-align: left; }
+.endgame-fact { background: rgba(255,255,255,0.04); border: 1px solid rgba(122,90,62,0.45); border-radius: 10px; padding: 8px 10px; min-width: 0; }
+.endgame-fact-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); }
+.endgame-fact-value { font-family: var(--font-heading); font-size: 20px; font-weight: 700; color: var(--text); }
+.endgame-fact-detail { font-size: 12px; color: var(--text-muted); }
+.endgame-fact-mvp { display: flex; gap: 10px; align-items: center; }
+.endgame-fact-mvp img { width: 44px; height: 58px; object-fit: cover; border-radius: 5px; box-shadow: 0 2px 8px rgba(0,0,0,0.5); }
+.endgame-record { font-size: 13px; color: var(--text-muted); margin-bottom: 12px; }
+.endgame-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.endgame-actions button { font-size: 17px; padding: 11px 26px; }
+@media (max-width: 420px) {
+  .endgame-card { padding: 18px 14px 16px; }
+  .endgame-facts { grid-template-columns: 1fr; }
+}
+/* A win rains coins */
+.coin-shower { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.coin-shower-coin {
+  position: absolute;
+  top: -30px;
+  left: calc((var(--i) * 6.1%) + 2%);
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff3c4, #e8b94e 45%, #9a6a1c 100%);
+  border: 1px solid #6e4a12;
+  animation: coin-fall calc(1.8s + (var(--i) * 0.07s)) cubic-bezier(0.4, 0, 0.8, 0.6) calc(var(--i) * 0.11s) both;
+}
+@keyframes coin-fall {
+  0% { transform: translateY(0) rotateY(0deg); opacity: 1; }
+  85% { opacity: 1; }
+  100% { transform: translateY(105vh) rotateY(720deg); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .coin-shower { display: none; } }

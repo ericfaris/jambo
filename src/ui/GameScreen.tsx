@@ -26,6 +26,9 @@ import { FlightLayer } from './FlightLayer.tsx';
 import { TurnSweep } from './TurnSweep.tsx';
 import { computeHandHints, endTurnBonus } from './handHints.ts';
 import { EndgameOverlay } from './EndgameOverlay.tsx';
+import { FirstPlayerReveal } from './FirstPlayerReveal.tsx';
+import { buildGameStory } from './gameStory.ts';
+import { createStartingState } from '../persistence/replayLog.ts';
 import { ResolveMegaView } from './ResolveMegaView.tsx';
 import { isHandInteraction } from './HandReferenceStrip.tsx';
 import { MegaView } from './MegaView.tsx';
@@ -51,6 +54,7 @@ import { fitCardsToBox, fitMarketSlots } from './fitLayout.ts';
 type AnimationSpeed = 'normal' | 'fast';
 const SOLO_LABELS = ['You', 'Opponent'] as const;
 const HOTSEAT_LABELS = ['Player 1', 'Player 2'] as const;
+const ENDGAME_SOLO_LABELS = ['You', 'AI'] as const;
 const ANIMATION_SPEED_STORAGE_KEY = 'jambo.animationSpeed';
 const DEV_TELEMETRY_STORAGE_KEY = 'jambo.devTelemetry';
 const HIGH_CONTRAST_STORAGE_KEY = 'jambo.highContrast';
@@ -123,6 +127,8 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
     }
   });
   const [logOpen, setLogOpen] = useState(false);
+  // Rematch: a fresh coin toss decides who goes first (as from the menu)
+  const [rematchReveal, setRematchReveal] = useState<0 | 1 | null>(null);
   const [logPinnedPref, setLogPinnedPref] = useState(() => getInitialLogPinned());
   // Log length when the drawer was last open — newer opponent entries are "unread"
   const [logSeenLength, setLogSeenLength] = useState(() => state.log.length);
@@ -401,7 +407,8 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   const aiPlanRef = useRef<{ state: typeof state; action: GameAction | null } | null>(null);
 
   useEffect(() => {
-    if (!shouldAiAct({ isAiTurn, showTutorial, attempts: aiAttemptRef.current })) return;
+    // never behind the tutorial or a rematch's coin toss
+    if (!shouldAiAct({ isAiTurn, showTutorial: showTutorial || rematchReveal !== null, attempts: aiAttemptRef.current })) return;
     // Hold while the opponent's last play is still being announced
     if (spotlightActive) return;
 
@@ -427,7 +434,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
       clearTimeout(planTimer);
       if (dispatchTimer) clearTimeout(dispatchTimer);
     };
-  }, [isAiTurn, state, dispatch, error, aiDifficulty, showTutorial, spotlightActive, aiSpeed]);
+  }, [isAiTurn, state, dispatch, error, aiDifficulty, showTutorial, spotlightActive, aiSpeed, rematchReveal]);
 
   // Auto-open draw modal when entering draw phase
   useEffect(() => {
@@ -493,6 +500,27 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   });
 
   const lastLog = state.log.length > 0 ? state.log[state.log.length - 1] : null;
+  // The story of a finished game: replayed from the seeded start
+  const isGameOver = state.phase === 'GAME_OVER';
+  const gameStory = useMemo(() => {
+    if (!isGameOver) return null;
+    try {
+      return buildGameStory(createStartingState(state.rngSeed, startingPlayer), replayActions);
+    } catch {
+      return null;
+    }
+  }, [isGameOver, state.rngSeed, startingPlayer, replayActions]);
+  const endgameRecord = useMemo(() => {
+    if (localMultiplayer || !diffBreakdown) return null;
+    const row = diffBreakdown.find((d) => d.difficulty === aiDifficulty);
+    return row ? { wins: row.humanWins, losses: row.aiWins } : null;
+  }, [localMultiplayer, diffBreakdown, aiDifficulty]);
+  const handleRematch = useCallback(() => {
+    const first: 0 | 1 = Math.random() < 0.5 ? 0 : 1;
+    newGame(undefined, first);
+    setRematchReveal(first);
+  }, [newGame]);
+  const handleRematchRevealDone = useCallback(() => setRematchReveal(null), []);
   const handHints = useMemo(() => computeHandHints(state, viewerPlayer), [state, viewerPlayer]);
   const turnBonus = endTurnBonus(state.actionsLeft);
   const supplyAlert = supplyWareFromError(cardError?.message);
@@ -1466,7 +1494,19 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
       )}
 
       {/* Endgame overlay */}
-      <EndgameOverlay state={state} onNewGame={() => newGame()} onMainMenu={onBackToMenu} />
+      <EndgameOverlay
+        state={state}
+        story={gameStory}
+        labels={localMultiplayer ? HOTSEAT_LABELS : ENDGAME_SOLO_LABELS}
+        viewer={localMultiplayer ? null : 0}
+        onRematch={handleRematch}
+        rematchLabel={localMultiplayer ? 'Rematch' : `Rematch · ${aiDifficulty.charAt(0).toUpperCase()}${aiDifficulty.slice(1)}`}
+        onMainMenu={onBackToMenu}
+        record={endgameRecord}
+      />
+      {rematchReveal !== null && (
+        <FirstPlayerReveal firstPlayer={rematchReveal} onComplete={handleRematchRevealDone} localMultiplayer={localMultiplayer} />
+      )}
 
       {/* Resolve mega view — also stay visible during drafts when AI is picking */}
       {shouldShowResolvePanel(hasPendingInteraction, isAiTurn, state.pendingResolution?.type, spotlightActive && state.currentPlayer !== viewerPlayer) && (
@@ -1486,7 +1526,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
         log={state.log}
         viewer={viewerPlayer}
         actorLabel="Opponent"
-        enabled={!localMultiplayer}
+        enabled={!localMultiplayer && state.phase !== 'GAME_OVER'}
         onActiveChange={setSpotlightActive}
         unobtrusive={state.currentPlayer === viewerPlayer}
         onCurrentChange={handleSpotlightCurrent}

@@ -112,6 +112,12 @@ export function OpponentPlaySpotlight({ log, viewer, actorLabel, enabled = true,
     if (fresh.length > 0) setQueue((q) => [...q, ...fresh]);
   }, [log, viewer, actorLabel, enabled]);
 
+  // Switched off (game over, hotseat): drop anything still waiting so it
+  // never plays over the results screen
+  useEffect(() => {
+    if (!enabled) setQueue([]);
+  }, [enabled]);
+
   const current = queue[0] ?? null;
   const queued = queue.length > 1;
 
