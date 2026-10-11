@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import { FEEDBACK_TIMINGS } from './animationTimings.ts';
 import { describeTrailTag, formatLogRecap, formatTurnOwner } from './uiHints.ts';
+import { finalTurnStatus } from './endgameHints.ts';
 import { deckThicknessShadow, discardGhostPoses, useJustSpent } from './life.tsx';
 
 interface CenterRowProps {
@@ -262,7 +263,7 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
         </div>
         {state.endgame && (
           <div style={{ fontSize: 12, color: '#c04030', fontWeight: 700, marginTop: 2 }}>
-            {state.endgame.isFinalTurn ? 'FINAL TURN!' : 'Endgame triggered!'}
+            {finalTurnStatus(state, actorLabels) ?? (state.endgame.isFinalTurn ? 'FINAL TURN!' : 'Endgame triggered!')}
           </div>
         )}
         {/* Action tokens */}

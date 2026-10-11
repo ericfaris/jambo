@@ -18,6 +18,8 @@ import { InteractionPanel } from './InteractionPanel.tsx';
 import { ActionLogButton, ActionLogDrawer } from './ActionLogDrawer.tsx';
 import { OpponentPlaySpotlight } from './OpponentPlaySpotlight.tsx';
 import { countUnread } from './actionLog.ts';
+import { GoldTrack } from './GoldTrack.tsx';
+import { FinalTurnBanner } from './FinalTurnBanner.tsx';
 import { computeHandHints, endTurnBonus } from './handHints.ts';
 import { EndgameOverlay } from './EndgameOverlay.tsx';
 import { ResolveMegaView } from './ResolveMegaView.tsx';
@@ -636,8 +638,9 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
         return (
           <div className="player-shell phone-game">
             <div className="player-topbar">
-              <span key={`my-gold-${myGoldDelta}`} className={`player-gold${myGoldDelta !== 0 ? ' gold-pop gold-pop-soft' : ''}`} style={{ position: 'relative' }} aria-label={`${viewer.gold} gold`}>
+              <span key={`my-gold-${myGoldDelta}`} className={`player-gold${myGoldDelta !== 0 ? ' gold-pop gold-pop-soft' : ''}`} style={{ position: 'relative', display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-start' }} aria-label={`${viewer.gold} gold`}>
                 <GoldCount value={viewer.gold} />
+                <GoldTrack gold={viewer.gold} width={44} compact />
                 {myGoldDelta !== 0 && (
                   <span className="gold-delta-text gold-delta-text-soft" style={{
                     position: 'absolute', top: -12, right: -26, fontSize: 12, fontWeight: 700,
@@ -890,6 +893,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
                   </span>
                 )}
               </span>
+              <GoldTrack gold={state.players[viewerPlayer].gold} />
               <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>
                 {state.players[viewerPlayer].hand.length} {state.players[viewerPlayer].hand.length === 1 ? 'card' : 'cards'} in hand
               </span>
@@ -1457,6 +1461,8 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
         onActiveChange={setSpotlightActive}
         unobtrusive={state.currentPlayer === viewerPlayer}
       />
+
+      <FinalTurnBanner state={state} labels={logLabels} />
 
       {/* Action log: left tab on desktop, topbar button on phones */}
       {!isPhone && !logPinned && <ActionLogButton onClick={() => setLogOpen(true)} unread={logUnread} />}

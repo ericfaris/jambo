@@ -5,6 +5,7 @@ import { UtilityArea, UtilityChips } from './UtilityArea.tsx';
 import type { DeckCardId } from '../engine/types.ts';
 import { SpeechBubble } from './SpeechBubble.tsx';
 import { GoldCount, OpponentHandFan } from './life.tsx';
+import { GoldTrack } from './GoldTrack.tsx';
 
 interface OpponentAreaProps {
   player: PlayerState;
@@ -58,6 +59,7 @@ function OpponentAreaComponent({ player, aiMessage, onMessageHide, goldDelta = 0
             {goldEl}
             <span className="ui-helper-text">{player.hand.length} cards</span>
           </div>
+          <GoldTrack gold={player.gold} width="100%" compact />
           <MarketDisplay
             market={player.market}
             flashSlots={marketFlashSlots}
@@ -112,6 +114,7 @@ function OpponentAreaComponent({ player, aiMessage, onMessageHide, goldDelta = 0
               {player.hand.length} {player.hand.length === 1 ? 'card' : 'cards'}
             </span>
           </div>
+          <GoldTrack gold={player.gold} />
           <OpponentHandFan count={player.hand.length} thinking={isActive} />
         </div>
       </div>

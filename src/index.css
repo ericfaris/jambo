@@ -1869,3 +1869,73 @@ button.brown:hover:not(:disabled) {
   line-height: 1.5;
   vertical-align: 1px;
 }
+
+/* --- Race to 60: brass track under each gold total ---------------------- */
+.gold-track {
+  position: relative;
+  height: 6px;
+  margin-top: 3px;
+  border-radius: 3px;
+  background: rgba(20,10,5,0.75);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.6), 0 0 0 1px rgba(184,138,56,0.35);
+}
+.gold-track-compact { height: 4px; margin-top: 2px; }
+.gold-track-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #8a6420, var(--gold) 70%, #f3d58a);
+  transition: width 650ms var(--anim-ease-standard);
+}
+.gold-track-goal {
+  position: absolute;
+  right: 0;
+  top: 8px;
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: 0.4px;
+  color: var(--text-muted);
+}
+.gold-track:not(.gold-track-compact) { margin-bottom: 10px; }
+.gold-track-reached .gold-track-fill {
+  background: linear-gradient(90deg, var(--gold), #ffe7a3);
+  box-shadow: 0 0 8px rgba(239,193,101,0.8);
+}
+
+/* --- Final turn banner --------------------------------------------------- */
+.final-turn-banner {
+  position: fixed;
+  inset: 0;
+  z-index: 8700;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+}
+.final-turn-banner-band {
+  width: 100%;
+  padding: 18px 16px;
+  text-align: center;
+  background: linear-gradient(90deg, transparent, rgba(120,24,14,0.92) 18%, rgba(150,32,18,0.95) 50%, rgba(120,24,14,0.92) 82%, transparent);
+  border-block: 1px solid rgba(255,140,110,0.6);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  animation: final-turn-sweep 3200ms var(--anim-ease-standard) both;
+}
+.final-turn-headline {
+  font-family: var(--font-heading);
+  font-size: clamp(26px, 5vw, 40px);
+  font-weight: 700;
+  color: #ffe7c2;
+  letter-spacing: 1px;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.6);
+}
+.final-turn-detail { font-size: clamp(14px, 2.6vw, 18px); color: #ffd7c4; margin-top: 2px; }
+@keyframes final-turn-sweep {
+  0% { opacity: 0; transform: translateX(-12%) scaleY(0.6); }
+  12% { opacity: 1; transform: none; }
+  85% { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: translateX(8%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .final-turn-banner-band { animation: none; }
+  .gold-track-fill { transition: none; }
+}
