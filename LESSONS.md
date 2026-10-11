@@ -336,3 +336,20 @@ overwrites tracked files.)
   mapping them through filled wares in screen order was the source of every
   "Dancer UI_GAP" for two sessions. Verify a recurring finding with real
   clicks before writing it off as timing.
+
+## 2026-10-11 — Endgame story (v1.9.0) and named traders (v1.10.0)
+- **Gold history from the replay, not the log**: the log has no totals, but
+  the engine is deterministic — `buildGameStory()` replays recorded actions
+  from `createStartingState(seed, startingPlayer)`; it must tolerate a
+  replay that stops applying (tell the story so far).
+- **Character art with consistent expressions**: generate the neutral
+  portrait once, then make pleased/annoyed with `precise_edit_ideogram_4_5`
+  ("change only the facial expression…"). Generating each mood separately
+  would give three different people.
+- **Voice lines in one take**: put all of a character's lines in one
+  eleven_v3 request separated by `[long pause]` and split on silence — 4
+  calls instead of 24, one consistent read. Silence thresholds vary per
+  voice (Amara needed −28 dB, others −38), and a mid-line breath can split a
+  line in two — merge trailing fragments.
+- Anything queued for "the opponent's last play" (spotlights) must be
+  dropped at GAME_OVER or it plays over the results screen.

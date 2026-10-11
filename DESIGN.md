@@ -542,6 +542,26 @@ existing set already covers the full identity; this pass's job was
 documenting it, fixing one duplication, and identifying the SFX gap.
 
 ## Changelog
+### 2026-10-11 — Named traders (v1.10.0)
+- Each AI level is a character (`ai/traders.ts`): Kito (Easy, apprentice),
+  Amara (Medium, cloth weaver), Baraka (Hard, spice merchant), Mama Zawadi
+  (Expert, market matriarch). Names replace "Opponent" everywhere in solo.
+- Portraits: `public/assets/traders/{id}-{neutral|pleased|annoyed}.webp`
+  (320px, ~25 KB). Ideogram 4 head-and-shoulders in the card-art register
+  (bold ink outlines, warm flat colour, sunlit market behind); expressions
+  are `precise_edit_ideogram_4_5` edits of the neutral image so identity,
+  clothes and background hold. `TraderPortrait` stacks all three and
+  cross-fades; the ring turns gold (pleased) / rust (annoyed) and pulses
+  while speaking.
+- Voices: `public/audio/traders/{id}-{greet|big-sale|attack|blocked|win|lose}.mp3`
+  — ElevenLabs eleven_v3, one take per trader with all six lines separated
+  by `[long pause]`, split on silence, faded and peak-normalised to −2 dB.
+  Voices: Josh (Kito), Amara (Amara), Kelechi (Baraka), "Monique African
+  Queen" (Mama Zawadi). 12s cooldown except greet / blocked / win / lose;
+  they duck the music; Settings › Trader Voices.
+- Setup screen: "Choose your trader" cards (portrait, name, level, play
+  style; 2×2 on phones).
+
 ### 2026-10-11 — Endgame story + Rematch (v1.9.0)
 - `EndgameOverlay` tells the game's story from `buildGameStory()`
   (`ui/gameStory.ts`: replays the recorded actions from the seeded start —
