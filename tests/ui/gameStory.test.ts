@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { createElement } from 'react';
 import { buildGameStory } from '../../src/ui/gameStory.ts';
 import { chartScale, GoldChart } from '../../src/ui/GoldChart.tsx';
-import { EndgameOverlay, winnerHeadline } from '../../src/ui/EndgameOverlay.tsx';
+import { EndgameOverlay, winnerHeadline, midSentence } from '../../src/ui/EndgameOverlay.tsx';
 import { createStartingState } from '../../src/persistence/replayLog.ts';
 import { processAction } from '../../src/engine/GameEngine.ts';
 import { getAiActionByDifficulty } from '../../src/ai/difficulties/index.ts';
@@ -111,5 +111,12 @@ describe('endgame overlay', () => {
     const winner = html.match(/Player ([12]) wins!/)![1];
     // the facts follow the winner, not always Player 1
     if (html.includes('MVP card')) expect(html).toContain(`Player ${winner}&#x27;s MVP card`);
+  });
+});
+
+describe('endgame copy', () => {
+  it('"You" mid-sentence reads "you"; names stay capitalized', () => {
+    expect(midSentence('You')).toBe('you');
+    expect(midSentence('Mama Zawadi')).toBe('Mama Zawadi');
   });
 });

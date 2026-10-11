@@ -2155,7 +2155,8 @@ button.brown:hover:not(:disabled) {
 }
 .endgame-eyebrow { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-muted); }
 .endgame-title { font-family: var(--font-heading); font-size: clamp(30px, 7vw, 42px); margin: 4px 0 10px; text-shadow: 0 2px 12px rgba(0,0,0,0.6); }
-.endgame-scores { display: flex; justify-content: center; gap: 24px; align-items: center; margin-bottom: 8px; }
+.endgame-scores { display: flex; justify-content: center; gap: 24px; align-items: flex-end; margin-bottom: 8px; }
+.endgame-vs { align-self: center; }
 .endgame-score-label { font-family: var(--font-heading); font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.4px; color: var(--text-muted); }
 .endgame-score { font-family: var(--font-heading); font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .endgame-score-0 { color: var(--gold); }

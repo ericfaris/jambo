@@ -30,6 +30,11 @@ export function winnerHeadline(winner: 0 | 1 | null, labels: readonly [string, s
   return labels[winner] === 'You' ? 'You win!' : `${labels[winner]} wins!`;
 }
 
+/** "You" mid-sentence reads "you". */
+export function midSentence(label: string): string {
+  return label === 'You' ? 'you' : label;
+}
+
 function cardName(id: DeckCardId): string {
   return getCard(id).name;
 }
@@ -87,7 +92,7 @@ export function EndgameOverlay({ state, story = null, labels = ['You', 'AI'], vi
               <div className="endgame-fact">
                 <div className="endgame-fact-label">Biggest swing</div>
                 <div className="endgame-fact-value">Turn {swing.turn}</div>
-                <div className="endgame-fact-detail">{labels[swing.player]} gained {swing.gain}g on {swing.player === 0 ? labels[1] : labels[0]}</div>
+                <div className="endgame-fact-detail">{labels[swing.player]} gained {swing.gain}g on {midSentence(swing.player === 0 ? labels[1] : labels[0])}</div>
               </div>
             )}
             {payday && (
