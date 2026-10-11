@@ -18,9 +18,11 @@ import { InteractionPanel } from './InteractionPanel.tsx';
 import { ActionLogButton, ActionLogDrawer } from './ActionLogDrawer.tsx';
 import { OpponentPlaySpotlight } from './OpponentPlaySpotlight.tsx';
 import { countUnread } from './actionLog.ts';
+import type { PlaySpotlight } from './actionLog.ts';
 import { GoldTrack } from './GoldTrack.tsx';
 import { WareSupply, supplyWareFromError } from './WareSupply.tsx';
 import { FinalTurnBanner } from './FinalTurnBanner.tsx';
+import { FlightLayer } from './FlightLayer.tsx';
 import { computeHandHints, endTurnBonus } from './handHints.ts';
 import { EndgameOverlay } from './EndgameOverlay.tsx';
 import { ResolveMegaView } from './ResolveMegaView.tsx';
@@ -122,6 +124,10 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   // Log length when the drawer was last open — newer opponent entries are "unread"
   const [logSeenLength, setLogSeenLength] = useState(() => state.log.length);
   const [spotlightActive, setSpotlightActive] = useState(false);
+  const [spotlitDiscard, setSpotlitDiscard] = useState<DeckCardId | null>(null);
+  const handleSpotlightCurrent = useCallback((spot: PlaySpotlight | null) => {
+    setSpotlitDiscard(spot && spot.destination === 'discard' ? spot.cardId : null);
+  }, []);
   const [menuOpen, setMenuOpen] = useState(false);
   const [drawModalOpen, setDrawModalOpen] = useState(false);
   const [cardError, setCardError] = useState<{cardId: DeckCardId, message: string} | null>(null);
@@ -640,7 +646,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
         return (
           <div className="player-shell phone-game">
             <div className="player-topbar">
-              <span key={`my-gold-${myGoldDelta}`} className={`player-gold${myGoldDelta !== 0 ? ' gold-pop gold-pop-soft' : ''}`} style={{ position: 'relative', display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-start' }} aria-label={`${viewer.gold} gold`}>
+              <span key={`my-gold-${myGoldDelta}`} data-gold-anchor={viewerPlayer} className={`player-gold${myGoldDelta !== 0 ? ' gold-pop gold-pop-soft' : ''}`} style={{ position: 'relative', display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-start' }} aria-label={`${viewer.gold} gold`}>
                 <GoldCount value={viewer.gold} />
                 <GoldTrack gold={viewer.gold} width={44} compact />
                 {myGoldDelta !== 0 && (
@@ -679,6 +685,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
 
             <div className={`phone-opp-wrap turn-emphasis ${state.currentPlayer === opponentPlayer ? 'turn-emphasis-active' : 'turn-emphasis-inactive'}`} data-center-target="top">
               <OpponentArea
+                seat={opponentPlayer}
                 compact
                 player={opponent}
                 aiMessage={state.phase === 'GAME_OVER' || spotlightActive ? '' : aiMessage}
@@ -693,7 +700,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
               />
             </div>
 
-            <CenterRow compact state={state} dispatch={dispatch} isLocalMode={true} showGlow={false} visualFeedback={visualFeedback} actorLabels={localMultiplayer ? ['Player 1', 'Player 2'] : ['You', 'Opponent']} hiddenPlayer={opponentPlayer} spotlitPlayer={localMultiplayer ? null : opponentPlayer} />
+            <CenterRow compact state={state} dispatch={dispatch} isLocalMode={true} showGlow={false} visualFeedback={visualFeedback} actorLabels={localMultiplayer ? ['Player 1', 'Player 2'] : ['You', 'Opponent']} hiddenPlayer={opponentPlayer} spotlitPlayer={localMultiplayer ? null : opponentPlayer} heldDiscardCard={spotlitDiscard} />
             <WareSupply supply={state.wareSupply} compact highlight={supplyAlert} />
 
             {playActionsDisabled && state.phase === 'PLAY' && playDisabledReason && (
@@ -709,6 +716,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
               </div>
               <div style={{ flexShrink: 0 }}>
                 <MarketDisplay
+                  owner={viewerPlayer}
                   market={viewer.market}
                   flashSlots={visualFeedback.marketFlashSlots[viewerPlayer]}
                   flashVariant="soft"
@@ -754,7 +762,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
                   <span className="ui-helper-text">{state.actionsLeft} action{state.actionsLeft === 1 ? '' : 's'} left</span>
                 )}
               </div>
-              <div ref={phoneHandRef} className="player-hand-box">
+              <div ref={phoneHandRef} className="player-hand-box" data-hand-anchor={viewerPlayer}>
                 <HandDisplay
                   hand={viewer.hand}
                   onPlayCard={handlePlayCard}
@@ -800,6 +808,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
           backdropFilter: 'blur(3px)',
         }} data-center-target="top">
           <OpponentArea
+            seat={opponentPlayer}
             player={state.players[opponentPlayer]}
             aiMessage={state.phase === 'GAME_OVER' || spotlightActive ? '' : aiMessage}
             onMessageHide={handleAiMessageHide}
@@ -822,6 +831,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
             actorLabels={localMultiplayer ? ['Player 1', 'Player 2'] : ['You', 'Opponent']}
             hiddenPlayer={opponentPlayer}
             spotlitPlayer={localMultiplayer ? null : opponentPlayer}
+            heldDiscardCard={spotlitDiscard}
             supplySlot={<WareSupply supply={state.wareSupply} highlight={supplyAlert} />}
             endTurnSlot={state.phase === 'PLAY' && state.currentPlayer === viewerPlayer ? (
               <button
@@ -847,6 +857,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
           {/* Player board: market · utilities · you (name, gold, turn modifiers) */}
           <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', padding: '2px 4px 10px' }}>
             <MarketDisplay
+              owner={viewerPlayer}
               market={state.players[viewerPlayer].market}
               flashSlots={visualFeedback.marketFlashSlots[viewerPlayer]}
               flashVariant="soft"
@@ -882,7 +893,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
               }}>
                 {localMultiplayer ? `Player ${viewerPlayer + 1}` : 'You'}{state.currentPlayer === viewerPlayer && ' · your turn'}
               </span>
-              <span key={`my-gold-${visualFeedback.goldDeltas[viewerPlayer]}`} className={visualFeedback.goldDeltas[viewerPlayer] !== 0 ? 'gold-pop gold-pop-soft' : undefined} style={{ fontFamily: 'var(--font-heading)', color: 'var(--gold)', fontWeight: 700, fontSize: 34, lineHeight: 1.1, textShadow: '0 0 10px rgba(212,168,80,0.4)', position: 'relative' }} aria-label={`${state.players[viewerPlayer].gold} gold`}>
+              <span key={`my-gold-${visualFeedback.goldDeltas[viewerPlayer]}`} data-gold-anchor={viewerPlayer} className={visualFeedback.goldDeltas[viewerPlayer] !== 0 ? 'gold-pop gold-pop-soft' : undefined} style={{ fontFamily: 'var(--font-heading)', color: 'var(--gold)', fontWeight: 700, fontSize: 34, lineHeight: 1.1, textShadow: '0 0 10px rgba(212,168,80,0.4)', position: 'relative' }} aria-label={`${state.players[viewerPlayer].gold} gold`}>
                 <GoldCount value={state.players[viewerPlayer].gold} />
                 {visualFeedback.goldDeltas[viewerPlayer] !== 0 && (
                   <span className="gold-delta-text gold-delta-text-soft" style={{
@@ -924,7 +935,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
           {/* Player hand */}
           <div style={{
             marginBottom: 10,
-          }}>
+          }} data-hand-anchor={viewerPlayer}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
             <div className="panel-section-title" style={{ fontSize: 15, marginBottom: 0 }}>
               {localMultiplayer ? `Player ${viewerPlayer + 1} Hand` : 'Your Hand'}
@@ -1464,9 +1475,18 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
         enabled={!localMultiplayer}
         onActiveChange={setSpotlightActive}
         unobtrusive={state.currentPlayer === viewerPlayer}
+        onCurrentChange={handleSpotlightCurrent}
       />
 
       <FinalTurnBanner state={state} labels={logLabels} />
+
+      {/* Wares, coins and cards travel between markets, supply, gold and hands */}
+      <FlightLayer
+        state={state}
+        viewer={viewerPlayer}
+        spotlightEnabled={!localMultiplayer}
+        spotlightActive={spotlightActive}
+      />
 
       {/* Action log: left tab on desktop, topbar button on phones */}
       {!isPhone && !logPinned && <ActionLogButton onClick={() => setLogOpen(true)} unread={logUnread} />}

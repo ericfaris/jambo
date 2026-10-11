@@ -62,6 +62,9 @@ interface OpponentPlaySpotlightProps {
    *  show a smaller card up over the opponent's side and let every tap
    *  through, so the announcement never blocks the viewer's own moves. */
   unobtrusive?: boolean;
+  /** The card on screen (or null) — the discard pile holds it back until
+   *  the spotlight lands there. */
+  onCurrentChange?: (spot: PlaySpotlight | null) => void;
 }
 
 type Phase = 'enter' | 'hold' | 'exit';
@@ -72,7 +75,7 @@ type Phase = 'enter' | 'hold' | 'exit';
  * opponent's utility row for utilities). Purely presentational: it never
  * blocks input — tap the card to skip ahead.
  */
-export function OpponentPlaySpotlight({ log, viewer, actorLabel, enabled = true, onActiveChange, unobtrusive = false }: OpponentPlaySpotlightProps) {
+export function OpponentPlaySpotlight({ log, viewer, actorLabel, enabled = true, onActiveChange, unobtrusive = false, onCurrentChange }: OpponentPlaySpotlightProps) {
   // Entries already in the log when we mount (a resumed game) are history.
   const seenRef = useRef(log.length);
   const [queue, setQueue] = useState<PlaySpotlight[]>([]);
@@ -98,7 +101,8 @@ export function OpponentPlaySpotlight({ log, viewer, actorLabel, enabled = true,
 
   useEffect(() => {
     onActiveChange?.(current !== null);
-  }, [current, onActiveChange]);
+    onCurrentChange?.(current);
+  }, [current, onActiveChange, onCurrentChange]);
   useEffect(() => () => onActiveChange?.(false), [onActiveChange]);
 
   // Drive enter → hold → exit → next.

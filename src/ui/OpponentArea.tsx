@@ -23,11 +23,13 @@ interface OpponentAreaProps {
   marketColumns?: number;
   /** It's this player's turn (their card backs shuffle, name lights up). */
   isActive?: boolean;
+  /** This player's seat — anchors for the trade animations. */
+  seat?: 0 | 1;
 }
 
-function OpponentAreaComponent({ player, aiMessage, onMessageHide, goldDelta = 0, marketFlashSlots, label = 'Opponent (AI)', compact = false, onMegaView, slotSize = 26, marketColumns, isActive = false }: OpponentAreaProps) {
+function OpponentAreaComponent({ player, aiMessage, onMessageHide, goldDelta = 0, marketFlashSlots, label = 'Opponent (AI)', compact = false, onMegaView, slotSize = 26, marketColumns, isActive = false, seat }: OpponentAreaProps) {
   const goldEl = (
-    <span key={`opp-gold-${goldDelta}`} className={goldDelta !== 0 ? 'gold-pop gold-pop-strong' : undefined} style={{ color: 'var(--gold)', fontWeight: 700, fontSize: compact ? 15 : 20, fontFamily: 'var(--font-heading)', position: 'relative' }} aria-label={`${player.gold} gold`}>
+    <span key={`opp-gold-${goldDelta}`} data-gold-anchor={seat} className={goldDelta !== 0 ? 'gold-pop gold-pop-strong' : undefined} style={{ color: 'var(--gold)', fontWeight: 700, fontSize: compact ? 15 : 20, fontFamily: 'var(--font-heading)', position: 'relative' }} aria-label={`${player.gold} gold`}>
       <GoldCount value={player.gold} />
       {goldDelta !== 0 && (
         <span className="gold-delta-text gold-delta-text-strong" style={{
@@ -57,7 +59,7 @@ function OpponentAreaComponent({ player, aiMessage, onMessageHide, goldDelta = 0
           <div className="phone-opp-head">
             <span className="phone-opp-name">{label}</span>
             {goldEl}
-            <span className="ui-helper-text">{player.hand.length} cards</span>
+            <span className="ui-helper-text" data-hand-anchor={seat}>{player.hand.length} cards</span>
           </div>
           <GoldTrack gold={player.gold} width="100%" compact />
           <MarketDisplay
@@ -68,6 +70,7 @@ function OpponentAreaComponent({ player, aiMessage, onMessageHide, goldDelta = 0
             tokenSize={Math.round(slotSize * 0.82)}
             columns={marketColumns}
             compact
+            owner={seat}
           />
           <div data-spotlight-target="opponent-utilities">
             <UtilityChips utilities={player.utilities} onMegaView={onMegaView} />
@@ -92,7 +95,7 @@ function OpponentAreaComponent({ player, aiMessage, onMessageHide, goldDelta = 0
         gap: 24,
         alignItems: 'flex-start',
       }}>
-        <MarketDisplay market={player.market} flashSlots={marketFlashSlots} flashVariant="strong" label="Market" />
+        <MarketDisplay market={player.market} flashSlots={marketFlashSlots} flashVariant="strong" label="Market" owner={seat} />
         {/* maxSlots reserves the row's height so the board never jumps when a utility lands */}
         <div data-spotlight-target="opponent-utilities">
           <UtilityArea utilities={player.utilities} disabled label="Utilities" cardSize="small" maxSlots={3} onMegaView={onMegaView} />
@@ -115,7 +118,9 @@ function OpponentAreaComponent({ player, aiMessage, onMessageHide, goldDelta = 0
             </span>
           </div>
           <GoldTrack gold={player.gold} />
-          <OpponentHandFan count={player.hand.length} thinking={isActive} />
+          <div data-hand-anchor={seat}>
+            <OpponentHandFan count={player.hand.length} thinking={isActive} />
+          </div>
         </div>
       </div>
     </div>

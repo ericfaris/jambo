@@ -28,9 +28,12 @@ interface MarketDisplayProps {
   disabledSlots?: number[];
   /** Tooltip / label for a disabled slot. */
   disabledReason?: string;
+  /** The board market of this seat: slots get data-market-slot anchors for
+   *  the trade animations. Omit for copies inside panels. */
+  owner?: 0 | 1;
 }
 
-function MarketDisplayComponent({ market, onSlotClick, selectedSlots, flashSlots, flashVariant = 'normal', label, columns, slotSize = 48, tokenSize, borderless, dashedBorder, compact = false, disabledSlots, disabledReason }: MarketDisplayProps) {
+function MarketDisplayComponent({ market, onSlotClick, selectedSlots, flashSlots, flashVariant = 'normal', label, columns, slotSize = 48, tokenSize, borderless, dashedBorder, compact = false, disabledSlots, disabledReason, owner }: MarketDisplayProps) {
   const isInteractive = !!onSlotClick;
 
   const sixthSpace = getSixthSpaceIndex(market);
@@ -61,7 +64,7 @@ function MarketDisplayComponent({ market, onSlotClick, selectedSlots, flashSlots
           const pickable = !!onSlotClick && !!ware && !disabledSlots?.includes(i);
           const disabled = !!onSlotClick && !!ware && !pickable;
           return (
-          <div key={i} title={disabled ? disabledReason : undefined} aria-disabled={disabled || undefined} className={`${borderless || dashedBorder ? '' : 'market-slot'}${flashSlots?.includes(i) ? ` market-slot-flash market-slot-flash-${flashVariant}` : ''}`} style={{
+          <div key={i} data-market-slot={owner !== undefined ? `${owner}-${i}` : undefined} title={disabled ? disabledReason : undefined} aria-disabled={disabled || undefined} className={`${borderless || dashedBorder ? '' : 'market-slot'}${flashSlots?.includes(i) ? ` market-slot-flash market-slot-flash-${flashVariant}` : ''}`} style={{
             width: slotSize,
             height: slotSize,
             borderRadius: compact ? 6 : 8,

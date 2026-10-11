@@ -24,13 +24,16 @@ interface CenterRowProps {
   compact?: boolean;
   /** Desktop: the End Turn control, pinned to the right end of the row. */
   endTurnSlot?: ReactNode;
+  /** A card still being announced by the spotlight: the pile shows what was
+   *  under it until the spotlight lands, so the hand-off reads. */
+  heldDiscardCard?: string | null;
   /** Desktop: the ware supply, pinned to the left end of the row. */
   supplySlot?: ReactNode;
   /** Seat whose face-up plays get the big spotlight — skip the duplicate recap pill. */
   spotlitPlayer?: 0 | 1 | null;
 }
 
-export function CenterRow({ state, isLocalMode = true, showGlow = false, visualFeedback, actorLabels = ['Player 1', 'Player 2'], hiddenPlayer = null, compact = false, endTurnSlot, supplySlot, spotlitPlayer = null }: CenterRowProps) {
+export function CenterRow({ state, isLocalMode = true, showGlow = false, visualFeedback, actorLabels = ['Player 1', 'Player 2'], hiddenPlayer = null, compact = false, endTurnSlot, supplySlot, spotlitPlayer = null, heldDiscardCard = null }: CenterRowProps) {
   const pileScale = compact ? 0.62 : 1;
   const pileW = Math.round(96 * pileScale);
   const pileH = Math.round(128 * pileScale);
@@ -47,7 +50,10 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
   const topDiscard = state.discardPile.length > 0
     ? state.discardPile[0]
     : null;
-  const [displayDiscardCard, setDisplayDiscardCard] = useState(topDiscard);
+  const [trailDiscardCard, setDisplayDiscardCard] = useState(topDiscard);
+  const displayDiscardCard = heldDiscardCard && trailDiscardCard === heldDiscardCard
+    ? (state.discardPile.find((c) => c !== heldDiscardCard) ?? null)
+    : trailDiscardCard;
   const [actionTag, setActionTag] = useState<string | null>(null);
   const [lastActionRecap, setLastActionRecap] = useState<string | null>(null);
   const rowRef = useRef<HTMLDivElement | null>(null);
