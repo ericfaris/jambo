@@ -12,7 +12,6 @@ import { describeLogEntry, formatLogRecap, humanizeLogDetails } from '../../src/
 import { shouldShowResolvePanel } from '../../src/ui/gameScreenLogic.ts';
 import { ActionLogButton, ActionLogDrawer } from '../../src/ui/ActionLogDrawer.tsx';
 import { OpponentPlaySpotlight, spotlightCardScale, spotlightDurationMs } from '../../src/ui/OpponentPlaySpotlight.tsx';
-import { CONSTANTS } from '../../src/engine/types.ts';
 import { extractPublicState } from '../../src/multiplayer/stateSplitter.ts';
 
 const LABELS = ['You', 'Opponent'] as const;
@@ -146,8 +145,8 @@ describe('opponent play spotlight', () => {
     expect(collectSpotlights(log, 0, 0, 'Opponent').map((s) => s.key)).toEqual([0, 3]);
   });
 
-  it('finishes each announcement before the AI acts again', () => {
-    expect(spotlightDurationMs(false)).toBeLessThan(CONSTANTS.AI_ACTION_DELAY_MS);
+  it('keeps each announcement short (the AI waits for it before moving on)', () => {
+    expect(spotlightDurationMs(false)).toBeLessThan(2500);
     expect(spotlightDurationMs(true)).toBeLessThan(spotlightDurationMs(false));
   });
 

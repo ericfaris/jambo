@@ -28,3 +28,55 @@ export function shouldShowResolvePanel(hasPendingInteraction: boolean, isAiTurn:
   if (spotlightActive) return false;
   return !isAiTurn || pendingType === 'DRAFT' || pendingType === 'AUCTION';
 }
+
+// ---------------------------------------------------------------------------
+// AI pacing (2026-10-11 review: a flat 3s per action made AI turns 15–20s,
+// most of it a still board while the AI drew and kept)
+// ---------------------------------------------------------------------------
+
+export type AiSpeed = 'relaxed' | 'normal' | 'brisk';
+export const AI_SPEEDS: readonly AiSpeed[] = ['relaxed', 'normal', 'brisk'];
+export const AI_SPEED_LABELS: Record<AiSpeed, string> = { relaxed: 'Relaxed', normal: 'Normal', brisk: 'Brisk' };
+
+/** Multiplies AI pauses and the opponent-play spotlight. */
+export const AI_SPEED_FACTOR: Record<AiSpeed, number> = { relaxed: 1.5, normal: 1, brisk: 0.6 };
+
+export function parseAiSpeed(value: string | null | undefined): AiSpeed {
+  return value === 'relaxed' || value === 'brisk' ? value : 'normal';
+}
+
+/**
+ * Pause before the AI performs `action`, at Normal speed. Hidden moves (draw,
+ * keep) are quick — nothing new is shown; face-up plays get a beat so the
+ * player sees them coming. The spotlight that follows a play is waited out
+ * separately (the AI holds while one is on screen).
+ */
+export const AI_BASE_DELAY_MS = {
+  hidden: 750,
+  choice: 1200,
+  play: 1200,
+  endTurn: 800,
+} as const;
+
+export function aiActionDelayMs(actionType: string, speed: AiSpeed = 'normal'): number {
+  let base: number;
+  switch (actionType) {
+    case 'DRAW_CARD':
+    case 'KEEP_CARD':
+    case 'DISCARD_DRAWN':
+    case 'SKIP_DRAW':
+      base = AI_BASE_DELAY_MS.hidden;
+      break;
+    case 'PLAY_CARD':
+    case 'ACTIVATE_UTILITY':
+      base = AI_BASE_DELAY_MS.play;
+      break;
+    case 'END_TURN':
+      base = AI_BASE_DELAY_MS.endTurn;
+      break;
+    default:
+      // RESOLVE_INTERACTION, reactions, cancels: a visible decision
+      base = AI_BASE_DELAY_MS.choice;
+  }
+  return Math.round(base * AI_SPEED_FACTOR[speed]);
+}

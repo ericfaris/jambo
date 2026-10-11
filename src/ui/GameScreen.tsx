@@ -6,8 +6,7 @@ import type { AIDifficulty } from '../ai/difficulties/index.ts';
 import { getAiActionDescription } from '../ai/aiActionDescriptions.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
 import { validatePlayCard, validateActivateUtility } from '../engine/validation/actionValidator.ts';
-import type { DeckCardId } from '../engine/types.ts';
-import { CONSTANTS } from '../engine/types.ts';
+import type { DeckCardId, GameAction } from '../engine/types.ts';
 import { getResponder } from '../engine/responder.ts';
 import { OpponentArea } from './OpponentArea.tsx';
 import { CenterRow } from './CenterRow.tsx';
@@ -26,7 +25,8 @@ import { MegaView } from './MegaView.tsx';
 import { TutorialOverlay } from './TutorialOverlay.tsx';
 import { ActionPips, AmbientLayer, GoldCount, applyAmbient, getInitialAmbient } from './life.tsx';
 import { PassDeviceScreen, needsHandoff } from './PassDeviceScreen.tsx';
-import { shouldAiAct, isWareDialogValid, shouldShowResolvePanel } from './gameScreenLogic.ts';
+import { shouldAiAct, isWareDialogValid, shouldShowResolvePanel, aiActionDelayMs, parseAiSpeed, AI_SPEEDS, AI_SPEED_LABELS } from './gameScreenLogic.ts';
+import type { AiSpeed } from './gameScreenLogic.ts';
 import { useVisualFeedback } from './useVisualFeedback.ts';
 import { getDrawDisabledReason, getPlayDisabledReason, friendlyPlayError } from './uiHints.ts';
 import { getVolume, setVolume as saveVolume, getMuted, setMuted as saveMuted, resetAudioSettings } from './audioSettings.ts';
@@ -49,6 +49,7 @@ const HIGH_CONTRAST_STORAGE_KEY = 'jambo.highContrast';
 const UX_DEBUG_STORAGE_KEY = 'jambo.uxDebugCounters';
 const TUTORIAL_SEEN_STORAGE_KEY = 'jambo.tutorialSeen';
 const LOG_PINNED_STORAGE_KEY = 'jambo.logPinned';
+const AI_SPEED_STORAGE_KEY = 'jambo.aiSpeed';
 
 function getInitialLogPinned(): boolean {
   try {
@@ -105,6 +106,13 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
     setGameActiveInTab(true);
   }, []);
   const [wareDialog, setWareDialog] = useState<DeckCardId | null>(null);
+  const [aiSpeed, setAiSpeed] = useState<AiSpeed>(() => {
+    try {
+      return parseAiSpeed(typeof window === 'undefined' ? null : window.localStorage.getItem(AI_SPEED_STORAGE_KEY));
+    } catch {
+      return 'normal';
+    }
+  });
   const [logOpen, setLogOpen] = useState(false);
   const [logPinnedPref, setLogPinnedPref] = useState(() => getInitialLogPinned());
   // Log length when the drawer was last open — newer opponent entries are "unread"
@@ -152,6 +160,15 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   // Hotseat: whose hand is currently allowed on screen (changes only after a handoff)
   const [confirmedViewer, setConfirmedViewer] = useState<0 | 1>(viewerPlayer);
   const opponentPlayer: 0 | 1 = viewerPlayer === 0 ? 1 : 0;
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    // OpponentPlaySpotlight reads this to scale its hold with the AI's pace
+    document.documentElement.setAttribute('data-ai-speed', aiSpeed);
+    try {
+      window.localStorage.setItem(AI_SPEED_STORAGE_KEY, aiSpeed);
+    } catch { /* storage blocked — the setting just won't persist */ }
+  }, [aiSpeed]);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -357,25 +374,38 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
     }
   }, [state]);
 
+  // The AI's chosen move for the current state — computed once, after any
+  // spotlight has landed (an Expert search mid-animation would stutter it).
+  const aiPlanRef = useRef<{ state: typeof state; action: GameAction | null } | null>(null);
+
   useEffect(() => {
     if (!shouldAiAct({ isAiTurn, showTutorial, attempts: aiAttemptRef.current })) return;
+    // Hold while the opponent's last play is still being announced
+    if (spotlightActive) return;
 
-    const isFirstTurn = state.turn === 0;
-    const delay = isFirstTurn ? 0 : CONSTANTS.AI_ACTION_DELAY_MS;
-
-    const timer = setTimeout(() => {
-      aiAttemptRef.current++;
-      const action = getAiActionByDifficulty(state, aiDifficulty);
-      if (action) {
-        // Set AI message before dispatching action
-        const message = getAiActionDescription(action, state);
-        setAiMessage(message);
-        dispatch(action, `AI (${aiDifficulty})`);
+    let dispatchTimer: ReturnType<typeof setTimeout> | undefined;
+    const planTimer = setTimeout(() => {
+      const started = Date.now();
+      if (aiPlanRef.current?.state !== state) {
+        aiPlanRef.current = { state, action: getAiActionByDifficulty(state, aiDifficulty) };
       }
-    }, delay);
+      const action = aiPlanRef.current.action;
+      const wait = action ? aiActionDelayMs(action.type, aiSpeed) - (Date.now() - started) : 0;
+      dispatchTimer = setTimeout(() => {
+        aiAttemptRef.current++;
+        if (action) {
+          // Set AI message before dispatching action
+          setAiMessage(getAiActionDescription(action, state));
+          dispatch(action, `AI (${aiDifficulty})`);
+        }
+      }, Math.max(0, wait));
+    }, 30);
 
-    return () => clearTimeout(timer);
-  }, [isAiTurn, state, dispatch, error, aiDifficulty, showTutorial]);
+    return () => {
+      clearTimeout(planTimer);
+      if (dispatchTimer) clearTimeout(dispatchTimer);
+    };
+  }, [isAiTurn, state, dispatch, error, aiDifficulty, showTutorial, spotlightActive, aiSpeed]);
 
   // Auto-open draw modal when entering draw phase
   useEffect(() => {
@@ -533,6 +563,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
 
   const resetUiPrefs = useCallback(() => {
     setLogPinnedPref(false);
+    setAiSpeed('normal');
     setAnimationSpeed('normal');
     setShowDevTelemetry(false);
     setHighContrast(false);
@@ -547,6 +578,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem('jambo.showGameLog'); // retired sidebar setting
       window.localStorage.removeItem(LOG_PINNED_STORAGE_KEY);
+      window.localStorage.removeItem(AI_SPEED_STORAGE_KEY);
       window.localStorage.removeItem(ANIMATION_SPEED_STORAGE_KEY);
       window.localStorage.removeItem(DEV_TELEMETRY_STORAGE_KEY);
       window.localStorage.removeItem(HIGH_CONTRAST_STORAGE_KEY);
@@ -1091,6 +1123,34 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
                 <option value="fast">Fast</option>
               </select>
             </label>
+            {!localMultiplayer && (
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 10,
+                marginTop: 10,
+                fontSize: 15,
+                color: 'var(--text)',
+              }}>
+                AI Speed
+                <select
+                  id="ai-speed"
+                  value={aiSpeed}
+                  onChange={(event) => setAiSpeed(parseAiSpeed(event.target.value))}
+                  style={{
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    color: 'var(--text)',
+                    borderRadius: 8,
+                    padding: '4px 8px',
+                    fontSize: 14,
+                  }}
+                >
+                  {AI_SPEEDS.map((speed) => <option key={speed} value={speed}>{AI_SPEED_LABELS[speed]}</option>)}
+                </select>
+              </label>
+            )}
             <label style={{
               display: 'flex',
               alignItems: 'center',

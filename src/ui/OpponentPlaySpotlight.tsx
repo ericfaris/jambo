@@ -8,7 +8,7 @@ import type { PlaySpotlight } from './actionLog.ts';
 /** Phase lengths at normal speed; "fast" animation speed scales them down. */
 export const SPOTLIGHT_TIMINGS = {
   enterMs: 260,
-  holdMs: 1250,
+  holdMs: 1100,
   /** Hold when more plays are already queued behind this one. */
   holdQueuedMs: 700,
   exitMs: 480,
@@ -21,9 +21,13 @@ export function spotlightDurationMs(queued: boolean, speedFactor = 1): number {
   return Math.round((SPOTLIGHT_TIMINGS.enterMs + hold + SPOTLIGHT_TIMINGS.exitMs) * speedFactor);
 }
 
+/** "Fast" animations and the AI speed setting (data-ai-speed) both scale it. */
 function speedFactor(): number {
   if (typeof document === 'undefined') return 1;
-  return document.documentElement.getAttribute('data-anim-speed') === 'fast' ? 0.7 : 1;
+  const root = document.documentElement;
+  const anim = root.getAttribute('data-anim-speed') === 'fast' ? 0.7 : 1;
+  const ai = root.getAttribute('data-ai-speed');
+  return anim * (ai === 'relaxed' ? 1.3 : ai === 'brisk' ? 0.7 : 1);
 }
 
 /** Scale for a `large` (180×240) card so the spotlight reads as a zoom:
