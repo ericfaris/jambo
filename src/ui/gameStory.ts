@@ -9,7 +9,7 @@ import { processAction } from '../engine/GameEngine.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
 
 export interface GoldPoint {
-  /** 0 = the start; then one point per finished turn (and the final state). */
+  /** 0 = the start; then the end of each turn, numbered like `state.turn` (1-based). */
   turn: number;
   gold: [number, number];
 }
@@ -101,23 +101,30 @@ export function buildGameStory(start: GameState, actions: readonly GameAction[])
     if (current) {
       current.gold += s.players[current.player].gold - before.players[current.player].gold;
     }
-    if (triggerTurn === null && s.endgame) triggerTurn = before.turn + 1;
+    if (triggerTurn === null && s.endgame) triggerTurn = before.turn;
 
-    if (action.type === 'END_TURN') {
+    // A turn ends on END_TURN or on its last action (the engine moves on by
+    // itself), and the final turn ends the game
+    const turnEnded = s.turn !== before.turn || (s.phase === 'GAME_OVER' && before.phase !== 'GAME_OVER');
+    if (turnEnded) {
       closeAttribution();
       const owner = before.currentPlayer;
       const other: 0 | 1 = owner === 0 ? 1 : 0;
       const gold: [number, number] = [s.players[0].gold, s.players[1].gold];
       const gain = (gold[owner] - turnStart[owner]) - (gold[other] - turnStart[other]);
-      if (gain > 0 && (!biggestSwing || gain > biggestSwing.gain)) biggestSwing = { turn: before.turn + 1, player: owner, gain };
-      timeline.push({ turn: before.turn + 1, gold });
+      if (gain > 0 && (!biggestSwing || gain > biggestSwing.gain)) biggestSwing = { turn: before.turn, player: owner, gain };
+      timeline.push({ turn: before.turn, gold });
       turnStart = gold;
     }
   }
   closeAttribution();
   const last = timeline[timeline.length - 1];
   const final: [number, number] = [s.players[0].gold, s.players[1].gold];
-  if (last.gold[0] !== final[0] || last.gold[1] !== final[1]) timeline.push({ turn: s.turn + 1, gold: final });
+  if (last.gold[0] !== final[0] || last.gold[1] !== final[1]) {
+    // a game that stopped mid-turn: its last point is that turn, as it stands
+    if (last.turn === s.turn && timeline.length > 1) timeline[timeline.length - 1] = { turn: s.turn, gold: final };
+    else timeline.push({ turn: Math.max(s.turn, 1), gold: final });
+  }
 
   const mvpOf = (m: Map<string, CardTally>): CardTally | null => {
     let top: CardTally | null = null;

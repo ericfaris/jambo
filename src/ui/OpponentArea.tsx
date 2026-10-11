@@ -41,8 +41,8 @@ function OpponentAreaComponent({ player, aiMessage, onMessageHide, goldDelta = 0
       {goldDelta !== 0 && (
         <span className="gold-delta-text gold-delta-text-strong" style={{
           position: 'absolute',
-          top: -18,
-          right: -20,
+          // desktop: beside the number, so it never rises into the trader's subtitle
+          ...(compact ? { top: -18, right: -20 } : { top: 4, right: '100%', marginRight: 8, whiteSpace: 'nowrap' as const }),
           color: goldDelta > 0 ? 'var(--accent-green)' : 'var(--accent-red)',
           fontSize: 12,
           fontWeight: 700,

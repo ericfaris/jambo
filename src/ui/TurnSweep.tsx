@@ -23,12 +23,23 @@ export function TurnSweep({ state, viewer, enabled = true }: { state: GameState;
   useEffect(() => {
     const prev = prevRef.current;
     prevRef.current = { currentPlayer: state.currentPlayer, turn: state.turn };
-    if (!enabled || !shouldSweepTurn(prev, state, viewer)) return;
+    // never over the results (or once switched off)
+    if (!enabled || state.phase === 'GAME_OVER') {
+      setShown(false);
+      return;
+    }
+    if (!shouldSweepTurn(prev, state, viewer)) return;
     setKey((k) => k + 1);
     setShown(true);
+  }, [state.currentPlayer, state.turn, state.phase, enabled, viewer]);
+
+  // The band's own timer: a quick turn change mustn't cancel it and leave
+  // the band stuck on screen
+  useEffect(() => {
+    if (!shown) return;
     const timer = window.setTimeout(() => setShown(false), TURN_SWEEP_MS);
     return () => window.clearTimeout(timer);
-  }, [state.currentPlayer, state.turn, enabled, viewer]);
+  }, [shown, key]);
 
   if (!shown) return null;
   return (

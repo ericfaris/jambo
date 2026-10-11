@@ -22,12 +22,24 @@ interface EndgameOverlayProps {
   record?: { wins: number; losses: number } | null;
   /** Solo: the trader's portrait, shown over their score. */
   opponentPortrait?: ReactNode;
+  /** Solo: what the trader says about the result. */
+  opponentQuote?: string | null;
 }
 
 /** "You win!" / "AI wins!" / "Player 2 wins!" */
 export function winnerHeadline(winner: 0 | 1 | null, labels: readonly [string, string]): string {
   if (winner === null) return 'Game over';
   return labels[winner] === 'You' ? 'You win!' : `${labels[winner]} wins!`;
+}
+
+/**
+ * The MVP card is worth its own tile only when it says something the best
+ * payday doesn't: a different card, or the same card across several plays.
+ */
+export function mvpAddsToPayday(mvp: { cardId: DeckCardId; plays: number } | null, payday: { cardId: DeckCardId } | null): boolean {
+  if (!mvp) return false;
+  if (!payday) return true;
+  return mvp.plays > 1 || getCard(mvp.cardId).designId !== getCard(payday.cardId).designId;
 }
 
 /** "You" mid-sentence reads "you". */
@@ -41,11 +53,12 @@ function cardName(id: DeckCardId): string {
 
 const COINS = Array.from({ length: 16 }, (_, i) => i);
 
-export function EndgameOverlay({ state, story = null, labels = ['You', 'AI'], viewer = 0, onRematch, rematchLabel = 'Rematch', onMainMenu, record = null, opponentPortrait }: EndgameOverlayProps) {
+export function EndgameOverlay({ state, story = null, labels = ['You', 'AI'], viewer = 0, onRematch, rematchLabel = 'Rematch', onMainMenu, record = null, opponentPortrait, opponentQuote = null }: EndgameOverlayProps) {
   const rematchRef = useRef<HTMLButtonElement | null>(null);
   const isOver = state.phase === 'GAME_OVER';
   useEffect(() => {
-    if (isOver) rematchRef.current?.focus();
+    // don't let focus scroll the card past the headline on a short screen
+    if (isOver) rematchRef.current?.focus({ preventScroll: true });
   }, [isOver]);
   const scores = useMemo(() => (isOver ? getFinalScores(state) : null), [isOver, state]);
   if (!isOver || !scores) return null;
@@ -56,8 +69,9 @@ export function EndgameOverlay({ state, story = null, labels = ['You', 'AI'], vi
   const accent = celebrate ? 'var(--gold)' : 'var(--accent-red)';
   // Hotseat: the facts follow the winner
   const me: 0 | 1 = viewer ?? winner ?? 0;
-  const mvp = story?.mvp[me] ?? null;
   const payday = story?.bestPayday[me] ?? null;
+  const mvpCandidate = story?.mvp[me] ?? null;
+  const mvp = mvpAddsToPayday(mvpCandidate, payday) ? mvpCandidate : null;
   const theirPayday = story?.bestPayday[me === 0 ? 1 : 0] ?? null;
   const swing = story?.biggestSwing ?? null;
 
@@ -83,6 +97,7 @@ export function EndgameOverlay({ state, story = null, labels = ['You', 'AI'], vi
             <div className="endgame-score endgame-score-1">{scores.player1}g</div>
           </div>
         </div>
+        {opponentQuote && <p className="endgame-quote">“{opponentQuote}” <span>— {labels[1]}</span></p>}
 
         {story && <GoldChart timeline={story.timeline} labels={labels} highlightTurn={swing?.turn ?? null} />}
 
@@ -99,14 +114,14 @@ export function EndgameOverlay({ state, story = null, labels = ['You', 'AI'], vi
               <div className="endgame-fact">
                 <div className="endgame-fact-label">{viewer === null ? `${labels[me]}'s best payday` : 'Your best payday'}</div>
                 <div className="endgame-fact-value">+{payday.gold}g</div>
-                <div className="endgame-fact-detail">{cardName(payday.cardId)}, turn {payday.turn + 1}</div>
+                <div className="endgame-fact-detail">{cardName(payday.cardId)}, turn {payday.turn}</div>
               </div>
             )}
             {theirPayday && (
               <div className="endgame-fact">
                 <div className="endgame-fact-label">{labels[me === 0 ? 1 : 0]}'s best payday</div>
                 <div className="endgame-fact-value">+{theirPayday.gold}g</div>
-                <div className="endgame-fact-detail">{cardName(theirPayday.cardId)}, turn {theirPayday.turn + 1}</div>
+                <div className="endgame-fact-detail">{cardName(theirPayday.cardId)}, turn {theirPayday.turn}</div>
               </div>
             )}
             {mvp && (
