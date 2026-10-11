@@ -15,7 +15,7 @@ import { HandDisplay } from '../../src/ui/HandDisplay.tsx';
 import { CardFace } from '../../src/ui/CardFace.tsx';
 import { MarketDisplay } from '../../src/ui/MarketDisplay.tsx';
 import { OpponentArea } from '../../src/ui/OpponentArea.tsx';
-import { SpeechBubble } from '../../src/ui/SpeechBubble.tsx';
+import { SpeechBubble, speechBubbleMs } from '../../src/ui/SpeechBubble.tsx';
 import { createTestState } from '../helpers/testHelpers.ts';
 
 describe('living table helpers', () => {
@@ -138,5 +138,13 @@ describe('ambient motion setting', () => {
     const { applyAmbient, getInitialAmbient } = await import('../../src/ui/life.tsx');
     expect(() => applyAmbient(false)).not.toThrow();
     expect(getInitialAmbient()).toBe(true);
+  });
+});
+
+describe('speech bubble timing', () => {
+  it('short asides go quickly; a full sentence stays long enough to read', () => {
+    expect(speechBubbleMs('Done!')).toBeLessThan(2500);
+    expect(speechBubbleMs('Do not take it to heart. The market takes, and the market gives.')).toBe(4500);
+    expect(speechBubbleMs('Your turn, child.')).toBeGreaterThan(speechBubbleMs('Done!') - 1);
   });
 });

@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import type { GameLogEntry } from '../engine/types.ts';
 import { CardFace } from './CardFace.tsx';
 import { collectSpotlights } from './actionLog.ts';
@@ -81,6 +81,10 @@ interface OpponentPlaySpotlightProps {
   /** The card on screen (or null) — the discard pile holds it back until
    *  the spotlight lands there. */
   onCurrentChange?: (spot: PlaySpotlight | null) => void;
+  /** Solo: the trader's face beside the caption. */
+  portrait?: ReactNode;
+  /** What the trader is saying about it right now (their voiced line). */
+  quote?: string | null;
 }
 
 type Phase = 'enter' | 'hold' | 'exit';
@@ -91,7 +95,7 @@ type Phase = 'enter' | 'hold' | 'exit';
  * opponent's utility row for utilities). Purely presentational: it never
  * blocks input — tap the card to skip ahead.
  */
-export function OpponentPlaySpotlight({ log, viewer, actorLabel, enabled = true, onActiveChange, unobtrusive = false, onCurrentChange }: OpponentPlaySpotlightProps) {
+export function OpponentPlaySpotlight({ log, viewer, actorLabel, enabled = true, onActiveChange, unobtrusive = false, onCurrentChange, portrait, quote }: OpponentPlaySpotlightProps) {
   // Entries already in the log when we mount (a resumed game) are history.
   const seenRef = useRef(log.length);
   const [queue, setQueue] = useState<PlaySpotlight[]>([]);
@@ -189,9 +193,13 @@ export function OpponentPlaySpotlight({ log, viewer, actorLabel, enabled = true,
     <div className={`opp-spotlight opp-spotlight-${phase}${unobtrusive ? ' opp-spotlight-unobtrusive' : ''}`}>
       <div className="opp-spotlight-backdrop" />
       <div className="opp-spotlight-stage">
-        <div role="status" aria-live="polite" className="opp-spotlight-caption" style={{ opacity: phase === 'exit' ? 0 : 1 }}>
-          <div className="opp-spotlight-headline">{current.headline}</div>
-          {current.detail && <div className="opp-spotlight-detail">{current.detail}</div>}
+        <div role="status" aria-live="polite" className={`opp-spotlight-caption${portrait ? ' opp-spotlight-caption-portrait' : ''}`} style={{ opacity: phase === 'exit' ? 0 : 1 }}>
+          {portrait && <span className="opp-spotlight-portrait" aria-hidden="true">{portrait}</span>}
+          <div>
+            <div className="opp-spotlight-headline">{current.headline}</div>
+            {current.detail && <div className="opp-spotlight-detail">{current.detail}</div>}
+            {quote && <div className="opp-spotlight-quote">“{quote}”</div>}
+          </div>
         </div>
         <div
           key={current.key}

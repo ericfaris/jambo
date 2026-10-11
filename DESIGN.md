@@ -542,6 +542,34 @@ existing set already covers the full identity; this pass's job was
 documenting it, fixing one duplication, and identifying the SFX gap.
 
 ## Changelog
+### 2026-10-11 — Trader & endgame polish (v1.11.0)
+Eight real-time playthroughs (all four traders, desktop and phone) drove these:
+- **One voice** (`planBark` in `useTrader.ts`): lines never overlap; a Guard
+  (`blocked`) or the result (`win`/`lose`) cuts in, everything else is
+  dropped while a line plays. 12s between any lines, 40s between the same
+  kind, each take at most twice a game.
+- **More takes**: a second `attack` and `big-sale` line per trader, plus
+  `rival-sale` (the trader reacts to *your* 10g+ swing). Files
+  `{id}-{event}-2.mp3`; takes rotate.
+- **Captions for every line**, voices on or off: in the speech bubble, or on
+  the spotlight (trader portrait + italic quote) when one is up. A spotlight
+  only quotes a line said about *that* card (`quoteForSpotlight`).
+- **Chatter in character** (`ai/traderChatter.ts`): two takes per move per
+  trader; ware cards are named by what they trade ("salt and tea"), never
+  a hidden card. Hotseat/Cast keep the generic lines.
+- **Greeting** waits for the coin toss and fires once per game (it was
+  being cancelled by the first state change, and by StrictMode in dev).
+- Portrait pops on a reaction so it reads at 26px on phones.
+- **Endgame**: the story counts every turn — turns that end on their last
+  action (no END_TURN) were being merged, so charts had half their points
+  and the "biggest swing" spanned several turns; turns numbered like the
+  game (they were one ahead); the trader's last word under the scores; the rival is teal and
+  dashed on the chart; an MVP tile that only repeats the best payday is
+  dropped; 2-up compact facts on phones; focusing Rematch no longer scrolls
+  the headline away; the "Your turn" sweep can't get stuck on screen (or
+  show over the results); the opponent's +Ng sits beside their gold instead
+  of rising into the trader's subtitle.
+
 ### 2026-10-11 — Named traders (v1.10.0)
 - Each AI level is a character (`ai/traders.ts`): Kito (Easy, apprentice),
   Amara (Medium, cloth weaver), Baraka (Hard, spice merchant), Mama Zawadi

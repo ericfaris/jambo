@@ -1609,6 +1609,22 @@ button.brown:hover:not(:disabled) {
   color: var(--gold);
 }
 .opp-spotlight-detail { font-size: 14px; color: var(--text-muted); }
+.opp-spotlight-caption-portrait {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  padding: 6px 20px 6px 6px;
+  max-width: min(520px, calc(100vw - 32px));
+}
+.opp-spotlight-portrait { flex: none; display: flex; }
+.opp-spotlight-quote {
+  margin-top: 2px;
+  font-size: 14px;
+  font-style: italic;
+  color: var(--text);
+  animation: opp-spotlight-fade var(--motion-base) ease-out both;
+}
 .opp-spotlight-card {
   border-radius: 12px;
   box-shadow: 0 18px 48px rgba(0,0,0,0.6), 0 0 0 2px rgba(212,168,80,0.45);
@@ -1627,6 +1643,8 @@ button.brown:hover:not(:disabled) {
 }
 @media (max-width: 640px) {
   .opp-spotlight-headline { font-size: 17px; }
+  .opp-spotlight-caption-portrait { border-radius: 24px; }
+  .opp-spotlight-quote { font-size: 13px; }
 }
 
 /* --- Action log: a drawer from the left edge ----------------------------- */
@@ -2130,6 +2148,8 @@ button.brown:hover:not(:disabled) {
 
 /* --- Endgame story (2026-10-11, step 10) --------------------------------- */
 .endgame-overlay {
+  /* the other seat, on the score and chart: teal, so it never reads as gold */
+  --rival: #6fb3c2;
   position: fixed;
   inset: 0;
   z-index: 200;
@@ -2160,7 +2180,7 @@ button.brown:hover:not(:disabled) {
 .endgame-score-label { font-family: var(--font-heading); font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.4px; color: var(--text-muted); }
 .endgame-score { font-family: var(--font-heading); font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .endgame-score-0 { color: var(--gold); }
-.endgame-score-1 { color: #d4a574; }
+.endgame-score-1 { color: var(--rival); }
 .endgame-vs { color: var(--text-muted); }
 .gold-chart { margin: 4px 0 12px; }
 .gold-chart svg { width: 100%; height: auto; display: block; }
@@ -2170,14 +2190,14 @@ button.brown:hover:not(:disabled) {
 .gold-chart-goal-label { fill: var(--gold); }
 .gold-chart-line { stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; }
 .gold-chart-line-0 { stroke: var(--gold); }
-.gold-chart-line-1 { stroke: #b98a5e; }
+.gold-chart-line-1 { stroke: var(--rival); stroke-dasharray: 5 3; }
 .gold-chart-end-0 { fill: var(--gold); }
-.gold-chart-end-1 { fill: #b98a5e; }
+.gold-chart-end-1 { fill: var(--rival); }
 .gold-chart-mark { fill: none; stroke: #fff3c4; stroke-width: 1.5; }
 .gold-chart-legend { display: flex; justify-content: center; gap: 16px; font-size: 12px; color: var(--text-muted); margin-top: 2px; }
 .gold-chart-key::before { content: ''; display: inline-block; width: 14px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
 .gold-chart-key-0::before { background: var(--gold); }
-.gold-chart-key-1::before { background: #b98a5e; }
+.gold-chart-key-1::before { background: repeating-linear-gradient(90deg, var(--rival) 0 5px, transparent 5px 8px); }
 .endgame-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; text-align: left; }
 .endgame-fact { background: rgba(255,255,255,0.04); border: 1px solid rgba(122,90,62,0.45); border-radius: 10px; padding: 8px 10px; min-width: 0; }
 .endgame-fact-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); }
@@ -2185,12 +2205,24 @@ button.brown:hover:not(:disabled) {
 .endgame-fact-detail { font-size: 12px; color: var(--text-muted); }
 .endgame-fact-mvp { display: flex; gap: 10px; align-items: center; }
 .endgame-fact-mvp img { width: 44px; height: 58px; object-fit: cover; border-radius: 5px; box-shadow: 0 2px 8px rgba(0,0,0,0.5); }
+.endgame-quote { font-style: italic; font-size: 15px; color: var(--text); margin: 0 auto 10px; max-width: 30em; }
+.endgame-quote span { font-style: normal; font-size: 12px; color: var(--text-muted); white-space: nowrap; }
 .endgame-record { font-size: 13px; color: var(--text-muted); margin-bottom: 12px; }
 .endgame-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
 .endgame-actions button { font-size: 17px; padding: 11px 26px; }
 @media (max-width: 420px) {
-  .endgame-card { padding: 18px 14px 16px; }
-  .endgame-facts { grid-template-columns: 1fr; }
+  .endgame-card { padding: 16px 12px 14px; }
+  .endgame-title { margin-bottom: 6px; }
+  .endgame-score { font-size: 26px; }
+  .endgame-facts { gap: 6px; }
+  .endgame-fact { padding: 6px 8px; }
+  .endgame-fact-label { font-size: 10px; letter-spacing: 0.5px; }
+  .endgame-fact-value { font-size: 17px; }
+  .endgame-fact-detail { font-size: 11px; }
+  .endgame-fact-mvp img { width: 34px; height: 45px; }
+  .endgame-quote { font-size: 13px; }
+  .endgame-actions { gap: 8px; }
+  .endgame-actions button { font-size: 15px; padding: 10px 18px; }
 }
 /* A win rains coins */
 .coin-shower { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
@@ -2221,6 +2253,15 @@ button.brown:hover:not(:disabled) {
   overflow: hidden;
   background: var(--surface);
   box-shadow: 0 0 0 2px var(--gold-dim), 0 4px 12px rgba(0,0,0,0.45);
+  transition: transform 220ms var(--anim-ease-emphasis, ease-out);
+}
+/* a reaction lands with a small pop, so it reads even at phone size */
+.trader-portrait[data-mood='pleased'],
+.trader-portrait[data-mood='annoyed'] { animation: trader-react 520ms var(--anim-ease-emphasis, ease-out); }
+@keyframes trader-react {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.22); }
+  100% { transform: scale(1); }
 }
 .trader-portrait img {
   position: absolute;
@@ -2231,6 +2272,8 @@ button.brown:hover:not(:disabled) {
   transition: opacity 280ms ease;
 }
 .trader-portrait-speaking { animation: trader-speaking 0.9s ease-in-out infinite alternate; }
+.trader-portrait-speaking[data-mood='pleased'],
+.trader-portrait-speaking[data-mood='annoyed'] { animation: trader-react 520ms var(--anim-ease-emphasis, ease-out), trader-speaking 0.9s ease-in-out infinite alternate; }
 @keyframes trader-speaking {
   from { box-shadow: 0 0 0 2px var(--gold-dim), 0 4px 12px rgba(0,0,0,0.45); }
   to { box-shadow: 0 0 0 3px var(--gold), 0 0 14px rgba(239,193,101,0.6); }
@@ -2239,6 +2282,7 @@ button.brown:hover:not(:disabled) {
 .trader-portrait[data-mood='pleased'] { box-shadow: 0 0 0 2px var(--gold), 0 4px 12px rgba(0,0,0,0.45); }
 @media (prefers-reduced-motion: reduce) {
   .trader-portrait img { transition: none; }
+  .trader-portrait[data-mood] { animation: none; }
   .trader-portrait-speaking { animation: none; box-shadow: 0 0 0 3px var(--gold); }
 }
 .endgame-score-opponent { display: flex; flex-direction: column; align-items: center; gap: 4px; }

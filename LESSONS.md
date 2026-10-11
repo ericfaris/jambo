@@ -353,3 +353,27 @@ overwrites tracked files.)
   line in two — merge trailing fragments.
 - Anything queued for "the opponent's last play" (spotlights) must be
   dropped at GAME_OVER or it plays over the results screen.
+
+## 2026-10-11 — Trader & endgame polish (v1.11.0)
+- **Play it in real time to judge character work.** The fake-clock driver
+  can't hear overlapping voice lines or see a caption vanish; a real-clock
+  observer that logs `HTMLMediaElement.play` calls, mood/bubble changes and
+  screenshots each change found every issue in this pass.
+- **Timers in effects vs StrictMode**: don't mark one-shot work done before
+  it runs — StrictMode's mount→unmount→mount clears the timer, and a ref set
+  early blocks the re-schedule. Mark it inside the timer callback.
+- **Don't edit `src/` while observer games run**: HMR mid-game gave a broken
+  replay (a 3-point gold chart). Re-verify on a fresh Vite before calling it a bug.
+- **ElevenLabs v3 can hang and return junk**: one take ran 13 min and came
+  back as 814s of mostly silence with a line missing. Check `duration_secs`
+  before splitting; regenerate once if it's absurd.
+- Split multi-line takes on the N−1 *longest* pauses, not a fixed count of
+  segments — mid-line breaths vary per voice.
+- **A turn doesn't always end with END_TURN**: spending the last action ends
+  it inside PLAY_CARD / RESOLVE_INTERACTION / reactions. Anything per-turn
+  derived from the action list must watch `state.turn`, not the action type
+  (the endgame chart silently lost half its points). Test with two engine
+  AIs, which use all five actions far more than the random AI does.
+- A component that hides itself on a timer should own that timer in an
+  effect keyed on "shown", not inside the effect that showed it — a re-run
+  of the showing effect cancels the hide and the band sticks.

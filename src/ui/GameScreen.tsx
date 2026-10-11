@@ -30,6 +30,7 @@ import { FirstPlayerReveal } from './FirstPlayerReveal.tsx';
 import { buildGameStory } from './gameStory.ts';
 import { createStartingState } from '../persistence/replayLog.ts';
 import { traderFor } from '../ai/traders.ts';
+import { traderChatter } from '../ai/traderChatter.ts';
 import { TraderPortrait } from './TraderPortrait.tsx';
 import { useTrader, getInitialTraderVoices, TRADER_VOICES_STORAGE_KEY } from './useTrader.ts';
 import { ResolveMegaView } from './ResolveMegaView.tsx';
@@ -38,8 +39,8 @@ import { MegaView } from './MegaView.tsx';
 import { TutorialOverlay } from './TutorialOverlay.tsx';
 import { ActionPips, AmbientLayer, GoldCount, applyAmbient, getInitialAmbient } from './life.tsx';
 import { PassDeviceScreen, needsHandoff } from './PassDeviceScreen.tsx';
-import { shouldAiAct, isWareDialogValid, shouldShowResolvePanel, aiActionDelayMs, parseAiSpeed, AI_SPEEDS, AI_SPEED_LABELS } from './gameScreenLogic.ts';
-import type { AiSpeed } from './gameScreenLogic.ts';
+import { shouldAiAct, isWareDialogValid, shouldShowResolvePanel, aiActionDelayMs, parseAiSpeed, AI_SPEEDS, AI_SPEED_LABELS, quoteForSpotlight } from './gameScreenLogic.ts';
+import type { AiSpeed, TraderLine } from './gameScreenLogic.ts';
 import { useVisualFeedback } from './useVisualFeedback.ts';
 import { getDrawDisabledReason, getPlayDisabledReason, friendlyPlayError } from './uiHints.ts';
 import { getVolume, setVolume as saveVolume, getMuted, setMuted as saveMuted, resetAudioSettings } from './audioSettings.ts';
@@ -63,6 +64,8 @@ const UX_DEBUG_STORAGE_KEY = 'jambo.uxDebugCounters';
 const TUTORIAL_SEEN_STORAGE_KEY = 'jambo.tutorialSeen';
 const LOG_PINNED_STORAGE_KEY = 'jambo.logPinned';
 const AI_SPEED_STORAGE_KEY = 'jambo.aiSpeed';
+/** A trader's line stays on screen this long. */
+const TRADER_LINE_MS = 4500;
 
 function getInitialLogPinned(): boolean {
   try {
@@ -149,13 +152,26 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
     lastLandSound.current = now;
     playSfx('ware-land');
   }, []);
+  // When the card now in the spotlight arrived (a trader line belongs to it
+  // only if said since then)
+  const [spotlightSince, setSpotlightSince] = useState<number | null>(null);
+  const spotlightKey = useRef<PlaySpotlight['key'] | null>(null);
   const handleSpotlightCurrent = useCallback((spot: PlaySpotlight | null) => {
     setSpotlitDiscard(spot && spot.destination === 'discard' ? spot.cardId : null);
+    const key = spot?.key ?? null;
+    if (key !== spotlightKey.current) {
+      spotlightKey.current = key;
+      setSpotlightSince(key === null ? null : Date.now());
+    }
   }, []);
   const [menuOpen, setMenuOpen] = useState(false);
   const [drawModalOpen, setDrawModalOpen] = useState(false);
   const [cardError, setCardError] = useState<{cardId: DeckCardId, message: string} | null>(null);
   const [aiMessage, setAiMessage] = useState<string>('');
+  // What the trader just said (a voiced line's caption) — outranks chatter
+  const [traderLineSaid, setTraderLineSaid] = useState<TraderLine | null>(null);
+  const traderLine = traderLineSaid?.text ?? null;
+  const setTraderLine = useCallback((text: string | null) => setTraderLineSaid(text ? { text, at: Date.now() } : null), []);
   const [megaCardId, setMegaCardId] = useState<DeckCardId | null>(null);
   const [replayError, setReplayError] = useState<string | null>(null);
   const [animationSpeed, setAnimationSpeed] = useState<AnimationSpeed>(() => getInitialAnimationSpeed());
@@ -240,9 +256,15 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   const closeLog = useCallback(() => setLogOpen(false), []);
   // One voice per moment: the spotlight caption replaces the AI's line about
   // the same play (a hidden bubble would otherwise pop up stale afterwards).
+  // A trader line outlives a short spotlight: it carries on in the bubble.
   useEffect(() => {
     if (spotlightActive) setAiMessage('');
   }, [spotlightActive]);
+  useEffect(() => {
+    if (!traderLine) return;
+    const t = window.setTimeout(() => setTraderLine(null), TRADER_LINE_MS);
+    return () => window.clearTimeout(t);
+  }, [traderLine]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -430,7 +452,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
         aiAttemptRef.current++;
         if (action) {
           // Set AI message before dispatching action
-          setAiMessage(getAiActionDescription(action, state));
+          setAiMessage(trader ? traderChatter(trader, action, state) : getAiActionDescription(action, state));
           dispatch(action, `AI (${aiDifficulty})`);
         }
       }, Math.max(0, wait));
@@ -440,7 +462,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
       clearTimeout(planTimer);
       if (dispatchTimer) clearTimeout(dispatchTimer);
     };
-  }, [isAiTurn, state, dispatch, error, aiDifficulty, showTutorial, spotlightActive, aiSpeed, rematchReveal]);
+  }, [isAiTurn, state, dispatch, error, aiDifficulty, showTutorial, spotlightActive, aiSpeed, rematchReveal, trader]);
 
   // Auto-open draw modal when entering draw phase
   useEffect(() => {
@@ -465,6 +487,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
 
   const handleAiMessageHide = useCallback(() => {
     setAiMessage('');
+    setTraderLine(null);
   }, []);
 
   const hasPendingInteraction = !!(
@@ -511,7 +534,8 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
     trader,
     seat: opponentPlayer,
     voices: traderVoices,
-    onLine: setAiMessage,
+    ready: rematchReveal === null && !showTutorial,
+    onLine: setTraderLine,
   });
   useEffect(() => {
     try {
@@ -748,7 +772,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
                 seat={opponentPlayer}
                 compact
                 player={opponent}
-                aiMessage={state.phase === 'GAME_OVER' || spotlightActive ? '' : aiMessage}
+                aiMessage={state.phase === 'GAME_OVER' || spotlightActive ? '' : (traderLine ?? aiMessage)}
                 onMessageHide={handleAiMessageHide}
                 goldDelta={visualFeedback.goldDeltas[opponentPlayer]}
                 marketFlashSlots={visualFeedback.marketFlashSlots[opponentPlayer]}
@@ -871,7 +895,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
           <OpponentArea
             seat={opponentPlayer}
             player={state.players[opponentPlayer]}
-            aiMessage={state.phase === 'GAME_OVER' || spotlightActive ? '' : aiMessage}
+            aiMessage={state.phase === 'GAME_OVER' || spotlightActive ? '' : (traderLine ?? aiMessage)}
             onMessageHide={handleAiMessageHide}
             goldDelta={visualFeedback.goldDeltas[opponentPlayer]}
             marketFlashSlots={visualFeedback.marketFlashSlots[opponentPlayer]}
@@ -1543,6 +1567,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
         story={gameStory}
         labels={logLabels}
         opponentPortrait={trader ? <TraderPortrait trader={trader} mood={traderMood} size={56} /> : undefined}
+        opponentQuote={trader && isGameOver ? trader.lines[getWinner(state) === opponentPlayer ? 'win' : 'lose'][0] : null}
         viewer={localMultiplayer ? null : 0}
         onRematch={handleRematch}
         rematchLabel={trader ? `Rematch ${trader.name} · ${difficultyLabel}` : 'Rematch'}
@@ -1575,6 +1600,8 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
         onActiveChange={setSpotlightActive}
         unobtrusive={state.currentPlayer === viewerPlayer}
         onCurrentChange={handleSpotlightCurrent}
+        portrait={trader ? <TraderPortrait trader={trader} mood={traderMood} speaking={traderSpeaking} size={44} /> : undefined}
+        quote={quoteForSpotlight(traderLineSaid, spotlightSince)}
       />
 
       <FinalTurnBanner state={state} labels={logLabels} />

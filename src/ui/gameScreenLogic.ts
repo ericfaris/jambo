@@ -81,3 +81,19 @@ export function aiActionDelayMs(actionType: string, speed: AiSpeed = 'normal'): 
   }
   return Math.round(base * AI_SPEED_FACTOR[speed]);
 }
+
+/** A trader's voiced line, and when they said it. */
+export interface TraderLine {
+  text: string;
+  at: number;
+}
+
+/**
+ * The line to caption on the spotlit card: only one said about this card —
+ * since it arrived, or just before (the line can land a beat ahead of it) —
+ * never something left over from an earlier moment.
+ */
+export function quoteForSpotlight(line: TraderLine | null, spotlightSince: number | null, graceMs = 800): string | null {
+  if (!line || spotlightSince === null) return null;
+  return line.at >= spotlightSince - graceMs ? line.text : null;
+}

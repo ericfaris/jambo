@@ -10,12 +10,15 @@ interface SpeechBubbleProps {
   right?: string;
 }
 
+/** Long enough to read: short asides go quickly, a full sentence stays. */
+export function speechBubbleMs(message: string): number {
+  return Math.min(4500, Math.max(1800, 1200 + message.length * 55));
+}
+
 export function SpeechBubble({ message, visible, onHide, compact = false, right = 'clamp(200px, 22vw, 260px)' }: SpeechBubbleProps) {
   useEffect(() => {
     if (visible) {
-      const isTurnDone = message === "My turn is done, your move!";
-      const timeout = isTurnDone ? 2000 : 4000; // Faster fade for turn done message
-      const timer = setTimeout(onHide, timeout);
+      const timer = setTimeout(onHide, speechBubbleMs(message));
       return () => clearTimeout(timer);
     }
   }, [visible, onHide, message]);

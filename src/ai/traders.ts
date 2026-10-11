@@ -9,7 +9,7 @@ import type { GameLogEntry, GameState } from '../engine/types.ts';
 import { getWinner } from '../engine/endgame/EndgameManager.ts';
 
 export type TraderMood = 'neutral' | 'pleased' | 'annoyed';
-export type BarkEvent = 'greet' | 'big-sale' | 'attack' | 'blocked' | 'win' | 'lose';
+export type BarkEvent = 'greet' | 'big-sale' | 'rival-sale' | 'attack' | 'blocked' | 'win' | 'lose';
 
 export interface Trader {
   id: 'kito' | 'amara' | 'baraka' | 'zawadi';
@@ -18,8 +18,11 @@ export interface Trader {
   title: string;
   /** One line for the setup screen. */
   tagline: string;
-  /** What each voiced line says (also the caption when it plays). */
-  lines: Record<BarkEvent, string>;
+  /**
+   * What each voiced line says (also its caption). Events said often have
+   * more than one take; they rotate so the same line doesn't come back.
+   */
+  lines: Record<BarkEvent, readonly string[]>;
 }
 
 export const TRADERS: Record<AIDifficulty, Trader> = {
@@ -29,12 +32,13 @@ export const TRADERS: Record<AIDifficulty, Trader> = {
     title: 'Apprentice',
     tagline: 'Simple decisions — eager, still learning',
     lines: {
-      greet: "Jambo! I'm Kito. Go easy on me, okay?",
-      'big-sale': 'Ha! Look at all that gold!',
-      attack: 'Sorry, sorry! I had to!',
-      blocked: 'Aww, a Guard? Not fair!',
-      win: 'I won? I actually won!',
-      lose: "Okay, okay. You're good. Again tomorrow?",
+      greet: ["Jambo! I'm Kito. Go easy on me, okay?"],
+      'big-sale': ['Ha! Look at all that gold!', "Gold, gold, gold! I'm rich!"],
+      'rival-sale': ['Whoa! How did you do that?'],
+      attack: ['Sorry, sorry! I had to!', "Don't be mad! It's just the rules!"],
+      blocked: ['Aww, a Guard? Not fair!'],
+      win: ['I won? I actually won!'],
+      lose: ["Okay, okay. You're good. Again tomorrow?"],
     },
   },
   medium: {
@@ -43,12 +47,13 @@ export const TRADERS: Record<AIDifficulty, Trader> = {
     title: 'Cloth weaver',
     tagline: 'Basic strategy — patient and steady',
     lines: {
-      greet: 'Jambo, friend. May the market be kind to us both.',
-      'big-sale': 'A good trade is woven slowly. And that was a good trade.',
-      attack: 'Forgive me. Business is business.',
-      blocked: 'Hm. You saw that coming.',
-      win: 'Well played. But the cloth is mine today.',
-      lose: 'You trade with patience. I respect that.',
+      greet: ['Jambo, friend. May the market be kind to us both.'],
+      'big-sale': ['A good trade is woven slowly. And that was a good trade.', 'Patience pays. It always does.'],
+      'rival-sale': ['Hm. A fine sale. I am watching you.'],
+      attack: ['Forgive me. Business is business.', 'A small pull at the thread. Nothing more.'],
+      blocked: ['Hm. You saw that coming.'],
+      win: ['Well played. But the cloth is mine today.'],
+      lose: ['You trade with patience. I respect that.'],
     },
   },
   hard: {
@@ -57,12 +62,13 @@ export const TRADERS: Record<AIDifficulty, Trader> = {
     title: 'Spice merchant',
     tagline: 'Deep evaluation — always counting',
     lines: {
-      greet: 'Jambo! Baraka, at your service. Prices are… negotiable.',
-      'big-sale': 'Ahh. The sweet smell of profit.',
-      attack: 'Nothing personal, my friend. Only spice.',
-      blocked: 'A Guard! You are sharper than you look.',
-      win: 'Every coin finds its way to Baraka in the end.',
-      lose: 'Hmph. Enjoy it. Tomorrow the prices change.',
+      greet: ['Jambo! Baraka, at your service. Prices are… negotiable.'],
+      'big-sale': ['Ahh. The sweet smell of profit.', 'Count it twice. Baraka always counts it twice.'],
+      'rival-sale': ['Eh?! That price should be illegal!'],
+      attack: ['Nothing personal, my friend. Only spice.', 'Ah, ah! Do not look so surprised.'],
+      blocked: ['A Guard! You are sharper than you look.'],
+      win: ['Every coin finds its way to Baraka in the end.'],
+      lose: ['Hmph. Enjoy it. Tomorrow the prices change.'],
     },
   },
   expert: {
@@ -71,12 +77,13 @@ export const TRADERS: Record<AIDifficulty, Trader> = {
     title: 'Market matriarch',
     tagline: 'Simulates future turns — sees you coming',
     lines: {
-      greet: 'Jambo, child. Sit. Let us see what you have learned.',
-      'big-sale': 'Mm. That is how a market is run.',
-      attack: 'Do not take it to heart. The market takes, and the market gives.',
-      blocked: 'Clever. Your mother taught you well.',
-      win: 'Come back when the sun is lower. You will be ready then.',
-      lose: 'Ah. The market has a new name to remember. Well done.',
+      greet: ['Jambo, child. Sit. Let us see what you have learned.'],
+      'big-sale': ['Mm. That is how a market is run.', 'The market rewards those who wait.'],
+      'rival-sale': ['Good. You were listening.'],
+      attack: ['Do not take it to heart. The market takes, and the market gives.', 'Hush now. This is a lesson, not a punishment.'],
+      blocked: ['Clever. Your mother taught you well.'],
+      win: ['Come back when the sun is lower. You will be ready then.'],
+      lose: ['Ah. The market has a new name to remember. Well done.'],
     },
   },
 };
@@ -89,8 +96,9 @@ export function portraitUrl(trader: Pick<Trader, 'id'>, mood: TraderMood = 'neut
   return `/assets/traders/${trader.id}-${mood}.webp`;
 }
 
-export function barkUrl(trader: Pick<Trader, 'id'>, event: BarkEvent): string {
-  return `/audio/traders/${trader.id}-${event}.mp3`;
+/** Take 0 is `{id}-{event}.mp3`; later takes are `{id}-{event}-2.mp3`, … */
+export function barkUrl(trader: Pick<Trader, 'id'>, event: BarkEvent, take = 0): string {
+  return `/audio/traders/${trader.id}-${event}${take > 0 ? `-${take + 1}` : ''}.mp3`;
 }
 
 /** A one-move gold swing this big counts as a big moment. */
@@ -131,7 +139,7 @@ export function traderReaction(
   const traderGain = next.players[trader].gold - prev.players[trader].gold;
   const viewerGain = next.players[viewer].gold - prev.players[viewer].gold;
   if (traderGain >= BIG_SWING_GOLD) return { mood: 'pleased', bark: 'big-sale', lasting: false };
-  if (viewerGain >= BIG_SWING_GOLD) return { mood: 'annoyed', bark: null, lasting: false };
+  if (viewerGain >= BIG_SWING_GOLD) return { mood: 'annoyed', bark: 'rival-sale', lasting: false };
   if (fresh.some((e) => (e.action === 'PARROT_STEAL' || e.action === 'THRONE_SWAP') && e.player === viewer)) {
     return { mood: 'annoyed', bark: null, lasting: false };
   }

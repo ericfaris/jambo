@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { aiActionDelayMs, parseAiSpeed, AI_SPEEDS, AI_BASE_DELAY_MS } from '../../src/ui/gameScreenLogic.ts';
+import { aiActionDelayMs, parseAiSpeed, AI_SPEEDS, AI_BASE_DELAY_MS, quoteForSpotlight } from '../../src/ui/gameScreenLogic.ts';
 import { spotlightDurationMs, spotlightBlockingMs, spotlightHoldMs, SPOTLIGHT_TIMINGS } from '../../src/ui/OpponentPlaySpotlight.tsx';
 import { CONSTANTS } from '../../src/engine/types.ts';
 
@@ -52,5 +52,16 @@ describe('busy AI turns', () => {
 
   it('the AI is released as the card starts to fly off, not after it lands', () => {
     expect(spotlightBlockingMs({})).toBe(spotlightDurationMs(false) - SPOTLIGHT_TIMINGS.exitMs);
+  });
+});
+
+describe('trader quotes on the spotlight', () => {
+  it('captions a line said about the card on screen, never a leftover one', () => {
+    const line = { text: 'Ahh. The sweet smell of profit.', at: 10_000 };
+    expect(quoteForSpotlight(line, 9_800)).toBe(line.text); // said just after it arrived
+    expect(quoteForSpotlight(line, 10_500)).toBe(line.text); // a beat ahead of the card
+    expect(quoteForSpotlight(line, 14_000)).toBeNull(); // from an earlier moment
+    expect(quoteForSpotlight(line, null)).toBeNull();
+    expect(quoteForSpotlight(null, 10_000)).toBeNull();
   });
 });
