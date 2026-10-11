@@ -299,14 +299,25 @@ class Game:
             plan = [b for b in buttons if b['text'].startswith('Pass')][:1]
         elif rt == 'SELECT_WARE_TYPE':
             plan = [w for w in wares if w['ware'] == resp['wareType']][:1]
-        elif rt in ('SELECT_WARE', 'RETURN_WARE'):
-            idx = resp['wareIndex']
-            ws = sorted(wares, key=lambda c: (c['y'] // 30, c['x']))
-            if idx < len(ws):
-                plan = [ws[idx]]
-        elif rt in ('SELECT_WARES', 'SELL_WARES'):
-            ws = sorted(wares, key=lambda c: (c['y'] // 30, c['x']))
-            plan = [ws[i] for i in resp['wareIndices'] if i < len(ws)]
+        elif rt in ('SELECT_WARE', 'RETURN_WARE', 'SELECT_WARES', 'SELL_WARES'):
+            # Responses carry MARKET SLOT indices; a market can have empty
+            # slots, so map through each clickable slot's "<ware> in slot N"
+            # label (indexing the filled wares in screen order picked the
+            # wrong ones — and two identical wares got toggled twice).
+            indices = [resp['wareIndex']] if rt in ('SELECT_WARE', 'RETURN_WARE') else resp['wareIndices']
+            by_slot = {}
+            for w in wares:
+                n = self.pg.evaluate("""(id) => { const e = document.querySelector(`[data-pt="${id}"]`);
+                    const s = e && e.closest('[aria-label*=" in slot "]');
+                    const m = s && s.getAttribute('aria-label').match(/ in slot (\\d+)$/);
+                    return m ? Number(m[1]) - 1 : null; }""", w['id'])
+                if n is not None and n not in by_slot:
+                    by_slot[n] = w
+            if by_slot:
+                plan = [by_slot[i] for i in indices if i in by_slot]
+            else:
+                ws = sorted(wares, key=lambda c: (c['y'] // 30, c['x']))
+                plan = [ws[i] for i in indices if i < len(ws)]
         elif rt == 'SELECT_UTILITY':
             ucards = [c for c in cards_unique]
             if resp['utilityIndex'] < len(ucards):

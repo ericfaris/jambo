@@ -112,7 +112,7 @@ export function OpponentPlaySpotlight({ log, viewer, actorLabel, enabled = true,
     const ms = phase === 'enter'
       ? SPOTLIGHT_TIMINGS.enterMs
       : phase === 'hold'
-        ? (queued ? SPOTLIGHT_TIMINGS.holdQueuedMs : SPOTLIGHT_TIMINGS.holdMs)
+        ? (queued || current.brief ? SPOTLIGHT_TIMINGS.holdQueuedMs : SPOTLIGHT_TIMINGS.holdMs)
         : SPOTLIGHT_TIMINGS.exitMs;
     const timer = window.setTimeout(() => {
       if (phase === 'enter') setPhase('hold');

@@ -16,6 +16,9 @@ export interface PlaySpotlight {
   headline: string;
   detail: string | null;
   destination: SpotlightDestination;
+  /** A routine play (re-using a utility already on the table): a shorter
+   *  hold, so busy AI turns don't drag. */
+  brief?: boolean;
 }
 
 function goldIn(details: string | undefined): string | null {
@@ -45,7 +48,7 @@ export function spotlightForEntry(entry: GameLogEntry, index: number, actorLabel
     case 'PLAY_UTILITY':
       return { ...base, headline: `${actorLabel} placed ${name}`, detail: 'New utility', destination: 'utilities' };
     case 'ACTIVATE_UTILITY':
-      return { ...base, headline: `${actorLabel} used ${name}`, detail: null, destination: 'utilities' };
+      return { ...base, headline: `${actorLabel} used ${name}`, detail: null, destination: 'utilities', brief: true };
     case 'PLAY_STAND':
       return { ...base, headline: `${actorLabel} built a market stand`, detail: gold ? `Paid ${gold}g · +3 market spaces` : '+3 market spaces' };
     case 'PLAY_ANIMAL':

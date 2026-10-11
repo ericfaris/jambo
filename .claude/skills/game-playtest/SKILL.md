@@ -89,6 +89,11 @@ exercise the phone layout; mix several phone sizes into every batch.
 - The opponent-play spotlight holds response panels (Guard, Rain Maker,
   Hyena…) ~2s while the card lands; `realize()` ticks the fake clock until
   `.opp-spotlight` is gone. Don't report a Guard UI_GAP without checking that.
+- Ware-picking responses (Dancer, Portuguese, Parrot, Leopard return)
+  carry *market slot* indices; the driver maps them through each clickable
+  slot's "<ware> in slot N" label. Indexing filled wares in screen order
+  (the old way) mis-clicked whenever a market had empty slots and produced
+  bogus Dancer UI_GAPs.
 - Exploration clicks skip the resolve panel's Cancel ✕ — exploring it just
   loops play→cancel (it once burned ~2,300 actions in one batch).
 - Draw-phase actions rescan after advancing the fake clock: the draw dialog
