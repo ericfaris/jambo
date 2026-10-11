@@ -20,7 +20,7 @@ import { FEEDBACK_TIMINGS } from './animationTimings.ts';
 import { CastEndgameOverlay } from './CastEndgameOverlay.tsx';
 import { useCastRoomSync } from '../cast/useCastRoomSync.ts';
 import { isCastSdkEnabled } from '../cast/factory.ts';
-import { formatLogRecap } from './uiHints.ts';
+import { describeTrailTag, formatLogRecap } from './uiHints.ts';
 
 type AnimationSpeed = 'normal' | 'fast';
 const ANIMATION_SPEED_STORAGE_KEY = 'jambo.animationSpeed';
@@ -654,9 +654,7 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
   useEffect(() => {
     const trail = visualFeedback?.trail;
     if (!trail) return;
-    const actorLabel = `Player ${trail.actor + 1}`;
-    const verb = trail.kind === 'draw' ? 'drew a card' : 'discarded a card';
-    setActionTag(`${actorLabel} ${verb}`);
+    setActionTag(describeTrailTag(trail.kind, `Player ${trail.actor + 1}`, pub.log.slice(-6)));
     const timer = window.setTimeout(() => setActionTag(null), FEEDBACK_TIMINGS.actionTagDurationMs);
     return () => window.clearTimeout(timer);
   }, [visualFeedback?.trail]);

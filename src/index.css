@@ -880,6 +880,19 @@ button.brown:hover:not(:disabled) {
   object-fit: contain;
 }
 
+/* Short screens (360×640 phones): the art yields so the controls stay on
+   screen — Dancer's Confirm was below the fold there. */
+@media (max-height: 700px) {
+  .panel-source-art {
+    max-height: 18vh;
+    max-height: 18dvh;
+  }
+  .panel-source-art-compact {
+    max-height: 14vh;
+    max-height: 14dvh;
+  }
+}
+
 /* Tall screens get bigger art, but still capped so the panel's controls
    (e.g. Dancer's Confirm) never fall below the fold at ~900px */
 @media (min-height: 900px) {
@@ -1558,6 +1571,12 @@ button.brown:hover:not(:disabled) {
   align-items: center;
   justify-content: center;
 }
+.opp-spotlight-unobtrusive {
+  align-items: flex-start;
+  padding-top: max(8px, 6vh);
+}
+.opp-spotlight-unobtrusive .opp-spotlight-backdrop { display: none; }
+.opp-spotlight-unobtrusive .opp-spotlight-headline { font-size: 16px; }
 .opp-spotlight-backdrop {
   position: absolute;
   inset: 0;

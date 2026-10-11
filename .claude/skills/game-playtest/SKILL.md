@@ -86,6 +86,9 @@ exercise the phone layout; mix several phone sizes into every batch.
 - The driver asks the engine's own `getResponder()` whose decision it is.
   Never re-implement it in the driver: a stale copy (from before the Arabian
   Merchant card auction) produced fake AI_STALL and UI_GAP findings.
+- The opponent-play spotlight holds response panels (Guard, Rain Maker,
+  Hyena…) ~2s while the card lands; `realize()` ticks the fake clock until
+  `.opp-spotlight` is gone. Don't report a Guard UI_GAP without checking that.
 - Exploration clicks skip the resolve panel's Cancel ✕ — exploring it just
   loops play→cancel (it once burned ~2,300 actions in one batch).
 - Draw-phase actions rescan after advancing the fake clock: the draw dialog

@@ -161,6 +161,54 @@ export function formatLogRecap(
   return `${who}: ${describeLogEntry(entry, labels, hiddenPlayer)}`;
 }
 
+const TAG_LOOKBACK = 4;
+
+/**
+ * The short tag over the center row when a card moves to a pile. A card
+ * reaching the discard pile is usually a *play* (buy, sell, person, animal),
+ * not a discard — name what actually happened from the newest log entries.
+ */
+export function describeTrailTag(
+  kind: 'draw' | 'discard',
+  actor: string,
+  recent: readonly { action: string; card?: string; details?: string }[],
+): string {
+  if (kind === 'draw') return `${actor} drew a card`;
+  for (let i = recent.length - 1; i >= Math.max(0, recent.length - TAG_LOOKBACK); i--) {
+    const entry = recent[i];
+    const name = entry.card ? cardNameOrNull(entry.card) : null;
+    switch (entry.action) {
+      case 'PLAY_WARE_BUY': return name ? `${actor} bought with ${name}` : `${actor} bought wares`;
+      case 'PLAY_WARE_SELL': return name ? `${actor} sold with ${name}` : `${actor} sold wares`;
+      case 'PLAY_STAND': return `${actor} built a market stand`;
+      case 'PLAY_PEOPLE':
+      case 'PLAY_ANIMAL':
+      case 'PLAY_CARD':
+      case 'GUARD_PLAYED':
+      case 'RAIN_MAKER_PLAYED':
+        if (name) return `${actor} played ${name}`;
+        break;
+      case 'DISCARD_DRAWN': {
+        // the drawn card goes face-up, so its name is public
+        const id = entry.details?.match(/\b[a-z]+(?:_[a-z0-9]+)*_\d+\b/)?.[0];
+        const drawnName = id ? cardNameOrNull(id) : null;
+        return drawnName ? `${actor} discarded ${drawnName}` : `${actor} discarded a card`;
+      }
+      default:
+        break;
+    }
+  }
+  return `${actor} discarded a card`;
+}
+
+function cardNameOrNull(id: string): string | null {
+  try {
+    return getCard(id).name;
+  } catch {
+    return null;
+  }
+}
+
 /** Status-pill owner text: "Your turn" for the local player, "Opponent's turn" / "Player 2's turn" otherwise. */
 export function formatTurnOwner(label: string): string {
   return label === 'You' ? 'Your turn' : `${label}'s turn`;

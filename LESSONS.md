@@ -300,3 +300,15 @@ overwrites tracked files.)
 - Fuzzer `AI_RESPONSE_REJECTED` (11/300 games) were real Easy-AI bugs:
   dummy Basket Maker/Carrier picks when the market was short (resolver
   allows partial placement) and paying for Supplies with 0g.
+
+## 2026-10-11 — Design-review playtest (10 games, all AI levels)
+- **An overlay that announces the opponent's move must not assume it's the
+  opponent's turn.** Reactions (Rain Maker, Guard) are logged mid-way through
+  the *viewer's* turn; the v1.6.0 spotlight then sat over the board with
+  `pointer-events:auto` and swallowed taps for ~2s (6 CLICK_BLOCKED in the
+  playtest). On the viewer's turn it now renders small, up top, click-through.
+- The playtest driver must wait out timed presentational overlays before
+  acting (it ticks the fake clock until `.opp-spotlight` is gone), or every
+  intentional "hold the panel" delay becomes a false UI_GAP.
+- Port 3001 is taken by another lab container (`lango-frontend`); local Cast
+  testing needs `PORT=3031` plus a matching Vite proxy target.

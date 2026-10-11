@@ -54,6 +54,10 @@ interface OpponentPlaySpotlightProps {
   /** Fires true while a card is on screen, so the caller can hold its own
    *  overlays (a response panel) until the announcement lands. */
   onActiveChange?: (active: boolean) => void;
+  /** The viewer is mid-turn (e.g. the opponent reacted with Rain Maker):
+   *  show a smaller card up over the opponent's side and let every tap
+   *  through, so the announcement never blocks the viewer's own moves. */
+  unobtrusive?: boolean;
 }
 
 type Phase = 'enter' | 'hold' | 'exit';
@@ -64,7 +68,7 @@ type Phase = 'enter' | 'hold' | 'exit';
  * opponent's utility row for utilities). Purely presentational: it never
  * blocks input — tap the card to skip ahead.
  */
-export function OpponentPlaySpotlight({ log, viewer, actorLabel, enabled = true, onActiveChange }: OpponentPlaySpotlightProps) {
+export function OpponentPlaySpotlight({ log, viewer, actorLabel, enabled = true, onActiveChange, unobtrusive = false }: OpponentPlaySpotlightProps) {
   // Entries already in the log when we mount (a resumed game) are history.
   const seenRef = useRef(log.length);
   const [queue, setQueue] = useState<PlaySpotlight[]>([]);
@@ -138,10 +142,11 @@ export function OpponentPlaySpotlight({ log, viewer, actorLabel, enabled = true,
   };
 
   const f = speedFactor();
-  const cardScale = typeof window === 'undefined' ? 1 : spotlightCardScale(window.innerWidth, window.innerHeight);
+  const fullScale = typeof window === 'undefined' ? 1 : spotlightCardScale(window.innerWidth, window.innerHeight);
+  const cardScale = unobtrusive ? Math.max(0.6, fullScale * 0.55) : fullScale;
   const cardStyle: CSSProperties = {
-    pointerEvents: 'auto',
-    cursor: 'pointer',
+    pointerEvents: unobtrusive ? 'none' : 'auto',
+    cursor: unobtrusive ? undefined : 'pointer',
     transition: phase === 'exit'
       ? `transform ${Math.round(SPOTLIGHT_TIMINGS.exitMs * f)}ms cubic-bezier(0.55, 0, 0.75, 0.3), opacity ${Math.round(SPOTLIGHT_TIMINGS.exitMs * f)}ms ease-in`
       : undefined,
@@ -150,7 +155,7 @@ export function OpponentPlaySpotlight({ log, viewer, actorLabel, enabled = true,
   };
 
   return (
-    <div className={`opp-spotlight opp-spotlight-${phase}`} aria-hidden={false}>
+    <div className={`opp-spotlight opp-spotlight-${phase}${unobtrusive ? ' opp-spotlight-unobtrusive' : ''}`}>
       <div className="opp-spotlight-backdrop" />
       <div className="opp-spotlight-stage">
         <div role="status" aria-live="polite" className="opp-spotlight-caption" style={{ opacity: phase === 'exit' ? 0 : 1 }}>
@@ -162,8 +167,8 @@ export function OpponentPlaySpotlight({ log, viewer, actorLabel, enabled = true,
           ref={cardRef}
           className="opp-spotlight-card"
           style={cardStyle}
-          onClick={skip}
-          title="Tap to continue"
+          onClick={unobtrusive ? undefined : skip}
+          title={unobtrusive ? undefined : 'Tap to continue'}
         >
           <CardFace cardId={current.cardId} large scale={cardScale} />
         </div>

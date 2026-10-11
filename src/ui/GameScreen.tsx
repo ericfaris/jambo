@@ -187,6 +187,11 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
     setLogOpen(false);
   }, []);
   const closeLog = useCallback(() => setLogOpen(false), []);
+  // One voice per moment: the spotlight caption replaces the AI's line about
+  // the same play (a hidden bubble would otherwise pop up stale afterwards).
+  useEffect(() => {
+    if (spotlightActive) setAiMessage('');
+  }, [spotlightActive]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -636,7 +641,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
               <OpponentArea
                 compact
                 player={opponent}
-                aiMessage={state.phase === 'GAME_OVER' ? '' : aiMessage}
+                aiMessage={state.phase === 'GAME_OVER' || spotlightActive ? '' : aiMessage}
                 onMessageHide={handleAiMessageHide}
                 goldDelta={visualFeedback.goldDeltas[opponentPlayer]}
                 marketFlashSlots={visualFeedback.marketFlashSlots[opponentPlayer]}
@@ -754,7 +759,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
         }} data-center-target="top">
           <OpponentArea
             player={state.players[opponentPlayer]}
-            aiMessage={state.phase === 'GAME_OVER' ? '' : aiMessage}
+            aiMessage={state.phase === 'GAME_OVER' || spotlightActive ? '' : aiMessage}
             onMessageHide={handleAiMessageHide}
             goldDelta={visualFeedback.goldDeltas[opponentPlayer]}
             marketFlashSlots={visualFeedback.marketFlashSlots[opponentPlayer]}
@@ -1366,7 +1371,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
       <EndgameOverlay state={state} onNewGame={() => newGame()} onMainMenu={onBackToMenu} />
 
       {/* Resolve mega view — also stay visible during drafts when AI is picking */}
-      {shouldShowResolvePanel(hasPendingInteraction, isAiTurn, state.pendingResolution?.type, spotlightActive) && (
+      {shouldShowResolvePanel(hasPendingInteraction, isAiTurn, state.pendingResolution?.type, spotlightActive && state.currentPlayer !== viewerPlayer) && (
         <ResolveMegaView
           verticalAlign="center"
           hand={state.players[viewerPlayer].hand}
@@ -1385,6 +1390,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
         actorLabel="Opponent"
         enabled={!localMultiplayer}
         onActiveChange={setSpotlightActive}
+        unobtrusive={state.currentPlayer === viewerPlayer}
       />
 
       {/* Action log: left tab on desktop, topbar button on phones */}

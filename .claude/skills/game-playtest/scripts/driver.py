@@ -154,6 +154,12 @@ class Game:
     # ---------- action realization ----------
     def realize(self, action, before):
         t = action['type']
+        # The opponent-play spotlight (OpponentPlaySpotlight) holds response
+        # panels ~2s while the card lands; let it finish before scanning.
+        for _ in range(8):
+            if not self.pg.evaluate("() => !!document.querySelector('.opp-spotlight')"):
+                break
+            self.tick(500)
         cs = self.scan()
         # The draw dialog opens from a React effect one render after the turn
         # starts; under the frozen fake clock the first scan can land before

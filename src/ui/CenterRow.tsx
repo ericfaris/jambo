@@ -6,7 +6,7 @@ import { getCard } from '../engine/cards/CardDatabase.ts';
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import { FEEDBACK_TIMINGS } from './animationTimings.ts';
-import { formatLogRecap, formatTurnOwner } from './uiHints.ts';
+import { describeTrailTag, formatLogRecap, formatTurnOwner } from './uiHints.ts';
 import { deckThicknessShadow, discardGhostPoses, useJustSpent } from './life.tsx';
 
 interface CenterRowProps {
@@ -72,9 +72,10 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
     const trail = visualFeedback?.trail;
     if (!trail) return;
 
-    const actorLabel = trail.actor === 1 ? 'Opponent' : 'You';
-    const verb = trail.kind === 'draw' ? 'drew a card' : 'discarded a card';
-    setActionTag(`${actorLabel} ${verb}`);
+    // Phones show only the recap pill — two labels stacked over the slim
+    // center row read as noise (2026-10-11 review).
+    if (compact) return;
+    setActionTag(describeTrailTag(trail.kind, actorLabels[trail.actor], state.log.slice(-6)));
 
     const timer = window.setTimeout(() => setActionTag(null), FEEDBACK_TIMINGS.actionTagDurationMs);
     return () => window.clearTimeout(timer);
