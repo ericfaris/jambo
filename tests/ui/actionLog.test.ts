@@ -124,9 +124,9 @@ describe('opponent play spotlight', () => {
     expect(spotlightForEntry(entry({ action: 'PLAY_UTILITY', card: 'well_1' }), 0, 'Opponent'))
       .toMatchObject({ headline: 'Opponent placed Well', destination: 'utilities' });
     expect(spotlightForEntry(entry({ action: 'ACTIVATE_UTILITY', card: 'well_1' }), 0, 'Opponent'))
-      .toMatchObject({ headline: 'Opponent used Well', destination: 'utilities', brief: true });
+      .toMatchObject({ headline: 'Opponent used Well', destination: 'utilities', weight: 'routine' });
     // a newly placed utility is news; re-using one is routine
-    expect(spotlightForEntry(entry({ action: 'PLAY_UTILITY', card: 'well_1' }), 0, 'Opponent')?.brief).toBeUndefined();
+    expect(spotlightForEntry(entry({ action: 'PLAY_UTILITY', card: 'well_1' }), 0, 'Opponent')?.weight).toBeUndefined();
     expect(spotlightForEntry(entry({ action: 'GUARD_PLAYED', details: 'Guard cancelled Parrot', card: 'guard_1' }), 0, 'Opponent'))
       .toMatchObject({ headline: 'Opponent played Guard', detail: 'Cancelled Parrot' });
   });

@@ -9,10 +9,26 @@ import type { PlaySpotlight } from './actionLog.ts';
 export const SPOTLIGHT_TIMINGS = {
   enterMs: 260,
   holdMs: 1100,
-  /** Hold when more plays are already queued behind this one. */
+  /** A ware buy/sell — common, so a shorter beat than a new card. */
+  holdTradeMs: 850,
+  /** Hold when more plays are already queued behind this one, or for a
+   *  routine re-use of a utility. */
   holdQueuedMs: 700,
   exitMs: 480,
 } as const;
+
+/** How long a spotlight holds before it flies off. */
+export function spotlightHoldMs(spot: Pick<PlaySpotlight, 'weight'>, queued: boolean): number {
+  if (queued || spot.weight === 'routine') return SPOTLIGHT_TIMINGS.holdQueuedMs;
+  if (spot.weight === 'trade') return SPOTLIGHT_TIMINGS.holdTradeMs;
+  return SPOTLIGHT_TIMINGS.holdMs;
+}
+
+/** How long a spotlight keeps the AI (and response panels) waiting: the
+ *  game moves on as the card starts flying away, not after it lands. */
+export function spotlightBlockingMs(spot: Pick<PlaySpotlight, 'weight'>, queued = false): number {
+  return SPOTLIGHT_TIMINGS.enterMs + spotlightHoldMs(spot, queued);
+}
 
 /** Total time one spotlight occupies the screen — must stay under the AI's
  *  per-action delay so announcements never fall behind the game. */
@@ -100,9 +116,10 @@ export function OpponentPlaySpotlight({ log, viewer, actorLabel, enabled = true,
   const queued = queue.length > 1;
 
   useEffect(() => {
-    onActiveChange?.(current !== null);
+    // Released as the card starts flying off (the exit overlaps the next move)
+    onActiveChange?.(current !== null && phase !== 'exit');
     onCurrentChange?.(current);
-  }, [current, onActiveChange, onCurrentChange]);
+  }, [current, phase, onActiveChange, onCurrentChange]);
   useEffect(() => () => onActiveChange?.(false), [onActiveChange]);
 
   // Drive enter → hold → exit → next.
@@ -112,7 +129,7 @@ export function OpponentPlaySpotlight({ log, viewer, actorLabel, enabled = true,
     const ms = phase === 'enter'
       ? SPOTLIGHT_TIMINGS.enterMs
       : phase === 'hold'
-        ? (queued || current.brief ? SPOTLIGHT_TIMINGS.holdQueuedMs : SPOTLIGHT_TIMINGS.holdMs)
+        ? spotlightHoldMs(current, queued)
         : SPOTLIGHT_TIMINGS.exitMs;
     const timer = window.setTimeout(() => {
       if (phase === 'enter') setPhase('hold');

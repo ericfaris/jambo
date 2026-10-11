@@ -53,8 +53,9 @@ export function parseAiSpeed(value: string | null | undefined): AiSpeed {
  */
 export const AI_BASE_DELAY_MS = {
   hidden: 750,
-  choice: 1200,
-  play: 1200,
+  choice: 1000,
+  // the spotlight that follows a play carries the beat
+  play: 900,
   endTurn: 800,
 } as const;
 
