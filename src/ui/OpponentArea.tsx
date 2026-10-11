@@ -72,7 +72,7 @@ function OpponentAreaComponent({ player, aiMessage, onMessageHide, goldDelta = 0
             compact
             owner={seat}
           />
-          <div data-spotlight-target="opponent-utilities">
+          <div data-spotlight-target="opponent-utilities" data-utility-anchor={seat}>
             <UtilityChips utilities={player.utilities} onMegaView={onMegaView} />
           </div>
         </div>
@@ -97,7 +97,7 @@ function OpponentAreaComponent({ player, aiMessage, onMessageHide, goldDelta = 0
       }}>
         <MarketDisplay market={player.market} flashSlots={marketFlashSlots} flashVariant="strong" label="Market" owner={seat} />
         {/* maxSlots reserves the row's height so the board never jumps when a utility lands */}
-        <div data-spotlight-target="opponent-utilities">
+        <div data-spotlight-target="opponent-utilities" data-utility-anchor={seat}>
           <UtilityArea utilities={player.utilities} disabled label="Utilities" cardSize="small" maxSlots={3} onMegaView={onMegaView} />
         </div>
         {/* right padding keeps the name clear of the fixed avatar/settings button */}

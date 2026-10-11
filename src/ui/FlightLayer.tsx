@@ -1,11 +1,17 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { GameState } from '../engine/types.ts';
+import { getCard } from '../engine/cards/CardDatabase.ts';
 import { anchorSelector, planFlights, snapshotForFlights } from './flights.ts';
 import type { Flight, FlightAnchor, FlightSnapshot } from './flights.ts';
 
 export const FLIGHT_DURATION_MS = { ware: 560, coin: 480, card: 620 } as const;
 /** Give up waiting for a spotlight that never showed (it's skipped, or off). */
 export const SPOTLIGHT_WAIT_FALLBACK_MS = 3200;
+
+interface PlannedFlight extends Flight {
+  /** Resolved at plan time (a draft card's element is gone by launch). */
+  fromPoint?: { x: number; y: number };
+}
 
 interface LaunchedFlight extends Flight {
   x: number;
@@ -35,12 +41,28 @@ function durationFactor(): number {
   return document.documentElement.getAttribute('data-anim-speed') === 'fast' ? 0.7 : 1;
 }
 
-function centerOf(anchor: FlightAnchor): { x: number; y: number } | null {
-  const el = document.querySelector<HTMLElement>(anchorSelector(anchor));
+function centerOfElement(el: Element | null): { x: number; y: number } | null {
   if (!el) return null;
-  const r = el.getBoundingClientRect();
+  let r = el.getBoundingClientRect();
+  // display:contents wrappers have no box — measure what they hold
+  if (r.width === 0 && r.height === 0 && el.firstElementChild) r = el.firstElementChild.getBoundingClientRect();
   if (r.width === 0 && r.height === 0) return null;
   return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+}
+
+function centerOf(anchor: FlightAnchor): { x: number; y: number } | null {
+  return centerOfElement(document.querySelector(anchorSelector(anchor)));
+}
+
+/** Where every draft-pool card sits right now (read before the next change). */
+function measureDraftCards(): Map<string, { x: number; y: number }> {
+  const out = new Map<string, { x: number; y: number }>();
+  document.querySelectorAll<HTMLElement>('[data-draft-card]').forEach((el) => {
+    const c = centerOfElement(el);
+    const id = el.getAttribute('data-draft-card');
+    if (c && id) out.set(id, c);
+  });
+  return out;
 }
 
 function slotElement(player: 0 | 1, index: number): HTMLElement | null {
@@ -48,7 +70,7 @@ function slotElement(player: 0 | 1, index: number): HTMLElement | null {
 }
 
 interface PendingGroup {
-  flights: Flight[];
+  flights: PlannedFlight[];
   waitForSpotlight: boolean;
   sawSpotlight: boolean;
   plannedAt: number;
@@ -68,14 +90,18 @@ export function FlightLayer({ state, viewer, spotlightEnabled, spotlightActive, 
   const [tick, setTick] = useState(0);
   const onLandRef = useRef(onLand);
   onLandRef.current = onLand;
+  const draftCardsRef = useRef<Map<string, { x: number; y: number }>>(new Map());
 
   // Plan on every state change, before paint, so arriving slots never flash.
   useLayoutEffect(() => {
     const prev = prevRef.current;
     const next = snapshotForFlights(state);
     prevRef.current = next;
+    const lastDraftCards = draftCardsRef.current;
+    draftCardsRef.current = measureDraftCards();
     if (prefersReducedMotion()) return;
-    const flights = planFlights(prev, next, nextIdRef.current);
+    const flights: PlannedFlight[] = planFlights(prev, next, nextIdRef.current).map((f) =>
+      f.from.type === 'draft-card' ? { ...f, fromPoint: lastDraftCards.get(f.from.cardId) } : f);
     if (flights.length === 0) return;
     nextIdRef.current = flights[flights.length - 1].id + 1;
     for (const f of flights) {
@@ -91,7 +117,7 @@ export function FlightLayer({ state, viewer, spotlightEnabled, spotlightActive, 
   // Launch groups whose spotlight has landed (or that never needed one).
   useEffect(() => {
     if (pendingRef.current.length === 0) return;
-    const ready: Flight[] = [];
+    const ready: PlannedFlight[] = [];
     const waiting: PendingGroup[] = [];
     for (const g of pendingRef.current) {
       if (g.waitForSpotlight && spotlightActive) g.sawSpotlight = true;
@@ -103,7 +129,7 @@ export function FlightLayer({ state, viewer, spotlightEnabled, spotlightActive, 
     if (ready.length > 0) {
       const out: LaunchedFlight[] = [];
       for (const f of ready) {
-        const from = centerOf(f.from);
+        const from = f.fromPoint ?? (f.from.type === 'draft-card' ? null : centerOf(f.from));
         const to = centerOf(f.to);
         if (!from || !to) {
           if (f.revealsSlot) slotElement(f.revealsSlot.player, f.revealsSlot.index)?.removeAttribute('data-incoming');
@@ -176,7 +202,7 @@ function FlightSprite({ flight, onDone }: { flight: LaunchedFlight; onDone: (f: 
     <div ref={ref} className={`flight flight-${flight.kind}`} style={{ left: flight.x, top: flight.y }}>
       {flight.kind === 'ware' && flight.ware && <img src={`/assets/tokens/${flight.ware}.png`} alt="" draggable={false} />}
       {flight.kind === 'coin' && <span className="flight-coin" />}
-      {flight.kind === 'card' && <img src="/assets/cards/card_back.png" alt="" draggable={false} />}
+      {flight.kind === 'card' && <img src={flight.cardId ? `/assets/cards/${getCard(flight.cardId).designId}.png` : '/assets/cards/card_back.png'} alt="" draggable={false} />}
     </div>
   );
 }

@@ -97,12 +97,15 @@ function SelectableCardArea({
   onMegaView,
   selectedIndices,
   selectedCardIds,
+  draftAnchors = false,
 }: {
   cards: DeckCardId[];
   onSelect: (cardId: DeckCardId, index: number) => void;
   onMegaView?: (cardId: DeckCardId) => void;
   selectedIndices?: number[];
   selectedCardIds?: DeckCardId[];
+  /** Draft pool: tag each card (data-draft-card) so a pick can fly from it. */
+  draftAnchors?: boolean;
 }) {
   const useOverlap = cards.length >= 8;
 
@@ -110,14 +113,15 @@ function SelectableCardArea({
     return (
       <div style={getCardGridStyle(cards.length)}>
         {cards.map((cardId, index) => (
-          <CardFace
-            key={`${cardId}-${index}`}
-            cardId={cardId}
-            small
-            selected={selectedIndices?.includes(index) || selectedCardIds?.includes(cardId)}
-            onClick={() => onSelect(cardId, index)}
-            onMegaView={onMegaView}
-          />
+          <div key={`${cardId}-${index}`} data-draft-card={draftAnchors ? cardId : undefined} style={{ display: 'contents' }}>
+            <CardFace
+              cardId={cardId}
+              small
+              selected={selectedIndices?.includes(index) || selectedCardIds?.includes(cardId)}
+              onClick={() => onSelect(cardId, index)}
+              onMegaView={onMegaView}
+            />
+          </div>
         ))}
       </div>
     );
@@ -141,6 +145,7 @@ function SelectableCardArea({
       {cards.map((cardId, index) => (
         <div
           key={`${cardId}-${index}`}
+          data-draft-card={draftAnchors ? cardId : undefined}
           style={{
             marginLeft: index === 0 ? 0 : -overlap,
             flexShrink: 0,
@@ -996,12 +1001,14 @@ function DraftPanel({ pr, viewerPlayer, dispatch, onMegaView }: { pr: Extract<Pe
           cards={cards}
           onSelect={(cardId) => resolve(dispatch, { type: 'SELECT_CARD', cardId })}
           onMegaView={onMegaView}
+          draftAnchors
         />
       ) : (
         <SelectableCardArea
           cards={cards}
           onSelect={() => {}}
           onMegaView={onMegaView}
+          draftAnchors
         />
       )}
     </div>

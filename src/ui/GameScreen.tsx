@@ -742,7 +742,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
                 <div className="panel-section-title">{localMultiplayer ? `Player ${viewerPlayer + 1} Utilities` : 'Your Utilities'}</div>
                 {utilCount > 0 && <span className="ui-helper-text">{utilCount}/3</span>}
               </div>
-              <div style={{ flexShrink: 0, height: utilH }}>
+              <div style={{ flexShrink: 0, height: utilH }} data-utility-anchor={viewerPlayer}>
                 <UtilityArea
                   utilities={viewer.utilities}
                   onActivate={(i) => {
@@ -875,6 +875,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
               flashVariant="soft"
               label={localMultiplayer ? `Player ${viewerPlayer + 1} Market` : 'Your Market'}
             />
+            <div data-utility-anchor={viewerPlayer}>
             <UtilityArea
               utilities={state.players[viewerPlayer].utilities}
               onActivate={(i) => {
@@ -895,6 +896,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
               maxSlots={3}
               showHelperText={false}
             />
+            </div>
             <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, paddingTop: 2 }}>
               <span style={{
                 fontFamily: 'var(--font-heading)',

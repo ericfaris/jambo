@@ -16,6 +16,8 @@ function snap(over: Partial<FlightSnapshot> = {}): FlightSnapshot {
     deckCount: 90,
     discardCount: 10,
     logLength: 10,
+    utilityCounts: [0, 0],
+    draft: null,
     ...over,
   };
 }
@@ -118,5 +120,54 @@ describe('discard pile waits for the spotlight', () => {
     expect(held).not.toContain('/assets/cards/parrot.png');
     const normal = renderToStaticMarkup(createElement(CenterRow, { state: s, dispatch: () => {} }));
     expect(normal).toContain('/assets/cards/parrot.png');
+  });
+});
+
+describe('draft picks fly out of the open panel (Ape / Lion)', () => {
+  const pool = ['well_1', 'parrot_1', 'guard_1'];
+
+  it('an Ape pick flies from its pool card to the picker’s hand, face up', () => {
+    const prev = snap({ draft: { mode: 'cards', available: pool, picker: 1 }, handCounts: [0, 0] });
+    const next = snap({ draft: { mode: 'cards', available: ['well_1', 'guard_1'], picker: 0 }, handCounts: [0, 1] });
+    expect(planFlights(prev, next)).toEqual([
+      expect.objectContaining({ kind: 'card', cardId: 'parrot_1', from: { type: 'draft-card', cardId: 'parrot_1' }, to: { type: 'hand', player: 1 } }),
+    ]);
+  });
+
+  it('a Lion pick goes to the utility row — or the table when the picker is at the cap', () => {
+    const prev = snap({ draft: { mode: 'utilities', available: ['well_1', 'drums_1'], picker: 0 }, utilityCounts: [1, 2] });
+    const kept = snap({ draft: { mode: 'utilities', available: ['drums_1'], picker: 1 }, utilityCounts: [2, 2] });
+    expect(planFlights(prev, kept)[0].to).toEqual({ type: 'utilities', player: 0 });
+    const capped = snap({ draft: { mode: 'utilities', available: ['drums_1'], picker: 1 }, utilityCounts: [1, 2] });
+    expect(planFlights(prev, capped)[0].to).toEqual({ type: 'table' });
+  });
+
+  it('the final pick (draft over) still flies', () => {
+    const prev = snap({ draft: { mode: 'cards', available: ['guard_1'], picker: 0 }, handCounts: [3, 3] });
+    const next = snap({ draft: null, handCounts: [4, 3], logLength: 11 });
+    expect(planFlights(prev, next)).toEqual([expect.objectContaining({ cardId: 'guard_1', to: { type: 'hand', player: 0 } })]);
+  });
+
+  it('draft pool anchors map to data attributes', () => {
+    expect(anchorSelector({ type: 'draft-card', cardId: 'well_1' })).toBe('[data-draft-card="well_1"]');
+    expect(anchorSelector({ type: 'utilities', player: 0 })).toBe('[data-utility-anchor="0"]');
+  });
+
+  it('snapshots a live draft from the engine state', () => {
+    const s = createTestState();
+    const drafting = { ...s, pendingResolution: { type: 'DRAFT' as const, sourceCard: 'ape_1', draftMode: 'cards' as const, availableWares: [], availableCards: pool, currentPicker: 1 as const, picks: [[], []] as [never[], never[]], cardPicks: [[], []] as [string[], string[]] } };
+    expect(snapshotForFlights(drafting).draft).toEqual({ mode: 'cards', available: pool, picker: 1 });
+    expect(snapshotForFlights(s).draft).toBeNull();
+  });
+});
+
+describe('the draft panel tags its pool cards', () => {
+  it('renders data-draft-card on each pool card', async () => {
+    const { InteractionPanel } = await import('../../src/ui/InteractionPanel.tsx');
+    const s = createTestState();
+    const state = { ...s, currentPlayer: 0 as const, pendingResolution: { type: 'DRAFT' as const, sourceCard: 'ape_1', draftMode: 'cards' as const, availableWares: [], availableCards: ['well_1', 'parrot_1'], currentPicker: 0 as const, picks: [[], []] as [never[], never[]], cardPicks: [[], []] as [string[], string[]] } };
+    const html = renderToStaticMarkup(createElement(InteractionPanel, { state, dispatch: () => {}, viewerPlayer: 0 }));
+    expect(html).toContain('data-draft-card="well_1"');
+    expect(html).toContain('data-draft-card="parrot_1"');
   });
 });

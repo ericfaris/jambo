@@ -5,7 +5,7 @@
 // to miss.)
 // ============================================================================
 
-import type { GameState, WareType } from '../engine/types.ts';
+import type { DeckCardId, GameState, WareType } from '../engine/types.ts';
 import { WARE_TYPES } from '../engine/types.ts';
 
 /** Where a flight starts or lands — each maps to a data-* anchor in the DOM. */
@@ -14,6 +14,11 @@ export type FlightAnchor =
   | { type: 'supply'; ware: WareType }
   | { type: 'gold'; player: 0 | 1 }
   | { type: 'hand'; player: 0 | 1 }
+  | { type: 'utilities'; player: 0 | 1 }
+  /** A card in the open draft panel's pool (Ape / Lion). Its element is gone
+   *  once picked, so FlightLayer resolves it from positions cached the
+   *  render before. */
+  | { type: 'draft-card'; cardId: DeckCardId }
   /** The center of the table (the discard pile): the bank, a draft pool. */
   | { type: 'table' };
 
@@ -21,6 +26,8 @@ export interface Flight {
   id: number;
   kind: 'ware' | 'coin' | 'card';
   ware?: WareType;
+  /** A face-up card in flight (draft picks are public); card back otherwise. */
+  cardId?: DeckCardId;
   from: FlightAnchor;
   to: FlightAnchor;
   /** Stagger within one change, ms. */
@@ -37,6 +44,9 @@ export interface FlightSnapshot {
   deckCount: number;
   discardCount: number;
   logLength: number;
+  utilityCounts: [number, number];
+  /** An Ape / Lion draft in progress: what's left in the pool, who picks. */
+  draft: { mode: 'cards' | 'utilities'; available: DeckCardId[]; picker: 0 | 1 } | null;
 }
 
 export function snapshotForFlights(state: GameState): FlightSnapshot {
@@ -48,7 +58,15 @@ export function snapshotForFlights(state: GameState): FlightSnapshot {
     deckCount: state.deck.length,
     discardCount: state.discardPile.length,
     logLength: state.log.length,
+    utilityCounts: [state.players[0].utilities.length, state.players[1].utilities.length],
+    draft: draftOf(state),
   };
+}
+
+function draftOf(state: GameState): FlightSnapshot['draft'] {
+  const pr = state.pendingResolution;
+  if (!pr || pr.type !== 'DRAFT' || pr.draftMode === 'wares') return null;
+  return { mode: pr.draftMode, available: pr.availableCards ?? [], picker: pr.currentPicker };
 }
 
 /** Beyond this many new log entries the change wasn't one move (a resume, a new game). */
@@ -75,11 +93,30 @@ interface SlotChange { player: 0 | 1; index: number; ware: WareType }
  * (Hyena). Returns [] for anything that isn't a single move.
  */
 export function planFlights(prev: FlightSnapshot, next: FlightSnapshot, startId = 1): Flight[] {
-  const logStep = next.logLength - prev.logLength;
-  if (logStep <= 0 || logStep > MAX_LOG_STEP) return [];
-
   let id = startId;
   const flights: Flight[] = [];
+
+  // --- draft picks (Ape / Lion) — a pick logs nothing until the draft ends --
+  if (prev.draft) {
+    const left = new Set(next.draft?.mode === prev.draft.mode ? next.draft.available : []);
+    const taken = prev.draft.available.filter((c) => !left.has(c));
+    if (taken.length > 0 && taken.length <= 3) {
+      const picker = prev.draft.picker;
+      const kept = prev.draft.mode === 'cards'
+        ? next.handCounts[picker] > prev.handCounts[picker]
+        : next.utilityCounts[picker] > prev.utilityCounts[picker];
+      taken.forEach((cardId, i) => {
+        const to: FlightAnchor = i === 0 && kept
+          ? (prev.draft!.mode === 'cards' ? { type: 'hand', player: picker } : { type: 'utilities', player: picker })
+          : { type: 'table' }; // over the utility cap, or the pool's leftovers
+        flights.push({ id: id++, kind: 'card', cardId, from: { type: 'draft-card', cardId }, to, delayMs: i * CARD_STAGGER_MS });
+      });
+      return flights;
+    }
+  }
+
+  const logStep = next.logLength - prev.logLength;
+  if (logStep <= 0 || logStep > MAX_LOG_STEP) return [];
 
   // --- wares ---------------------------------------------------------------
   const arrivals: SlotChange[] = [];
@@ -169,6 +206,8 @@ export function anchorSelector(anchor: FlightAnchor): string {
     case 'supply': return `[data-supply-ware="${anchor.ware}"]`;
     case 'gold': return `[data-gold-anchor="${anchor.player}"]`;
     case 'hand': return `[data-hand-anchor="${anchor.player}"]`;
+    case 'utilities': return `[data-utility-anchor="${anchor.player}"]`;
+    case 'draft-card': return `[data-draft-card="${anchor.cardId}"]`;
     case 'table': return '[data-spotlight-target="discard"]';
   }
 }

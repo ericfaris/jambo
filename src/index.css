@@ -2003,7 +2003,8 @@ button.brown:hover:not(:disabled) {
 }
 
 /* --- Flights: wares, coins and cards changing hands ---------------------- */
-.flight-layer { position: fixed; inset: 0; z-index: 8650; pointer-events: none; }
+/* above the resolve overlay (9000) so draft picks fly out of the open panel */
+.flight-layer { position: fixed; inset: 0; z-index: 9100; pointer-events: none; }
 .flight { position: absolute; transform: translate(-50%, -50%); will-change: transform, opacity; }
 .flight-ware img { width: 34px; height: 34px; object-fit: contain; filter: drop-shadow(0 6px 8px rgba(0,0,0,0.55)); }
 .flight-card img { width: 46px; height: 62px; border-radius: 5px; box-shadow: 0 8px 16px rgba(0,0,0,0.5); }
