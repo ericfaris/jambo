@@ -15,6 +15,7 @@ import { UtilityArea } from './UtilityArea.tsx';
 import { ActionPips, AmbientLayer, GoldCount, applyAmbient, getInitialAmbient } from './life.tsx';
 import { HandDisplay } from './HandDisplay.tsx';
 import { InteractionPanel } from './InteractionPanel.tsx';
+import { endTurnBonus } from './handHints.ts';
 import { ResolveMegaView } from './ResolveMegaView.tsx';
 import { MegaView } from './MegaView.tsx';
 import { CardPlayDialog, DrawModal as SharedDrawModal } from './ActionButtons.tsx';
@@ -375,9 +376,9 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
             className="end-turn-button"
             disabled={actionsDisabled}
             onClick={() => dispatch({ type: 'END_TURN' })}
-            aria-label={`End turn, ${pub.actionsLeft} actions left`}
+            aria-label={`End turn, ${pub.actionsLeft} actions left${endTurnBonus(pub.actionsLeft) ? `, earns +${endTurnBonus(pub.actionsLeft)}g` : ''}`}
           >
-            End Turn
+            <span>End Turn{endTurnBonus(pub.actionsLeft) > 0 && <span className="end-turn-bonus">+{endTurnBonus(pub.actionsLeft)}g</span>}</span>
             <ActionPips actionsLeft={pub.actionsLeft} />
           </button>
         )}

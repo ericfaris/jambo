@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react';
 import type { DeckCardId } from '../engine/types.ts';
 import { CardFace } from './CardFace.tsx';
 import { splitIntoRows } from './fitLayout.ts';
+import type { HandCardHint } from './handHints.ts';
 
 interface HandDisplayProps {
   hand: DeckCardId[];
@@ -26,6 +27,9 @@ interface HandDisplayProps {
   rows?: number;
   /** fitRows only: gap between cards when fixedOverlapPx is 0. */
   gapPx?: number;
+  /** Per-card playability (computeHandHints): dims what can't be played now
+   *  and marks ware cards that can be sold right now. */
+  hints?: ReadonlyMap<DeckCardId, HandCardHint> | null;
 }
 
 /** Max overlap as a fraction of card width — keeps each card's art readable. */
@@ -33,7 +37,7 @@ export const MAX_READABLE_OVERLAP_RATIO = 0.5;
 /** Hand size at which the fan stops squeezing and scrolls sideways. */
 export const SCROLL_HAND_SIZE = 12;
 
-function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaView, useWoodBackground = true, transparentBackground = false, showBorder = true, showHelperText = true, cardScale = 1, paddingBottom = 14, paddingX = 14, paddingLeft, paddingRight, paddingTop = 14, layoutMode = 'fan', fixedOverlapPx, rows = 1, gapPx = 8 }: HandDisplayProps) {
+function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaView, useWoodBackground = true, transparentBackground = false, showBorder = true, showHelperText = true, cardScale = 1, paddingBottom = 14, paddingX = 14, paddingLeft, paddingRight, paddingTop = 14, layoutMode = 'fan', fixedOverlapPx, rows = 1, gapPx = 8, hints = null }: HandDisplayProps) {
   const [isMobile, setIsMobile] = useState(false);
   // The opening hand deals in one card after another; later draws arrive alone
   const dealtRef = useRef(false);
@@ -115,8 +119,17 @@ function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaVie
       tileStyle['--fan-rot'] = `${(offset * fanStep).toFixed(2)}deg`;
       tileStyle['--fan-lift'] = `${Math.min(offset * offset * 1.2, 10).toFixed(1)}px`;
     }
+    const hint = hints?.get(cardId);
+    const dimmed = !!hint && !hint.playable && !hint.reaction;
     return (
-      <div key={cardId} className="hand-card" style={tileStyle as CSSProperties}>
+      <div
+        key={cardId}
+        className={dimmed ? 'hand-card hand-card-unplayable' : 'hand-card'}
+        style={tileStyle as CSSProperties}
+        title={hint?.reason}
+        data-playable={hint ? String(hint.playable) : undefined}
+      >
+        {hint?.sellReady && <span className="hand-sell-ready" aria-label="Can sell now">Sell ✓</span>}
         <div className="hand-card-inner">
           <CardFace
             cardId={cardId}

@@ -1830,3 +1830,42 @@ button.brown:hover:not(:disabled) {
   .opp-spotlight-card { transition: opacity 200ms linear !important; }
   .log-drawer, .log-drawer-open { transition: none; }
 }
+
+/* --- Hand hints: what you can do right now (2026-10-11 review) ----------- */
+.hand-card-unplayable > .hand-card-inner {
+  filter: saturate(0.45) brightness(0.62);
+  transition: filter var(--motion-base) ease;
+}
+.hand-card-unplayable:hover > .hand-card-inner { filter: saturate(0.7) brightness(0.8); }
+.hand-sell-ready {
+  position: absolute;
+  /* top-left: in an overlapping hand the next card covers the right edge */
+  top: -7px;
+  left: -5px;
+  z-index: 5;
+  padding: 1px 7px 1px 6px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 35% 30%, #f6dc8a, #c9952f 70%);
+  border: 1px solid #7a5418;
+  color: #2b1a06;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.45), 0 0 0 2px rgba(106,138,64,0.85);
+  pointer-events: none;
+}
+.end-turn-bonus {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #ffe08a;
+  color: #5a1a10;
+  /* Judson's thin "+" reads as "−" at this size */
+  font-family: system-ui, 'Segoe UI', sans-serif;
+  font-size: 0.78em;
+  font-weight: 800;
+  line-height: 1.5;
+  vertical-align: 1px;
+}

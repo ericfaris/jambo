@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { ChangeEvent } from 'react';
 import { useGameStore } from '../hooks/useGameStore.ts';
 import { getAiActionByDifficulty } from '../ai/difficulties/index.ts';
@@ -18,6 +18,7 @@ import { InteractionPanel } from './InteractionPanel.tsx';
 import { ActionLogButton, ActionLogDrawer } from './ActionLogDrawer.tsx';
 import { OpponentPlaySpotlight } from './OpponentPlaySpotlight.tsx';
 import { countUnread } from './actionLog.ts';
+import { computeHandHints, endTurnBonus } from './handHints.ts';
 import { EndgameOverlay } from './EndgameOverlay.tsx';
 import { ResolveMegaView } from './ResolveMegaView.tsx';
 import { isHandInteraction } from './HandReferenceStrip.tsx';
@@ -471,6 +472,8 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   });
 
   const lastLog = state.log.length > 0 ? state.log[state.log.length - 1] : null;
+  const handHints = useMemo(() => computeHandHints(state, viewerPlayer), [state, viewerPlayer]);
+  const turnBonus = endTurnBonus(state.actionsLeft);
   const logLabels: readonly [string, string] = localMultiplayer ? HOTSEAT_LABELS : SOLO_LABELS;
   const logUnread = logVisible ? 0 : countUnread(state.log, logSeenLength, opponentPlayer);
   const visualFeedback = useVisualFeedback({
@@ -661,9 +664,9 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
                 <button
                   className="end-turn-button"
                   onClick={() => dispatch({ type: 'END_TURN' })}
-                  aria-label={`End turn, ${state.actionsLeft} actions left`}
+                  aria-label={`End turn, ${state.actionsLeft} actions left${turnBonus ? `, earns +${turnBonus}g` : ''}`}
                 >
-                  End Turn
+                  <span>End Turn{turnBonus > 0 && <span className="end-turn-bonus">+{turnBonus}g</span>}</span>
                   <ActionPips actionsLeft={state.actionsLeft} />
                 </button>
               )}
@@ -750,6 +753,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
                   hand={viewer.hand}
                   onPlayCard={handlePlayCard}
                   disabled={playActionsDisabled}
+                  hints={handHints}
                   cardError={cardError}
                   useWoodBackground={false}
                   transparentBackground
@@ -817,9 +821,9 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
                 className="end-turn-button"
                 onClick={() => dispatch({ type: 'END_TURN' })}
                 style={{ padding: '12px 28px', fontSize: 16 }}
-                aria-label={`End turn, ${state.actionsLeft} actions left`}
+                aria-label={`End turn, ${state.actionsLeft} actions left${turnBonus ? `, earns +${turnBonus}g` : ''}`}
               >
-                End Turn
+                <span>End Turn{turnBonus > 0 && <span className="end-turn-bonus">+{turnBonus}g</span>}</span>
                 <ActionPips actionsLeft={state.actionsLeft} />
               </button>
             ) : undefined}
@@ -922,6 +926,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
             hand={state.players[viewerPlayer].hand}
             onPlayCard={handlePlayCard}
             disabled={playActionsDisabled}
+            hints={handHints}
             cardError={cardError}
             useWoodBackground={false}
             transparentBackground={false}
