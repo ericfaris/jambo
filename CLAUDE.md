@@ -264,7 +264,7 @@ Each costs 1 action:
 - **Shaman (x2)**: Trade all of 1 ware type for same count of different type from supply
 - **Psychic (x2)**: Look at top 6 deck cards, take 1, replace rest in order
 - **Tribal Elder (x2)**: Choose: opponent discards to 3, OR you draw to 5
-- **Wise Man from Afar (x2)**: This turn: buys cost 2g less, sells earn 2g more — house rule: also +2g once per Dancer or Portuguese sale
+- **Wise Man from Afar (x2)**: This turn: ware-card buys cost 2g less (never below 0), ware-card sells earn 2g more. Not Dancer or Portuguese sales (designer ruling). Two stack.
 - **Portuguese (x2)**: Return any wares from market to supply, get 2g per ware
 - **Basket Maker (x2)**: Pay 2g, take 2 of same ware type from supply
 - **Traveling Merchant (x2)**: Select 2 ware types from supply to auction; winner pays bid and receives both wares
@@ -274,11 +274,11 @@ Each costs 1 action:
 - **Drummer (x1)**: Take 1 utility from discard pile to hand
 
 **Animal Cards (14)** — 8 unique designs. Can be blocked by Guard.
-- **Crocodile (x5)**: Use 1 of opponent's utilities for free, then discard it
+- **Crocodile (x5)**: Use 1 of opponent's utilities for free, then discard it (a Mask can only be discarded, not used)
 - **Parrot (x2)**: Steal 1 ware from opponent's market
 - **Hyena (x2)**: Look at opponent's hand, take 1 card, give them 1 of yours
 - **Snake (x1)**: Both players keep 1 utility, discard the rest
-- **Elephant (x1)**: Pool all wares from both markets, draft alternating (you first)
+- **Elephant (x1)**: Pool all wares from both markets, draft alternating (you first); once one player is full the other takes the rest; no 6th-space fee while drafting
 - **Ape (x1)**: Pool all hand cards, draft alternating (you first)
 - **Lion (x1)**: Pool all utilities, draft alternating (you first, max 3 each)
 - **Cheetah (x1)**: Opponent chooses: pay you 2g, OR you draw 2 cards
@@ -290,7 +290,7 @@ Each costs 1 action:
 - **Boat (x2)**: Discard 1 hand card, take 1 ware of choice from supply
 - **Scale (x2)**: Draw 2 cards, keep 1, give other to opponent
 - **Mask of Transformation (x2)**: Trade 1 hand card for top of discard pile
-- **Supplies (x2)**: Pay 1g or discard 1 card, then draw until ware found (discard non-wares)
+- **Supplies (x2)**: Pay 1g or discard 1 card, then draw until ware found (discard non-wares); the ware found is revealed
 - **Kettle (x2)**: Discard 1-2 hand cards, draw same number
 - **Leopard Statue (x2)**: Pay 2g, take 1 ware of choice from supply
 - **Weapons (x2)**: Discard 1 hand card, receive 2g

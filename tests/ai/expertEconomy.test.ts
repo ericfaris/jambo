@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import fixture from '../fixtures/expert-idle-game-2026-10-04.json' with { type: 'json' };
-import { createStartingState } from '../../src/persistence/replayLog.ts';
+import fixture from '../fixtures/expert-idle-state-2026-10-04.json' with { type: 'json' };
 import { processAction } from '../../src/engine/GameEngine.ts';
 import type { GameAction, GameState } from '../../src/engine/types.ts';
 import { getExpertAiAction } from '../../src/ai/difficulties/ExpertAI.ts';
@@ -8,9 +7,7 @@ import { evaluateBoard, getAssetValueGold, standPlayBonus } from '../../src/ai/d
 import { createTestState, toPlayPhase, withGold, withHand, withMarket } from '../helpers/testHelpers.ts';
 
 function fixtureState(): GameState {
-  let s = createStartingState(fixture.rngSeed, fixture.startingPlayer as 0 | 1);
-  for (const a of fixture.actions as GameAction[]) s = processAction(s, a);
-  return s;
+  return structuredClone(fixture.state) as unknown as GameState;
 }
 
 describe('Expert plays the economy instead of banking the idle bonus', () => {

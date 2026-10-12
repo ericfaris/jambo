@@ -266,3 +266,12 @@ describe('spotlight card size', () => {
     expect(spotlightCardScale(200, 200)).toBe(0.8);
   });
 });
+
+describe('Supplies reveals the ware card it finds', () => {
+  it('the opponent sees it announced, flying to their hand', () => {
+    const entry: GameLogEntry = { turn: 3, player: 1, action: 'SUPPLIES_PAY', details: 'Paid 1g, revealed cards until a ware card: found ware_3k_1', card: 'ware_3k_1' };
+    const spot = spotlightForEntry(entry, 0, 'Baraka');
+    expect(spot).toMatchObject({ headline: 'Baraka found Trinket Stall', destination: 'hand' });
+    expect(describeLogEntry(entry, ['You', 'Baraka'])).toContain('Trinket Stall');
+  });
+});

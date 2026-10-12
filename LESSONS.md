@@ -377,3 +377,16 @@ overwrites tracked files.)
 - A component that hides itself on a timer should own that timer in an
   effect keyed on "shown", not inside the effect that showed it — a re-run
   of the showing effect cancels the hide and the band sticks.
+
+## 2026-10-11 — Rules audit against BGG designer rulings (v1.11.1)
+- **BGG's site API works where WebFetch and the XML API don't**:
+  `https://api.geekdo.com/api/forums/threads?objectid=12002&objecttype=thing&pageid=N`
+  lists threads; `/api/articles?threadid=N&pageid=N` returns posts (HTML in
+  `body`). The designer signs his posts "rüdiger dorn", which makes his rulings
+  easy to grep. File downloads still need a login.
+- **House rules can contradict a published designer ruling** — the Wise Man
+  bonus on Dancer/Portuguese did. Check BGG before inventing one, and cite the
+  ruling in the test (officialRules.test.ts now quotes Dorn).
+- **Replay fixtures break when a rule changes**: a recorded game that made a
+  now-illegal move can't be replayed. Snapshot the GameState instead when the
+  test is about a situation, not about the moves that led to it.

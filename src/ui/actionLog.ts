@@ -7,7 +7,7 @@ import { describeLogEntry } from './uiHints.ts';
 // ---------------------------------------------------------------------------
 
 /** Where the spotlit card settles once the announcement is over. */
-export type SpotlightDestination = 'discard' | 'utilities';
+export type SpotlightDestination = 'discard' | 'utilities' | 'hand';
 
 export interface PlaySpotlight {
   /** Stable per log entry (its index), so a re-render never replays it. */
@@ -58,6 +58,10 @@ export function spotlightForEntry(entry: GameLogEntry, index: number, actorLabel
       return { ...base, headline: `${actorLabel} played Guard`, detail: entry.details?.replace(/^Guard cancelled /, 'Cancelled ') ?? null };
     case 'RAIN_MAKER_PLAYED':
       return { ...base, headline: `${actorLabel} played Rain Maker`, detail: 'Took the ware card just used' };
+    case 'SUPPLIES_PAY':
+    case 'SUPPLIES_DRAW':
+      // Supplies reveals the ware card it finds; it goes to their hand
+      return { ...base, headline: `${actorLabel} found ${name}`, detail: 'Supplies: kept in hand', destination: 'hand', weight: 'routine' };
     case 'PLAY_PEOPLE':
     case 'PLAY_CARD':
       return { ...base, headline: `${actorLabel} played ${name}`, detail: null };

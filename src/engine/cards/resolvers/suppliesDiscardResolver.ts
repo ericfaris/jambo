@@ -4,6 +4,7 @@
 // ============================================================================
 
 import type {
+  DeckCardId,
   GameState,
   PendingSuppliesDiscard,
   InteractionResponse,
@@ -28,6 +29,15 @@ function withPlayer(
  * Draw cards from deck until a ware card is found. Keep the ware, discard the rest.
  */
 export function drawUntilWare(state: GameState, player: 0 | 1): GameState {
+  return drawUntilWareFound(state, player).state;
+}
+
+/**
+ * drawUntilWare, also returning the ware card found. Every card is revealed,
+ * the kept ware card included ("if you use the utility supplies, you reveal
+ * every card" — Rüdiger Dorn, BGG 2007), so the caller logs it face up.
+ */
+export function drawUntilWareFound(state: GameState, player: 0 | 1): { state: GameState; found: DeckCardId | null } {
   let next = state;
   const maxAttempts = next.deck.length + next.discardPile.length;
   let attempts = 0;
@@ -42,12 +52,26 @@ export function drawUntilWare(state: GameState, player: 0 | 1): GameState {
       // Found a ware card — add to hand
       const newHand = [...next.players[player].hand, result.card];
       next = withPlayer(next, player, { hand: newHand });
-      return next;
+      return { state: next, found: result.card };
     }
     // Not a ware — discard it
     next = discardCard(next, result.card);
   }
-  return next; // Deck exhausted without finding a ware
+  return { state: next, found: null }; // Deck exhausted without finding a ware
+}
+
+/** Log line for a Supplies search: the ware card found is public. */
+export function suppliesFoundLog(state: GameState, player: 0 | 1, action: string, prefix: string, found: DeckCardId | null): GameState {
+  return {
+    ...state,
+    log: [...state.log, {
+      turn: state.turn,
+      player,
+      action,
+      details: found ? `${prefix}, revealed cards until a ware card: found ${found}` : `${prefix}, no ware card left to find`,
+      ...(found ? { card: found } : {}),
+    }],
+  };
 }
 
 export function resolveSuppliesDiscard(
@@ -59,13 +83,8 @@ export function resolveSuppliesDiscard(
 
   // Guard: no cards in hand — skip discard, just draw until ware
   if (state.players[cp].hand.length === 0) {
-    let next = drawUntilWare(state, cp);
-    next = {
-      ...next,
-      pendingResolution: null,
-      log: [...next.log, { turn: state.turn, player: cp, action: 'SUPPLIES_DRAW', details: 'No cards to discard, drew until ware found' }],
-    };
-    return next;
+    const { state: drawn, found } = drawUntilWareFound(state, cp);
+    return suppliesFoundLog({ ...drawn, pendingResolution: null }, cp, 'SUPPLIES_DRAW', 'No cards to discard', found);
   }
 
   if (response.type !== 'SELECT_CARD') {
@@ -85,18 +104,6 @@ export function resolveSuppliesDiscard(
   next = discardCard(next, cardId);
 
   // Draw until ware
-  next = drawUntilWare(next, cp);
-
-  next = {
-    ...next,
-    pendingResolution: null,
-    log: [...next.log, {
-      turn: state.turn,
-      player: cp,
-      action: 'SUPPLIES_DRAW',
-      details: `Discarded ${cardId}, drew until ware found`,
-    }],
-  };
-
-  return next;
+  const { state: drawn, found } = drawUntilWareFound(next, cp);
+  return suppliesFoundLog({ ...drawn, pendingResolution: null }, cp, 'SUPPLIES_DRAW', `Discarded ${cardId}`, found);
 }

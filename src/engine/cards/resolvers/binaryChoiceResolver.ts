@@ -5,7 +5,7 @@
 import type { GameState, PendingBinaryChoice, InteractionResponse, PlayerState } from '../../types.ts';
 import { isDesign } from '../CardDatabase.ts';
 import { drawFromDeck } from '../../deck/DeckManager.ts';
-import { drawUntilWare } from './suppliesDiscardResolver.ts';
+import { drawUntilWareFound, suppliesFoundLog } from './suppliesDiscardResolver.ts';
 
 function withPlayer(
   state: GameState,
@@ -165,18 +165,8 @@ function resolveSupplies(state: GameState, pending: PendingBinaryChoice, choice:
     let next = withPlayer(state, activePlayer, { gold: player.gold - 1 });
 
     // Execute draw-until-ware inline
-    next = drawUntilWare(next, activePlayer);
-
-    return {
-      ...next,
-      pendingResolution: null,
-      log: [...next.log, {
-        turn: state.turn,
-        player: activePlayer,
-        action: 'SUPPLIES_PAY',
-        details: 'Paid 1g, drew until ware found',
-      }],
-    };
+    const { state: drawn, found } = drawUntilWareFound(next, activePlayer);
+    return suppliesFoundLog({ ...drawn, pendingResolution: null }, activePlayer, 'SUPPLIES_PAY', 'Paid 1g', found);
   } else {
     // Discard 1 card from hand first — chain to SUPPLIES_DISCARD
     return {

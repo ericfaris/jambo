@@ -214,42 +214,70 @@ describe('game end', () => {
 // wares with exactly one usable space; marketRules.test.ts pins current
 // behaviour (keeps what fits, the rest returns to the supply, nothing is lost).
 
-describe('house rules (decided 2026-10-04)', () => {
-  it('Wise Man\'s +2g applies to a Dancer sale', () => {
+describe('Wise Man from Afar (designer rulings, BGG 2005–2006)', () => {
+  // "the kombo wise man and dancer doesn't work, because you do not play the
+  // ware card, you play the dancer!" — Rüdiger Dorn, 2006
+  it('no bonus on a Dancer sale', () => {
     let s = play(['wise_man_1', 'dancer_1', 'ware_3k_1']);
     s = withMarket(s, 0, ['tea', 'salt', 'silk']);
     s = act(s, { type: 'PLAY_CARD', cardId: 'wise_man_1' });
     s = act(s, { type: 'PLAY_CARD', cardId: 'dancer_1' });
     s = resolve(s, { type: 'SELECT_CARD', cardId: 'ware_3k_1' });
     s = resolve(s, { type: 'SELECT_WARES', wareIndices: [0, 1, 2] });
-    expect(gold(s, 0)).toBe(20 + getCard('ware_3k_1').wares!.sellPrice + 2);
+    expect(gold(s, 0)).toBe(20 + getCard('ware_3k_1').wares!.sellPrice);
   });
 
-  it('Wise Man\'s +2g applies once per Portuguese sale, not per ware', () => {
+  // "The Portuguese allows you to sell wares without a ware card, so the Wise
+  // man does not work."
+  it('no bonus on a Portuguese sale — 2g a ware, whatever the count', () => {
     let s = play(['wise_man_1', 'portuguese_1']);
     s = withMarket(s, 0, ['tea', 'salt', 'silk', 'fruit']);
     s = act(s, { type: 'PLAY_CARD', cardId: 'wise_man_1' });
     s = act(s, { type: 'PLAY_CARD', cardId: 'portuguese_1' });
     s = resolve(s, { type: 'SELL_WARES', wareIndices: [0, 1, 2, 3] });
-    expect(gold(s, 0)).toBe(20 + 4 * 2 + 2);
+    expect(gold(s, 0)).toBe(20 + 4 * 2);
   });
 
-  it('a Portuguese "sale" of nothing is rejected, so it can\'t farm the Wise Man bonus', () => {
-    let s = play(['wise_man_1', 'portuguese_1']);
+  it('a Portuguese "sale" of nothing is rejected', () => {
+    let s = play(['portuguese_1']);
     s = withMarket(s, 0, ['tea']);
-    s = act(s, { type: 'PLAY_CARD', cardId: 'wise_man_1' });
     s = act(s, { type: 'PLAY_CARD', cardId: 'portuguese_1' });
     expect(() => resolve(s, { type: 'SELL_WARES', wareIndices: [] })).toThrow(/at least 1 ware/);
   });
 
-  it('without Wise Man, Dancer and Portuguese pay their normal amounts', () => {
-    let s = play(['portuguese_1']);
-    s = withMarket(s, 0, ['tea', 'salt']);
-    s = act(s, { type: 'PLAY_CARD', cardId: 'portuguese_1' });
-    s = resolve(s, { type: 'SELL_WARES', wareIndices: [0, 1] });
-    expect(gold(s, 0)).toBe(24);
+  it('ware-card sells earn +2g and buys cost 2g less', () => {
+    let s = play(['wise_man_1', 'ware_3k_1', 'ware_3k_2']);
+    s = act(s, { type: 'PLAY_CARD', cardId: 'wise_man_1' });
+    const before = gold(s, 0);
+    s = act(s, { type: 'PLAY_CARD', cardId: 'ware_3k_1', wareMode: 'buy' });
+    expect(gold(s, 0)).toBe(before - (getCard('ware_3k_1').wares!.buyPrice - 2));
+    const mid = gold(s, 0);
+    s = act(s, { type: 'PLAY_CARD', cardId: 'ware_3k_2', wareMode: 'sell' });
+    expect(gold(s, 0)).toBe(mid + getCard('ware_3k_2').wares!.sellPrice + 2);
   });
 
+  // "two wise men duplicate the effect, max 0 gold (no negative costs!)"
+  it('two Wise Men stack, and a buy never costs less than 0g', () => {
+    let s = play(['wise_man_1', 'wise_man_2', 'ware_3k_1']);
+    s = act(s, { type: 'PLAY_CARD', cardId: 'wise_man_1' });
+    s = act(s, { type: 'PLAY_CARD', cardId: 'wise_man_2' });
+    expect(s.turnModifiers).toMatchObject({ buyDiscount: 4, sellBonus: 4 });
+    s = act(s, { type: 'PLAY_CARD', cardId: 'ware_3k_1', wareMode: 'buy' }); // 3g − 4g
+    expect(gold(s, 0)).toBe(20);
+  });
+
+  it('only trades after he is played get the bonus (not retroactive)', () => {
+    let s = play(['ware_3k_1', 'wise_man_1']);
+    s = act(s, { type: 'PLAY_CARD', cardId: 'ware_3k_1', wareMode: 'buy' });
+    const afterBuy = gold(s, 0);
+    expect(afterBuy).toBe(20 - getCard('ware_3k_1').wares!.buyPrice);
+    s = act(s, { type: 'PLAY_CARD', cardId: 'wise_man_1' });
+    expect(gold(s, 0)).toBe(afterBuy);
+  });
+});
+
+// "can you use any utility cards before you draw? no" — Rüdiger Dorn, BGG 2004
+describe('utility timing (designer ruling)', () => {
   it('only Mask of Transformation can be used before drawing', () => {
     let s = createTestState(31);
     s = withHand(s, 0, ['guard_1']);
@@ -259,5 +287,26 @@ describe('house rules (decided 2026-10-04)', () => {
     expect(s.phase).toBe('DRAW');
     expect(validateAction(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 }).valid).toBe(false); // Weapons
     expect(validateAction(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 1 }).valid).toBe(true);  // Mask
+  });
+});
+
+// The English Crocodile text excludes the Mask of Transformation (it only works
+// before drawing); the Crocodile may still pick it to be discarded (BGG 2005, 2015).
+describe('Crocodile and the Mask of Transformation', () => {
+  it('picking the Mask discards it without using it', () => {
+    let s = play(['crocodile_1', 'guard_1']);
+    s = withHand(s, 1, []);
+    s = withUtility(s, 1, 'mask_of_transformation_1', 'mask_of_transformation');
+    const hand0 = s.players[0].hand.length;
+    const discardTop = s.discardPile[0];
+    s = act(s, { type: 'PLAY_CARD', cardId: 'crocodile_1' });
+    s = resolve(s, { type: 'SELECT_UTILITY', utilityIndex: 0 });
+    expect(s.pendingResolution).toBeNull();
+    expect(s.players[1].utilities).toHaveLength(0);
+    expect(s.discardPile).toContain('mask_of_transformation_1');
+    expect(s.discardPile).toContain('crocodile_1');
+    // the Mask's trade never happened: same hand minus the Crocodile, and the old top card wasn't taken
+    expect(s.players[0].hand).toHaveLength(hand0 - 1);
+    if (discardTop) expect(s.discardPile).toContain(discardTop);
   });
 });

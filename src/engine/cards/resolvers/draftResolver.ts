@@ -13,7 +13,7 @@ import type {
   UtilityDesignId,
 } from '../../types.ts';
 import { CONSTANTS } from '../../types.ts';
-import { addWareToMarket, getPlacementCapacity } from '../../market/MarketManager.ts';
+import { getPlacementPlan, setWareAtSlot } from '../../market/MarketManager.ts';
 import { returnToSupply } from '../../market/WareSupply.ts';
 import { discardCard } from '../../deck/DeckManager.ts';
 import { getCard } from '../CardDatabase.ts';
@@ -51,6 +51,11 @@ export function resolveDraft(
 // Elephant: Ware draft — pool wares from BOTH players' markets
 // ---------------------------------------------------------------------------
 
+/** Empty spaces a player can fill in a ware draft (the 6th space included: no fee). */
+function draftRoom(state: GameState, player: 0 | 1): number {
+  return getPlacementPlan(state.players[player].market).order.length;
+}
+
 function resolveWareDraft(
   state: GameState,
   pending: PendingDraft,
@@ -75,10 +80,11 @@ function resolveWareDraft(
   const picker = pending.currentPicker;
 
   let newState = state;
-  if (getPlacementCapacity(newState, picker) > 0) {
-    newState = addWareToMarket(newState, picker, pickedWare);
+  const spot = getPlacementPlan(newState.players[picker].market).order[0];
+  if (spot !== undefined) {
+    // Redistributed, not new: no 6th-space fee (Rio Grande ruling, endorsed by Dorn)
+    newState = setWareAtSlot(newState, picker, spot, pickedWare);
   } else {
-    // No room (or can't pay the 6th-space fee): the ware goes back to the supply
     newState = returnToSupply(newState, pickedWare, 1);
   }
 
@@ -88,9 +94,19 @@ function resolveWareDraft(
   ];
   newPicks[picker].push(pickedWare);
 
-  const newAvailable = pending.availableWares.filter((_, i) => i !== wareIndex);
+  let newAvailable = pending.availableWares.filter((_, i) => i !== wareIndex);
 
-  if (newAvailable.length === 0) {
+  // Alternate picks; once one player's stands are full, the other takes all
+  // the remaining wares (Rio Grande ruling). If neither has room, the rest
+  // go back to the supply.
+  const other: 0 | 1 = picker === 0 ? 1 : 0;
+  const nextPicker: 0 | 1 | null = draftRoom(newState, other) > 0 ? other : draftRoom(newState, picker) > 0 ? picker : null;
+  if (nextPicker === null && newAvailable.length > 0) {
+    for (const w of newAvailable) newState = returnToSupply(newState, w, 1);
+    newAvailable = [];
+  }
+
+  if (newAvailable.length === 0 || nextPicker === null) {
     return {
       ...newState,
       pendingResolution: null,
@@ -102,8 +118,6 @@ function resolveWareDraft(
       }],
     };
   }
-
-  const nextPicker: 0 | 1 = picker === 0 ? 1 : 0;
 
   return {
     ...newState,

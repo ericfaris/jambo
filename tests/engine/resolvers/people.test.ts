@@ -3,6 +3,7 @@
 // ============================================================================
 
 import { describe, it, expect } from 'vitest';
+import { redactHiddenCards } from '../../../src/engine/logRedaction.ts';
 import {
   createTestState,
   toPlayPhase,
@@ -434,6 +435,28 @@ describe('Supplies (Binary Choice → draw-until-ware)', () => {
     // Should have drawn until a ware card was found (or deck exhausted)
     // Gold decreased by 1
     expect(gold(s3, 0)).toBe(20 - 1);
+  });
+
+  // "if you use the utility supplies, you reveal every card" — Rüdiger Dorn, BGG 2007
+  it('reveals the ware card it finds: the log names it face up, for both payment options', () => {
+    for (const choice of [0, 1] as const) {
+      let s = toPlayPhase(createTestState());
+      s = withHand(s, 0, choice === 1 ? ['guard_1'] : []);
+      s = withGold(s, 0, 20);
+      s = withUtility(s, 0, 'supplies_1', 'supplies');
+      // put a known ware card two deep: a non-ware is skipped first
+      const deck = s.deck.filter((c) => c !== 'ware_3k_1' && c !== 'well_3');
+      s = { ...s, deck: ['well_3', 'ware_3k_1', ...deck] };
+      s = act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 });
+      s = resolve(s, { type: 'BINARY_CHOICE', choice });
+      if (choice === 1) s = resolve(s, { type: 'SELECT_CARD', cardId: 'guard_1' });
+      const entry = s.log[s.log.length - 1];
+      expect(entry.action).toBe(choice === 0 ? 'SUPPLIES_PAY' : 'SUPPLIES_DRAW');
+      expect(entry.card).toBe('ware_3k_1');
+      expect(redactHiddenCards(entry).details).toContain('ware_3k_1'); // not hidden from the opponent
+      expect(s.players[0].hand).toContain('ware_3k_1');
+      expect(s.discardPile).toContain('well_3');
+    }
   });
 });
 

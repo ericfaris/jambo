@@ -53,12 +53,35 @@ in the supply"* — when wares from a people/animal card don't all fit, the
 engine keeps them in the order received. Only matters for a Traveling
 Merchant win of two different wares with exactly one usable space.
 
-**House rules (decided 2026-10-04):**
-- Utilities are used in phase 2 only; Mask of Transformation is the only one
-  usable before drawing (its own text says "Before drawing"), even though the
-  rulebook says utilities work *"anytime during his turns"*.
-- Wise Man from Afar's +2g sell bonus also applies to Dancer and Portuguese
-  sales, once per sale (the printed card doesn't mention them).
+## Rules audit — 2026-10-11 (designer & publisher rulings)
+
+Checked against every thread in BoardGameGeek's Jambo Rules, General,
+Strategy and Variants forums (231 threads), including Rüdiger Dorn's and Rio
+Grande's (Jay Tummelson's) answers. Full report:
+https://claude.ai/artifact/WGDoQV4HMvUwA8tMfGHzKb
+
+**Changed to match (approved 2026-10-11):**
+- **Wise Man from Afar** applies to ware cards only — no bonus on a Dancer or
+  Portuguese sale. Dorn, 2006: *"the kombo wise man and dancer doesn't work,
+  because you do not play the ware card, you play the dancer!"* (This
+  reverses the 2026-10-04 house rule.) Two Wise Men stack; a buy never costs
+  less than 0g (*"max 0 gold (no negative costs!)"*); not retroactive.
+- **Elephant**: once one player's stands are full, the other player takes all
+  the remaining wares; no 6th-space fee while drafting (Rio Grande ruling,
+  endorsed by Dorn).
+- **Supplies** reveals every card, the ware card kept included (Dorn, 2007).
+- **Crocodile** can't use the Mask of Transformation (printed English text);
+  picking it just discards it.
+
+**Kept as is (decided 2026-10-11):** Supplies is paid before searching (the
+printed card lists the search first); Boat/Weapons discard a hand card only
+(the German text also allows a utility in play); a Crocodile using the Well
+draws without paying its 1g.
+
+**Utility timing is the designer's ruling, not a house rule:** utilities are
+used in phase 2 only; Mask of Transformation is the only one usable, and only
+before the first draw (Dorn, 2004: *"can you use any utility cards before you
+draw? no"*).
 
 ## Ware Types (6)
 
@@ -166,7 +189,7 @@ People cards have one-time effects and are discarded after use. People cards **c
 ### Wise Man from Afar (x2)
 - **Cost:** 1 action
 - **Effect:** For the rest of this turn: ware buys cost 2g less, ware sells earn 2g more. Modifier resets at end of turn.
-- **House rule (2026-10-04):** the +2g also applies to a Dancer sale and to a Portuguese sale — **once per sale**, not per ware (a Portuguese sale of 4 wares earns 8g + 2g = 10g; selling nothing earns nothing). The printed card doesn't mention them.
+- Ware cards only: **no bonus on a Dancer or Portuguese sale** (designer ruling). Two Wise Men stack (−4g/+4g); a buy never goes below 0g. Only trades after he is played count.
 
 ### Portuguese (x2)
 - **Cost:** 1 action
@@ -209,7 +232,7 @@ People cards have one-time effects and are discarded after use. People cards **c
 All animal cards cost **1 action** to play. Animal cards can be **negated by Guard** — if the opponent plays a Guard, both cards are discarded and the animal effect is cancelled.
 
 ### Crocodile (x5)
-- **Effect:** Select 1 of opponent's face-up utility cards. You may use that utility's ability once for no cost, then discard it.
+- **Effect:** Select 1 of opponent's face-up utility cards. You may use that utility's ability once for no cost, then discard it. A Mask of Transformation can't be used this way — picking it just discards it.
 - **Requirements:** Opponent has 1+ utility in play.
 
 ### Parrot (x2)
@@ -223,7 +246,7 @@ All animal cards cost **1 action** to play. Animal cards can be **negated by Gua
 - **Effect:** Both you and opponent discard all but 1 face-up utility card. Each player independently chooses which utility to keep.
 
 ### Elephant (x1)
-- **Effect:** Both players put all wares from their markets into a shared pool. Then draft 1 ware at a time, alternating picks (active player picks first), until all wares are distributed. A pick that doesn't fit on the picker's stands goes back to the supply.
+- **Effect:** Both players put all wares from their markets into a shared pool. Then draft 1 ware at a time, alternating picks (active player picks first), until all wares are distributed. Once one player's stands are full, the other takes all the remaining wares; if neither has room, the rest go back to the supply. Filling the 6th space during the draft costs nothing.
 
 ### Ape (x1)
 - **Effect:** Both players put all hand cards into a shared pool. Then draft 1 card at a time, alternating picks (active player picks first), until all cards are distributed.
@@ -263,7 +286,7 @@ Utility cards are placed in your play area (max 3 at a time). Each can be activa
 - **Requirements:** Hand has 1+ card. Discard pile has 1+ card.
 
 ### Supplies (x2)
-- **Activation:** Pay 1g or discard 1 card from hand. Then draw cards from the deck until you find a ware card — keep it. Discard all non-ware cards drawn along the way.
+- **Activation:** Pay 1g or discard 1 card from hand. Then draw cards from the deck until you find a ware card — keep it. Discard all non-ware cards drawn along the way. Every card is revealed, the kept ware card included.
 
 ### Kettle (x2)
 - **Activation:** Discard 1 or 2 cards from your hand. Draw the same number of cards from the deck.

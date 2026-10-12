@@ -88,7 +88,7 @@ export function countWaresOfType(state: GameState, player: 0 | 1, wareType: Ware
  * Empty slots in the order wares are placed: the large stand's free spaces
  * first, then small-stand spaces, and the large stand's 6th (paid) space last.
  */
-function getPlacementPlan(market: (WareType | null)[]): { order: number[]; sixthSpace: number | null } {
+export function getPlacementPlan(market: (WareType | null)[]): { order: number[]; sixthSpace: number | null } {
   const largeEmpty: number[] = [];
   const standEmpty: number[] = [];
   for (let i = 0; i < market.length; i++) {

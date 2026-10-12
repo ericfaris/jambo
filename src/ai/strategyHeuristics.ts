@@ -442,7 +442,7 @@ export function getPeoplePlayComboPriority(
     for (const cardId of player.hand) {
       const card = getCard(cardId);
       if (card.type !== 'ware' || !card.wares) continue;
-      bestSellPrice = Math.max(bestSellPrice, card.wares.sellPrice + state.turnModifiers.sellBonus);
+      bestSellPrice = Math.max(bestSellPrice, card.wares.sellPrice); // the Wise Man doesn't apply to a Dancer sale
     }
 
     if (bestSellPrice === 0) return -10;

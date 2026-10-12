@@ -61,6 +61,7 @@ function prefersReducedMotion(): boolean {
 const TARGET_SELECTORS: Record<PlaySpotlight['destination'], string[]> = {
   discard: ['[data-spotlight-target="discard"]'],
   utilities: ['[data-spotlight-target="opponent-utilities"]', '[data-center-target="top"]'],
+  hand: ['[data-center-target="top"]'],
 };
 
 interface OpponentPlaySpotlightProps {

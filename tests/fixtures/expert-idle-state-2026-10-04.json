@@ -1,0 +1,623 @@
+{
+ "note": "Game state from a real Expert game (2026-10-04) at the start of its turn 10: Expert has an empty hand and used to skip its draw and pass with 5 actions. Saved as a state (not a replay) on 2026-10-11 because the recorded game includes a Crocodile using the Mask, which the printed rules no longer allow.",
+ "state": {
+  "version": "1.0.0",
+  "rngSeed": 1539599750,
+  "rngState": 109,
+  "turn": 10,
+  "currentPlayer": 1,
+  "phase": "DRAW",
+  "actionsLeft": 5,
+  "drawsThisPhase": 0,
+  "drawnCard": null,
+  "keptCardThisDrawPhase": false,
+  "deck": [
+   "ware_3t_2",
+   "basket_maker_1",
+   "ware_2f1h_2",
+   "wise_man_2",
+   "ape_1",
+   "ware_3t_1",
+   "parrot_1",
+   "ware_6all_3",
+   "ware_3f_1",
+   "weapons_1",
+   "hyena_2",
+   "ware_2k1f_1",
+   "well_1",
+   "arabian_merchant_2",
+   "ware_khl_1",
+   "drums_3",
+   "guard_4",
+   "ware_lht_1",
+   "supplies_1",
+   "ware_2f1h_1",
+   "parrot_2",
+   "lion_1",
+   "rain_maker_1",
+   "leopard_statue_1",
+   "ware_khl_2",
+   "small_market_stand_5",
+   "small_market_stand_3",
+   "psychic_2",
+   "ware_3f_2",
+   "psychic_1",
+   "rain_maker_2",
+   "dancer_1",
+   "shaman_1",
+   "ware_lht_2",
+   "well_3",
+   "guard_5",
+   "ware_slk_2",
+   "ware_3l_2",
+   "boat_2",
+   "ware_tsf_1",
+   "ware_2h1t_1",
+   "guard_3",
+   "kettle_2",
+   "ware_2t1l_2",
+   "ware_fht_1",
+   "traveling_merchant_2",
+   "tribal_elder_2",
+   "drummer_1",
+   "drums_2",
+   "ware_2h1t_2",
+   "dancer_2",
+   "snake_1",
+   "crocodile_4",
+   "ware_skf_1",
+   "ware_tsf_2",
+   "arabian_merchant_1",
+   "ware_2t1l_1",
+   "ware_3h_1",
+   "kettle_1",
+   "ware_3k_1",
+   "drums_1",
+   "well_2",
+   "ware_2k1f_2",
+   "ware_2s1k_2",
+   "small_market_stand_2",
+   "guard_2",
+   "ware_skf_2",
+   "throne_2",
+   "supplies_2",
+   "portuguese_1",
+   "crocodile_2",
+   "ware_3k_2",
+   "small_market_stand_1",
+   "shaman_2",
+   "hyena_1",
+   "basket_maker_2",
+   "ware_3s_2",
+   "ware_6all_1",
+   "rain_maker_3",
+   "ware_fht_2",
+   "guard_6",
+   "ware_3h_2",
+   "cheetah_1",
+   "weapons_2"
+  ],
+  "discardPile": [
+   "crocodile_3",
+   "boat_1",
+   "ware_2l1s_1",
+   "elephant_1",
+   "guard_1",
+   "small_market_stand_4",
+   "ware_3s_1",
+   "ware_2l1s_2",
+   "crocodile_5",
+   "mask_of_transformation_1",
+   "scale_1",
+   "crocodile_1",
+   "ware_2s1k_1",
+   "tribal_elder_1",
+   "throne_1",
+   "ware_slk_1",
+   "scale_2",
+   "traveling_merchant_1",
+   "ware_3l_1",
+   "ware_6all_2",
+   "ware_6all_4",
+   "portuguese_2",
+   "carrier_1"
+  ],
+  "reshuffleCount": 0,
+  "wareSupply": {
+   "trinkets": 5,
+   "hides": 6,
+   "tea": 6,
+   "silk": 3,
+   "fruit": 6,
+   "salt": 3
+  },
+  "players": [
+   {
+    "gold": 22,
+    "hand": [
+     "wise_man_1"
+    ],
+    "market": [
+     "silk",
+     "silk",
+     "silk",
+     "salt",
+     "salt",
+     "trinkets"
+    ],
+    "utilities": [
+     {
+      "cardId": "leopard_statue_2",
+      "designId": "leopard_statue",
+      "usedThisTurn": false
+     },
+     {
+      "cardId": "mask_of_transformation_2",
+      "designId": "mask_of_transformation",
+      "usedThisTurn": false
+     }
+    ],
+    "smallMarketStands": 0
+   },
+   {
+    "gold": 38,
+    "hand": [],
+    "market": [
+     "salt",
+     null,
+     null,
+     null,
+     null,
+     null
+    ],
+    "utilities": [],
+    "smallMarketStands": 0
+   }
+  ],
+  "pendingResolution": null,
+  "turnModifiers": {
+   "buyDiscount": 0,
+   "sellBonus": 0
+  },
+  "endgame": null,
+  "pendingGuardReaction": null,
+  "crocodileCleanup": null,
+  "pendingWareCardReaction": null,
+  "log": [
+   {
+    "turn": 1,
+    "player": 0,
+    "action": "DRAW_CARD",
+    "details": "Drew carrier_1"
+   },
+   {
+    "turn": 1,
+    "player": 0,
+    "action": "KEEP_CARD",
+    "details": "Kept carrier_1"
+   },
+   {
+    "turn": 1,
+    "player": 0,
+    "action": "PLAY_PEOPLE",
+    "details": "Played Carrier - awaiting resolution",
+    "card": "carrier_1"
+   },
+   {
+    "turn": 1,
+    "player": 0,
+    "action": "CARRIER_CHOICE",
+    "details": "Chose wares; opponent drew 2 cards. Now select ware type."
+   },
+   {
+    "turn": 1,
+    "player": 0,
+    "action": "CARRIER_WARES",
+    "details": "Received 2 tea from the supply"
+   },
+   {
+    "turn": 1,
+    "player": 0,
+    "action": "PLAY_PEOPLE",
+    "details": "Played Portuguese - awaiting resolution",
+    "card": "portuguese_2"
+   },
+   {
+    "turn": 1,
+    "player": 0,
+    "action": "PORTUGUESE_SELL",
+    "details": "Sold 2 wares at 2g each, earned 4g"
+   },
+   {
+    "turn": 1,
+    "player": 0,
+    "action": "PLAY_WARE_BUY",
+    "details": "Bought wares for 10g via ware_6all_4",
+    "card": "ware_6all_4"
+   },
+   {
+    "turn": 1,
+    "player": 0,
+    "action": "PLAY_WARE_SELL",
+    "details": "Sold wares for 18g via ware_6all_2",
+    "card": "ware_6all_2"
+   },
+   {
+    "turn": 1,
+    "player": 0,
+    "action": "END_TURN",
+    "details": "Turn ended. Player 2's turn begins (turn 2)"
+   },
+   {
+    "turn": 2,
+    "player": 1,
+    "action": "SKIP_DRAW",
+    "details": "Skipped draw phase"
+   },
+   {
+    "turn": 2,
+    "player": 1,
+    "action": "ACTION_BONUS",
+    "details": "+1g for 5 unused actions"
+   },
+   {
+    "turn": 2,
+    "player": 1,
+    "action": "END_TURN",
+    "details": "Turn ended. Player 1's turn begins (turn 3)"
+   },
+   {
+    "turn": 3,
+    "player": 0,
+    "action": "DRAW_CARD",
+    "details": "Drew ware_3l_1"
+   },
+   {
+    "turn": 3,
+    "player": 0,
+    "action": "KEEP_CARD",
+    "details": "Kept ware_3l_1"
+   },
+   {
+    "turn": 3,
+    "player": 0,
+    "action": "PLAY_WARE_BUY",
+    "details": "Bought wares for 3g via ware_3l_1",
+    "card": "ware_3l_1"
+   },
+   {
+    "turn": 3,
+    "player": 0,
+    "action": "ACTION_BONUS",
+    "details": "+1g for 3 unused actions"
+   },
+   {
+    "turn": 3,
+    "player": 0,
+    "action": "END_TURN",
+    "details": "Turn ended. Player 2's turn begins (turn 4)"
+   },
+   {
+    "turn": 4,
+    "player": 1,
+    "action": "DRAW_CARD",
+    "details": "Drew traveling_merchant_1"
+   },
+   {
+    "turn": 4,
+    "player": 1,
+    "action": "KEEP_CARD",
+    "details": "Kept traveling_merchant_1"
+   },
+   {
+    "turn": 4,
+    "player": 1,
+    "action": "PLAY_UTILITY",
+    "details": "Placed boat_1 in play area",
+    "card": "boat_1"
+   },
+   {
+    "turn": 4,
+    "player": 1,
+    "action": "PLAY_PEOPLE",
+    "details": "Played Traveling Merchant - awaiting resolution",
+    "card": "traveling_merchant_1"
+   },
+   {
+    "turn": 4,
+    "player": 1,
+    "action": "AUCTION_WON",
+    "details": "Won the auction for silk, trinkets at 3g"
+   },
+   {
+    "turn": 4,
+    "player": 1,
+    "action": "ACTIVATE_UTILITY",
+    "details": "Activated Boat - awaiting resolution",
+    "card": "boat_1"
+   },
+   {
+    "turn": 4,
+    "player": 1,
+    "action": "BOAT_EFFECT",
+    "details": "Discarded card, received salt"
+   },
+   {
+    "turn": 4,
+    "player": 1,
+    "action": "PLAY_WARE_SELL",
+    "details": "Sold wares for 12g via ware_slk_1",
+    "card": "ware_slk_1"
+   },
+   {
+    "turn": 4,
+    "player": 1,
+    "action": "END_TURN",
+    "details": "Turn ended. Player 1's turn begins (turn 5)"
+   },
+   {
+    "turn": 5,
+    "player": 0,
+    "action": "DRAW_CARD",
+    "details": "Drew throne_1"
+   },
+   {
+    "turn": 5,
+    "player": 0,
+    "action": "DISCARD_DRAWN",
+    "details": "Discarded throne_1"
+   },
+   {
+    "turn": 5,
+    "player": 0,
+    "action": "DRAW_CARD",
+    "details": "Drew tribal_elder_1"
+   },
+   {
+    "turn": 5,
+    "player": 0,
+    "action": "KEEP_CARD",
+    "details": "Kept tribal_elder_1"
+   },
+   {
+    "turn": 5,
+    "player": 0,
+    "action": "PLAY_PEOPLE",
+    "details": "Played Tribal Elder - awaiting resolution",
+    "card": "tribal_elder_1"
+   },
+   {
+    "turn": 5,
+    "player": 0,
+    "action": "TRIBAL_ELDER_DRAW",
+    "details": "Drew 3 card(s) (hand to 5)"
+   },
+   {
+    "turn": 5,
+    "player": 0,
+    "action": "PLAY_UTILITY",
+    "details": "Placed mask_of_transformation_1 in play area",
+    "card": "mask_of_transformation_1"
+   },
+   {
+    "turn": 5,
+    "player": 0,
+    "action": "PLAY_WARE_BUY",
+    "details": "Bought wares for 4g via ware_2s1k_1",
+    "card": "ware_2s1k_1"
+   },
+   {
+    "turn": 5,
+    "player": 0,
+    "action": "END_TURN",
+    "details": "Turn ended. Player 2's turn begins (turn 6)"
+   },
+   {
+    "turn": 6,
+    "player": 1,
+    "action": "DRAW_CARD",
+    "details": "Drew crocodile_1"
+   },
+   {
+    "turn": 6,
+    "player": 1,
+    "action": "DISCARD_DRAWN",
+    "details": "Discarded crocodile_1"
+   },
+   {
+    "turn": 6,
+    "player": 1,
+    "action": "SKIP_DRAW",
+    "details": "Skipped draw phase"
+   },
+   {
+    "turn": 6,
+    "player": 1,
+    "action": "PLAY_WARE_BUY",
+    "details": "Bought wares for 4g via ware_2l1s_2",
+    "card": "ware_2l1s_2"
+   },
+   {
+    "turn": 6,
+    "player": 1,
+    "action": "PLAY_ANIMAL",
+    "details": "Played Crocodile - awaiting resolution",
+    "card": "crocodile_5"
+   },
+   {
+    "turn": 6,
+    "player": 1,
+    "action": "CROCODILE_USE",
+    "details": "Using opponent's mask_of_transformation"
+   },
+   {
+    "turn": 6,
+    "player": 1,
+    "action": "DRAW_MODIFIER",
+    "details": "Mask of Transformation: swapped scale_1 for ware_2l1s_2"
+   },
+   {
+    "turn": 6,
+    "player": 1,
+    "action": "CROCODILE_CLEANUP",
+    "details": "Discarded opponent's mask_of_transformation_1 after Crocodile use"
+   },
+   {
+    "turn": 6,
+    "player": 1,
+    "action": "PLAY_WARE_SELL",
+    "details": "Sold wares for 11g via ware_2l1s_2",
+    "card": "ware_2l1s_2"
+   },
+   {
+    "turn": 6,
+    "player": 1,
+    "action": "END_TURN",
+    "details": "Turn ended. Player 1's turn begins (turn 7)"
+   },
+   {
+    "turn": 7,
+    "player": 0,
+    "action": "DRAW_CARD",
+    "details": "Drew ware_3s_1"
+   },
+   {
+    "turn": 7,
+    "player": 0,
+    "action": "DISCARD_DRAWN",
+    "details": "Discarded ware_3s_1"
+   },
+   {
+    "turn": 7,
+    "player": 0,
+    "action": "DRAW_CARD",
+    "details": "Drew leopard_statue_2"
+   },
+   {
+    "turn": 7,
+    "player": 0,
+    "action": "KEEP_CARD",
+    "details": "Kept leopard_statue_2"
+   },
+   {
+    "turn": 7,
+    "player": 0,
+    "action": "PLAY_UTILITY",
+    "details": "Placed leopard_statue_2 in play area",
+    "card": "leopard_statue_2"
+   },
+   {
+    "turn": 7,
+    "player": 0,
+    "action": "PLAY_UTILITY",
+    "details": "Placed mask_of_transformation_2 in play area",
+    "card": "mask_of_transformation_2"
+   },
+   {
+    "turn": 7,
+    "player": 0,
+    "action": "END_TURN",
+    "details": "Turn ended. Player 2's turn begins (turn 8)"
+   },
+   {
+    "turn": 8,
+    "player": 1,
+    "action": "SKIP_DRAW",
+    "details": "Skipped draw phase"
+   },
+   {
+    "turn": 8,
+    "player": 1,
+    "action": "ACTIVATE_UTILITY",
+    "details": "Activated Boat - awaiting resolution",
+    "card": "boat_1"
+   },
+   {
+    "turn": 8,
+    "player": 1,
+    "action": "BOAT_EFFECT",
+    "details": "Discarded card, received salt"
+   },
+   {
+    "turn": 8,
+    "player": 1,
+    "action": "ACTION_BONUS",
+    "details": "+1g for 4 unused actions"
+   },
+   {
+    "turn": 8,
+    "player": 1,
+    "action": "END_TURN",
+    "details": "Turn ended. Player 1's turn begins (turn 9)"
+   },
+   {
+    "turn": 9,
+    "player": 0,
+    "action": "DRAW_CARD",
+    "details": "Drew guard_1"
+   },
+   {
+    "turn": 9,
+    "player": 0,
+    "action": "DISCARD_DRAWN",
+    "details": "Discarded guard_1"
+   },
+   {
+    "turn": 9,
+    "player": 0,
+    "action": "DRAW_CARD",
+    "details": "Drew elephant_1"
+   },
+   {
+    "turn": 9,
+    "player": 0,
+    "action": "DISCARD_DRAWN",
+    "details": "Discarded elephant_1"
+   },
+   {
+    "turn": 9,
+    "player": 0,
+    "action": "DRAW_CARD",
+    "details": "Drew ware_2l1s_1"
+   },
+   {
+    "turn": 9,
+    "player": 0,
+    "action": "KEEP_CARD",
+    "details": "Kept ware_2l1s_1"
+   },
+   {
+    "turn": 9,
+    "player": 0,
+    "action": "PLAY_ANIMAL",
+    "details": "Played Crocodile - awaiting resolution",
+    "card": "crocodile_3"
+   },
+   {
+    "turn": 9,
+    "player": 0,
+    "action": "CROCODILE_USE",
+    "details": "Using opponent's boat"
+   },
+   {
+    "turn": 9,
+    "player": 0,
+    "action": "BOAT_EFFECT",
+    "details": "Cannot receive ware (no market space or supply)"
+   },
+   {
+    "turn": 9,
+    "player": 0,
+    "action": "CROCODILE_CLEANUP",
+    "details": "Discarded opponent's boat_1 after Crocodile use"
+   },
+   {
+    "turn": 9,
+    "player": 0,
+    "action": "END_TURN",
+    "details": "Turn ended. Player 2's turn begins (turn 10)"
+   }
+  ],
+  "cancellableAction": null
+ }
+}

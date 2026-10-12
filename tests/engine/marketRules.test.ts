@@ -110,6 +110,55 @@ describe('not enough room for wares from people/animal cards: take what fits, re
     expect(totalWares(s2)).toBe(before);
   });
 
+  // Rio Grande (Jay Tummelson), endorsed by Rüdiger Dorn, BGG 2005–2006:
+  // "when the player with less space fills up, does the other player get all
+  // the remaining wares? yes" / "if a player fills up the 6th space … during
+  // the Elephant, does he need to pay 2 gold? no"
+  it('Elephant: once one player is full, the other takes every remaining ware', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['elephant_1']);
+    s = removeFromDeck(s, 'elephant_1');
+    s = withHand(s, 1, []);
+    // player 1 has a small stand: 9 spaces; player 0 has 6
+    s = { ...s, players: [s.players[0], { ...s.players[1], market: [...s.players[1].market, null, null, null], smallMarketStands: 1 }] as GameState['players'] };
+    s = withMarket(s, 0, ['tea', 'tea', 'tea', 'salt', 'salt', 'salt']);
+    s = withMarket(s, 1, ['silk', 'silk', 'silk', 'fruit', 'fruit', 'fruit', 'hides', 'hides', 'hides']);
+    const before = totalWares(s);
+    let s2 = act(s, { type: 'PLAY_CARD', cardId: 'elephant_1' });
+    const pickers: number[] = [];
+    let guard = 0;
+    while (s2.pendingResolution?.type === 'DRAFT' && guard++ < 20) {
+      pickers.push(s2.pendingResolution.currentPicker);
+      s2 = resolve(s2, { type: 'SELECT_WARE', wareIndex: 0 });
+    }
+    expect(s2.pendingResolution).toBeNull();
+    expect(market(s2, 0).filter(w => w !== null)).toHaveLength(6);
+    expect(market(s2, 1).filter(w => w !== null)).toHaveLength(9);
+    // 12 alternating picks, then player 1 takes the last 3
+    expect(pickers.slice(12)).toEqual([1, 1, 1]);
+    expect(totalWares(s2)).toBe(before);
+  });
+
+  it('Elephant: filling the 6th space costs nothing (the wares are redistributed, not new)', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['elephant_1']);
+    s = removeFromDeck(s, 'elephant_1');
+    s = withHand(s, 1, []);
+    s = withGold(s, 0, 20);
+    s = withGold(s, 1, 20);
+    s = withMarket(s, 0, ['tea', 'tea', 'tea', 'tea', 'tea', 'tea']);
+    s = withMarket(s, 1, ['salt', 'salt', 'salt', 'salt', 'salt', 'salt']);
+    let s2 = act(s, { type: 'PLAY_CARD', cardId: 'elephant_1' });
+    let guard = 0;
+    while (s2.pendingResolution?.type === 'DRAFT' && guard++ < 20) {
+      s2 = resolve(s2, { type: 'SELECT_WARE', wareIndex: 0 });
+    }
+    expect(market(s2, 0).every(w => w !== null)).toBe(true);
+    expect(market(s2, 1).every(w => w !== null)).toBe(true);
+    expect(gold(s2, 0)).toBe(20);
+    expect(gold(s2, 1)).toBe(20);
+  });
+
   it('Elephant: a pick with no room goes back to the supply (wares are never lost)', () => {
     let s = toPlayPhase(createTestState());
     s = withHand(s, 0, ['elephant_1']);

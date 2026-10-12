@@ -69,6 +69,14 @@ export function resolveCrocodileUse(
       },
     };
 
+    // The Mask only works before drawing, so a Crocodile can't use it — but
+    // may still pick it to be discarded (printed English Crocodile text; BGG 2005, 2015)
+    if (selectedUtility.designId === 'mask_of_transformation') {
+      next = { ...next, pendingResolution: null };
+      next = withLog(next, 'CROCODILE_USE', `Picked opponent's Mask of Transformation (it can't be used this way)`);
+      return next;
+    }
+
     // Handle Well specially — it auto-resolves (no gold cost for Crocodile use)
     if (selectedUtility.designId === 'well') {
       const drawResult = drawFromDeck(next);
