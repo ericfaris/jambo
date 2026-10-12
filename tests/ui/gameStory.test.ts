@@ -148,6 +148,21 @@ describe('endgame overlay', () => {
   });
 });
 
+describe('endgame portraits', () => {
+  it('puts your avatar above "You", like the trader above theirs', () => {
+    const { end } = playGame(4242);
+    const html = renderToStaticMarkup(createElement(EndgameOverlay, {
+      state: end, labels: ['You', 'Baraka'], viewer: 0, onRematch: () => {},
+      playerPortrait: createElement('span', { className: 'test-you-portrait' }),
+      opponentPortrait: createElement('span', { className: 'test-trader-portrait' }),
+    }));
+    // each portrait sits in its side's column, before that side's name
+    expect(html.indexOf('test-you-portrait')).toBeLessThan(html.indexOf('>You<'));
+    expect(html.indexOf('>You<')).toBeLessThan(html.indexOf('test-trader-portrait'));
+    expect(html.indexOf('test-trader-portrait')).toBeLessThan(html.indexOf('>Baraka<'));
+  });
+});
+
 describe('endgame copy', () => {
   it('"You" mid-sentence reads "you"; names stay capitalized', () => {
     expect(midSentence('You')).toBe('you');

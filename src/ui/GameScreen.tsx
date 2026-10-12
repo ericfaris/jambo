@@ -33,6 +33,7 @@ import { traderFor } from '../ai/traders.ts';
 import { traderChatter } from '../ai/traderChatter.ts';
 import { TraderPortrait } from './TraderPortrait.tsx';
 import { PlayerAvatar } from './PlayerAvatar.tsx';
+import { SeatInfo } from './SeatInfo.tsx';
 import { useTrader, getInitialTraderVoices, TRADER_VOICES_STORAGE_KEY } from './useTrader.ts';
 import { ResolveMegaView } from './ResolveMegaView.tsx';
 import { isHandInteraction } from './HandReferenceStrip.tsx';
@@ -45,7 +46,7 @@ import type { AiSpeed, TraderLine } from './gameScreenLogic.ts';
 import { useVisualFeedback } from './useVisualFeedback.ts';
 import { getDrawDisabledReason, getPlayDisabledReason, friendlyPlayError } from './uiHints.ts';
 import { getVolume, setVolume as saveVolume, getMuted, setMuted as saveMuted, resetAudioSettings } from './audioSettings.ts';
-import { fetchUserStatsSummary, fetchDifficultyBreakdown, recordCompletedGame } from '../persistence/userStatsApi.ts';
+import { fetchUserStatsSummary, fetchDifficultyBreakdown, recordCompletedGame, recordAbandonedGame, abandonedGamePayload } from '../persistence/userStatsApi.ts';
 import type { UserStatsSummary, DifficultyBreakdown } from '../persistence/userStatsApi.ts';
 import { getWinner, getFinalScores } from '../engine/endgame/EndgameManager.ts';
 import { useAuthSession } from './useAuthSession.ts';
@@ -56,6 +57,8 @@ import { ConfirmButton } from './ConfirmButton.tsx';
 import { useMediaQuery, PHONE_MEDIA_QUERY, SHORT_DESKTOP_MEDIA_QUERY } from './useMediaQuery.ts';
 import { useElementSize } from './useElementSize.ts';
 import { fitCardsToBox, fitMarketSlots } from './fitLayout.ts';
+import { useCornerButtonInset } from './cornerClearance.ts';
+import { AvatarImage } from './AvatarImage.tsx';
 
 type AnimationSpeed = 'normal' | 'fast';
 const HOTSEAT_LABELS = ['Player 1', 'Player 2'] as const;
@@ -183,7 +186,8 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   const [volume, setVolume] = useState(() => getVolume());
   const [muted, setMuted] = useState(() => getMuted());
   const [showUxDebug, setShowUxDebug] = useState(() => getInitialUxDebug());
-  const { authUser, authError, avatarUrl, avatarLabel, logout: authLogout } = useAuthSession();
+  const { authUser, authError, avatarUrl, logout: authLogout } = useAuthSession();
+  const [topPanelRef, cornerInset] = useCornerButtonInset<HTMLDivElement>();
   const [statsSummary, setStatsSummary] = useState<UserStatsSummary | null>(null);
   const [statsError, setStatsError] = useState<string | null>(null);
   const [diffBreakdown, setDiffBreakdown] = useState<DifficultyBreakdown[] | null>(null);
@@ -889,7 +893,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
         minWidth: 0,
       }}>
         {/* Opponent area */}
-        <div className={`etched-wood-border turn-emphasis ${state.currentPlayer === opponentPlayer ? 'turn-emphasis-active' : 'turn-emphasis-inactive'}`} style={{
+        <div ref={topPanelRef} className={`etched-wood-border turn-emphasis ${state.currentPlayer === opponentPlayer ? 'turn-emphasis-active' : 'turn-emphasis-inactive'}`} style={{
           borderRadius: 12,
           background: 'rgba(20,10,5,0.75)',
           backdropFilter: 'blur(3px)',
@@ -906,6 +910,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
             portrait={trader ? <TraderPortrait trader={trader} mood={traderMood} speaking={traderSpeaking} size={72} /> : undefined}
             isActive={state.currentPlayer === opponentPlayer}
             onMegaView={setMegaCardId}
+            rightInset={cornerInset}
           />
         </div>
 
@@ -974,45 +979,24 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
               showHelperText={false}
             />
             </div>
-            <div style={{ marginLeft: 'auto', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-            {!localMultiplayer && <PlayerAvatar avatarUrl={avatarUrl} label={avatarLabel} size={72} active={state.currentPlayer === viewerPlayer} />}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, paddingTop: 2 }}>
-              <span style={{
-                fontFamily: 'var(--font-heading)',
-                fontWeight: 700,
-                fontSize: 18,
-                color: state.currentPlayer === viewerPlayer ? 'var(--gold)' : 'var(--text)',
-                textShadow: '0 2px 12px rgba(0,0,0,0.6)',
-              }}>
-                {localMultiplayer ? `Player ${viewerPlayer + 1}` : 'You'}{state.currentPlayer === viewerPlayer && ' · your turn'}
-              </span>
-              <span key={`my-gold-${visualFeedback.goldDeltas[viewerPlayer]}`} data-gold-anchor={viewerPlayer} className={visualFeedback.goldDeltas[viewerPlayer] !== 0 ? 'gold-pop gold-pop-soft' : undefined} style={{ fontFamily: 'var(--font-heading)', color: 'var(--gold)', fontWeight: 700, fontSize: 34, lineHeight: 1.1, textShadow: '0 0 10px rgba(212,168,80,0.4)', position: 'relative' }} aria-label={`${state.players[viewerPlayer].gold} gold`}>
-                <GoldCount value={state.players[viewerPlayer].gold} />
-                {visualFeedback.goldDeltas[viewerPlayer] !== 0 && (
-                  <span className="gold-delta-text gold-delta-text-soft" style={{
-                    position: 'absolute',
-                    top: -14,
-                    right: -22,
-                    color: visualFeedback.goldDeltas[viewerPlayer] > 0 ? 'var(--accent-green)' : 'var(--accent-red)',
-                    fontSize: 14,
-                    fontWeight: 700,
-                  }}>
-                    {visualFeedback.goldDeltas[viewerPlayer] > 0 ? `+${visualFeedback.goldDeltas[viewerPlayer]}g` : `${visualFeedback.goldDeltas[viewerPlayer]}g`}
-                  </span>
-                )}
-              </span>
-              <GoldTrack gold={state.players[viewerPlayer].gold} />
-              <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>
-                {state.players[viewerPlayer].hand.length} {state.players[viewerPlayer].hand.length === 1 ? 'card' : 'cards'} in hand
-              </span>
+            {/* same block and inset as the opponent's above, so the two match and line up */}
+            <SeatInfo
+              seat={viewerPlayer}
+              label={`${localMultiplayer ? `Player ${viewerPlayer + 1}` : 'You'}${state.currentPlayer === viewerPlayer ? ' · your turn' : ''}`}
+              portrait={localMultiplayer ? undefined : <PlayerAvatar avatarUrl={avatarUrl} size={72} active={state.currentPlayer === viewerPlayer} />}
+              gold={state.players[viewerPlayer].gold}
+              goldDelta={visualFeedback.goldDeltas[viewerPlayer]}
+              handCount={state.players[viewerPlayer].hand.length}
+              isActive={state.currentPlayer === viewerPlayer}
+              rightInset={cornerInset}
+            >
               {(state.turnModifiers.buyDiscount > 0 || state.turnModifiers.sellBonus > 0) && (
                 <span style={{ fontSize: 13, color: 'var(--accent-green)', fontWeight: 700 }}>
                   {state.turnModifiers.buyDiscount > 0 && `Buy −${state.turnModifiers.buyDiscount}g `}
                   {state.turnModifiers.sellBonus > 0 && `Sell +${state.turnModifiers.sellBonus}g`}
                 </span>
               )}
-            </div>
-            </div>
+            </SeatInfo>
           </div>
 
         {/* Action buttons */}
@@ -1073,22 +1057,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
           }}
           title="Profile & Settings"
         >
-          {avatarUrl ? (
-            <img
-              src={avatarUrl}
-              alt="User avatar"
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-            />
-          ) : (
-            <span style={{
-              fontFamily: 'var(--font-heading)',
-              fontSize: 16,
-              fontWeight: 700,
-              color: 'var(--text)',
-            }}>
-              {avatarLabel}
-            </span>
-          )}
+          <AvatarImage avatarUrl={avatarUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </button>
 
         {menuOpen && (
@@ -1218,6 +1187,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
                     confirmLabel="Abandon"
                     cancelLabel="Keep playing"
                     onConfirm={() => {
+                      recordAbandonedGame(abandonedGamePayload(state, localMultiplayer ? 'multiplayer' : 'solo', aiDifficulty));
                       // Delete the save first, so the menu offers no "Resume Game"
                       clearLocalGame();
                       setMenuOpen(false);
@@ -1586,6 +1556,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
         state={state}
         story={gameStory}
         labels={logLabels}
+        playerPortrait={trader ? <PlayerAvatar avatarUrl={avatarUrl} size={56} /> : undefined}
         opponentPortrait={trader ? <TraderPortrait trader={trader} mood={traderMood} size={56} /> : undefined}
         opponentQuote={trader && isGameOver ? trader.lines[getWinner(state) === opponentPlayer ? 'win' : 'lose'][0] : null}
         viewer={localMultiplayer ? null : 0}

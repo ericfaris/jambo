@@ -29,6 +29,7 @@ import { getCastSessionController, isCastSdkEnabled } from '../cast/factory.ts';
 import { useAuthSession } from './useAuthSession.ts';
 import { fitCardsToBox } from './fitLayout.ts';
 import { useElementSize } from './useElementSize.ts';
+import { AvatarImage } from './AvatarImage.tsx';
 
 type AnimationSpeed = 'normal' | 'fast';
 const ANIMATION_SPEED_STORAGE_KEY = 'jambo.animationSpeed';
@@ -83,7 +84,7 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
   useEffect(() => { applyAmbient(getInitialAmbient()); }, []);
   const [volume, setVolume] = useState(() => getVolume());
   const [muted, setMuted] = useState(() => getMuted());
-  const { authUser, authError, avatarUrl, avatarLabel, logout: authLogout } = useAuthSession();
+  const { authUser, authError, avatarUrl, logout: authLogout } = useAuthSession();
   const [telemetryEvents, setTelemetryEvents] = useState<string[]>([]);
   const menuRef = useRef<HTMLDivElement>(null);
   const [boardRef, boardSize] = useElementSize<HTMLDivElement>();
@@ -539,22 +540,7 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
           }}
           title="Profile & Settings"
         >
-          {avatarUrl ? (
-            <img
-              src={avatarUrl}
-              alt="User avatar"
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-            />
-          ) : (
-            <span style={{
-              fontFamily: 'var(--font-heading)',
-              fontSize: 16,
-              fontWeight: 700,
-              color: 'var(--text)',
-            }}>
-              {avatarLabel}
-            </span>
-          )}
+          <AvatarImage avatarUrl={avatarUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </button>
 
         {menuOpen && (

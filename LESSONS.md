@@ -390,3 +390,16 @@ overwrites tracked files.)
 - **Replay fixtures break when a rule changes**: a recorded game that made a
   now-illegal move can't be replayed. Snapshot the GameState instead when the
   test is about a situation, not about the moves that led to it.
+
+## 2026-10-12 — Logging abandoned games per user
+
+- **Store tests can write to the real `.data/`**: `statsStore` used to resolve
+  its local-file path and load the file at import, so setting an env override
+  in `beforeAll` came too late (a static import of `statsApi` had already
+  loaded it). Paths now resolve lazily and `JAMBO_DATA_DIR` redirects them.
+  Point that at a temp dir in any test that writes stats.
+- **Starting a new game over a save is an abandon too**: the autosave silently
+  replaces it. `abandonSavedGame()` logs it first, so a future leaderboard
+  can't be dodged by restarting a losing game. Abandons live in their own
+  `game_abandons` collection (tagged `mode`, so hotseat can be excluded) and
+  don't touch wins/losses yet. The leaderboard decides how to weigh them.

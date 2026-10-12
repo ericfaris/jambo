@@ -20,6 +20,8 @@ interface EndgameOverlayProps {
   onMainMenu?: () => void;
   /** Your record against this difficulty, after this game. */
   record?: { wins: number; losses: number } | null;
+  /** Solo: your avatar, shown over your score. */
+  playerPortrait?: ReactNode;
   /** Solo: the trader's portrait, shown over their score. */
   opponentPortrait?: ReactNode;
   /** Solo: what the trader says about the result. */
@@ -53,7 +55,7 @@ function cardName(id: DeckCardId): string {
 
 const COINS = Array.from({ length: 16 }, (_, i) => i);
 
-export function EndgameOverlay({ state, story = null, labels = ['You', 'AI'], viewer = 0, onRematch, rematchLabel = 'Rematch', onMainMenu, record = null, opponentPortrait, opponentQuote = null }: EndgameOverlayProps) {
+export function EndgameOverlay({ state, story = null, labels = ['You', 'AI'], viewer = 0, onRematch, rematchLabel = 'Rematch', onMainMenu, record = null, playerPortrait, opponentPortrait, opponentQuote = null }: EndgameOverlayProps) {
   const rematchRef = useRef<HTMLButtonElement | null>(null);
   const isOver = state.phase === 'GAME_OVER';
   useEffect(() => {
@@ -86,12 +88,13 @@ export function EndgameOverlay({ state, story = null, labels = ['You', 'AI'], vi
         <div className="endgame-eyebrow">Game over · {state.turn} turns</div>
         <h2 id="endgame-title" className="endgame-title" style={{ color: accent }}>{winnerHeadline(winner, labels)}</h2>
         <div className="endgame-scores">
-          <div>
+          <div className="endgame-score-side">
+            {playerPortrait}
             <div className="endgame-score-label">{labels[0]}</div>
             <div className="endgame-score endgame-score-0">{scores.player0}g</div>
           </div>
           <div className="endgame-vs">vs</div>
-          <div className="endgame-score-opponent">
+          <div className="endgame-score-side">
             {opponentPortrait}
             <div className="endgame-score-label">{labels[1]}</div>
             <div className="endgame-score endgame-score-1">{scores.player1}g</div>

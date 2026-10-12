@@ -192,16 +192,23 @@ describe('trader chatter', () => {
 describe('the player\'s own avatar', () => {
   it('shows the Google photo in the same round frame as the trader', async () => {
     const { PlayerAvatar } = await import('../../src/ui/PlayerAvatar.tsx');
-    const html = renderToStaticMarkup(createElement(PlayerAvatar, { avatarUrl: 'https://lh3.googleusercontent.com/a/x', label: 'E', active: true }));
+    const html = renderToStaticMarkup(createElement(PlayerAvatar, { avatarUrl: 'https://lh3.googleusercontent.com/a/x', active: true }));
     expect(html).toContain('trader-portrait');
     expect(html).toContain('player-avatar-active');
     expect(html).toContain('src="https://lh3.googleusercontent.com/a/x"');
     expect(html).toContain('referrerPolicy="no-referrer"');
   });
-  it('falls back to the initial without a photo', async () => {
+  it('falls back to a silhouette without a photo', async () => {
     const { PlayerAvatar } = await import('../../src/ui/PlayerAvatar.tsx');
-    const html = renderToStaticMarkup(createElement(PlayerAvatar, { avatarUrl: null, label: 'E' }));
+    const html = renderToStaticMarkup(createElement(PlayerAvatar, { avatarUrl: null }));
     expect(html).not.toContain('<img');
-    expect(html).toContain('>E</span>');
+    expect(html).toContain('avatar-silhouette');
+  });
+  it('the profile button shows the photo, or the silhouette when signed out', async () => {
+    const { AvatarBadge } = await import('../../src/ui/AvatarBadge.tsx');
+    expect(renderToStaticMarkup(createElement(AvatarBadge, { avatarUrl: 'https://lh3.googleusercontent.com/a/x' }))).toContain('src="https://lh3.googleusercontent.com/a/x"');
+    const signedOut = renderToStaticMarkup(createElement(AvatarBadge, { avatarUrl: null }));
+    expect(signedOut).toContain('avatar-silhouette');
+    expect(signedOut).not.toContain('<img');
   });
 });

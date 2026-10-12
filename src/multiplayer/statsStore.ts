@@ -3,24 +3,28 @@ import { randomUUID } from 'crypto';
 import { readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 
-const LOCAL_STATS_PATH = join(dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1')), '..', '..', '.data', 'stats.json');
+const DEFAULT_DATA_DIR = join(dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1')), '..', '..', '.data');
 
-function loadLocalResults(): Map<string, GameResultInput[]> {
+// Resolved on first use (not at import) so tests can point JAMBO_DATA_DIR at a temp dir
+function localDataPath(file: string): string {
+  return join(process.env['JAMBO_DATA_DIR'] || DEFAULT_DATA_DIR, file);
+}
+
+function loadLocalMap<T>(path: string): Map<string, T[]> {
   try {
-    const raw = readFileSync(LOCAL_STATS_PATH, 'utf-8');
-    const parsed = JSON.parse(raw) as Record<string, GameResultInput[]>;
+    const raw = readFileSync(path, 'utf-8');
+    const parsed = JSON.parse(raw) as Record<string, T[]>;
     return new Map(Object.entries(parsed));
   } catch {
     return new Map();
   }
 }
 
-function saveLocalResults(results: Map<string, GameResultInput[]>): void {
+function saveLocalMap<T>(path: string, results: Map<string, T[]>): void {
   try {
-    const dir = dirname(LOCAL_STATS_PATH);
-    mkdirSync(dir, { recursive: true });
-    const obj: Record<string, GameResultInput[]> = Object.fromEntries(results);
-    writeFileSync(LOCAL_STATS_PATH, JSON.stringify(obj, null, 2));
+    mkdirSync(dirname(path), { recursive: true });
+    const obj: Record<string, T[]> = Object.fromEntries(results);
+    writeFileSync(path, JSON.stringify(obj, null, 2));
   } catch {
     // silently fail if write not possible
   }
@@ -38,6 +42,18 @@ export interface GameResultInput {
   actions?: unknown[];
 }
 
+/** A local (solo or hotseat) game the player abandoned before it finished. */
+export interface AbandonedGameInput {
+  localProfileId: string;
+  mode: 'solo' | 'multiplayer';
+  aiDifficulty: 'easy' | 'medium' | 'hard' | 'expert';
+  playerGold: number;
+  opponentGold: number;
+  turnCount: number;
+  rngSeed: number;
+  abandonedAt: number;
+}
+
 export interface UserStatsSummary {
   localProfileId: string;
   gamesPlayed: number;
@@ -48,6 +64,7 @@ export interface UserStatsSummary {
   bestPlayerGold: number;
   averageTurns: number;
   lastPlayedAt: number | null;
+  gamesAbandoned: number;
 }
 
 interface GameResultDocument {
@@ -62,7 +79,23 @@ interface GameResultDocument {
   createdAt: Date;
 }
 
-const memoryResults = loadLocalResults();
+interface AbandonedGameDocument extends Omit<AbandonedGameInput, 'abandonedAt'> {
+  abandonedAt: Date;
+  createdAt: Date;
+}
+
+let memoryResultsCache: Map<string, GameResultInput[]> | null = null;
+let memoryAbandonsCache: Map<string, AbandonedGameInput[]> | null = null;
+
+function memoryResults(): Map<string, GameResultInput[]> {
+  memoryResultsCache ??= loadLocalMap<GameResultInput>(localDataPath('stats.json'));
+  return memoryResultsCache;
+}
+
+function memoryAbandons(): Map<string, AbandonedGameInput[]> {
+  memoryAbandonsCache ??= loadLocalMap<AbandonedGameInput>(localDataPath('abandons.json'));
+  return memoryAbandonsCache;
+}
 
 let mongoClientPromise: Promise<MongoClient> | null = null;
 let mongoIndexesReady = false;
@@ -121,10 +154,13 @@ async function ensureIndexes(): Promise<void> {
   const gameLogs = db.collection('game_logs');
   await gameLogs.createIndex({ localProfileId: 1, completedAt: -1 });
 
+  const abandons = db.collection<AbandonedGameDocument>('game_abandons');
+  await abandons.createIndex({ localProfileId: 1, abandonedAt: 1 }, { unique: true });
+
   mongoIndexesReady = true;
 }
 
-function sanitizeSummary(localProfileId: string, results: readonly GameResultInput[]): UserStatsSummary {
+function sanitizeSummary(localProfileId: string, results: readonly GameResultInput[], gamesAbandoned = 0): UserStatsSummary {
   if (results.length === 0) {
     return {
       localProfileId,
@@ -136,6 +172,7 @@ function sanitizeSummary(localProfileId: string, results: readonly GameResultInp
       bestPlayerGold: 0,
       averageTurns: 0,
       lastPlayedAt: null,
+      gamesAbandoned,
     };
   }
 
@@ -157,17 +194,18 @@ function sanitizeSummary(localProfileId: string, results: readonly GameResultInp
     bestPlayerGold,
     averageTurns: totalTurns / gamesPlayed,
     lastPlayedAt,
+    gamesAbandoned,
   };
 }
 
 export async function recordCompletedGame(result: GameResultInput): Promise<void> {
   if (!isMongoEnabled()) {
-    const existing = memoryResults.get(result.localProfileId) ?? [];
+    const existing = memoryResults().get(result.localProfileId) ?? [];
     if (existing.some((entry) => entry.completedAt === result.completedAt)) {
       return;
     }
-    memoryResults.set(result.localProfileId, [...existing, result]);
-    saveLocalResults(memoryResults);
+    memoryResults().set(result.localProfileId, [...existing, result]);
+    saveLocalMap(localDataPath('stats.json'), memoryResults());
     return;
   }
 
@@ -214,6 +252,36 @@ export async function recordCompletedGame(result: GameResultInput): Promise<void
   }
 }
 
+export async function recordAbandonedGame(game: AbandonedGameInput): Promise<void> {
+  if (!isMongoEnabled()) {
+    const existing = memoryAbandons().get(game.localProfileId) ?? [];
+    if (existing.some((entry) => entry.abandonedAt === game.abandonedAt)) {
+      return;
+    }
+    memoryAbandons().set(game.localProfileId, [...existing, game]);
+    saveLocalMap(localDataPath('abandons.json'), memoryAbandons());
+    return;
+  }
+
+  await ensureIndexes();
+  const client = await getMongoClient();
+  const collection = client.db(getMongoDbName()).collection<AbandonedGameDocument>('game_abandons');
+  await collection.updateOne(
+    { localProfileId: game.localProfileId, abandonedAt: new Date(game.abandonedAt) },
+    { $setOnInsert: { ...game, abandonedAt: new Date(game.abandonedAt), createdAt: new Date() } },
+    { upsert: true },
+  );
+}
+
+async function countAbandonedGames(localProfileId: string): Promise<number> {
+  if (!isMongoEnabled()) {
+    return (memoryAbandons().get(localProfileId) ?? []).length;
+  }
+  await ensureIndexes();
+  const client = await getMongoClient();
+  return client.db(getMongoDbName()).collection<AbandonedGameDocument>('game_abandons').countDocuments({ localProfileId });
+}
+
 export interface DifficultyBreakdown {
   difficulty: 'easy' | 'medium' | 'hard' | 'expert';
   gamesPlayed: number;
@@ -228,7 +296,7 @@ export async function getDifficultyBreakdown(localProfileId: string): Promise<Di
 
   let results: GameResultInput[];
   if (!isMongoEnabled()) {
-    results = memoryResults.get(localProfileId) ?? [];
+    results = memoryResults().get(localProfileId) ?? [];
   } else {
     await ensureIndexes();
     const client = await getMongoClient();
@@ -266,8 +334,8 @@ export async function getDifficultyBreakdown(localProfileId: string): Promise<Di
 
 export async function getStatsSummary(localProfileId: string): Promise<UserStatsSummary> {
   if (!isMongoEnabled()) {
-    const results = memoryResults.get(localProfileId) ?? [];
-    return sanitizeSummary(localProfileId, results);
+    const results = memoryResults().get(localProfileId) ?? [];
+    return sanitizeSummary(localProfileId, results, await countAbandonedGames(localProfileId));
   }
 
   await ensureIndexes();
@@ -287,5 +355,5 @@ export async function getStatsSummary(localProfileId: string): Promise<UserStats
     completedAt: entry.completedAt.getTime(),
   }));
 
-  return sanitizeSummary(localProfileId, normalized);
+  return sanitizeSummary(localProfileId, normalized, await countAbandonedGames(localProfileId));
 }

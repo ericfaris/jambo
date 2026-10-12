@@ -1,4 +1,7 @@
 import { getLocalProfileId } from './localProfile.ts';
+import type { GameState } from '../engine/types.ts';
+import { loadLocalGame, clearLocalGame } from './savedGame.ts';
+import type { AIDifficulty } from '../ai/difficulties/index.ts';
 
 export interface UserStatsSummary {
   localProfileId: string;
@@ -10,6 +13,7 @@ export interface UserStatsSummary {
   bestPlayerGold: number;
   averageTurns: number;
   lastPlayedAt: number | null;
+  gamesAbandoned: number;
 }
 
 interface StatsSummaryResponse {
@@ -102,4 +106,53 @@ export async function recordCompletedGame(payload: RecordCompletedGamePayload): 
 
   const data = (await response.json()) as RecordCompletedGameResponse;
   return data.summary;
+}
+
+export interface AbandonedGamePayload {
+  mode: 'solo' | 'multiplayer';
+  aiDifficulty: AIDifficulty;
+  playerGold: number;
+  opponentGold: number;
+  turnCount: number;
+  rngSeed: number;
+  abandonedAt: number;
+}
+
+export function abandonedGamePayload(
+  state: GameState,
+  mode: 'solo' | 'multiplayer',
+  aiDifficulty: AIDifficulty,
+  abandonedAt: number = Date.now(),
+): AbandonedGamePayload {
+  return {
+    mode,
+    aiDifficulty,
+    playerGold: state.players[0].gold,
+    opponentGold: state.players[1].gold,
+    turnCount: state.turn,
+    rngSeed: state.rngSeed,
+    abandonedAt,
+  };
+}
+
+/** Best-effort: an abandon must never block or fail the return to the menu. */
+export function recordAbandonedGame(payload: AbandonedGamePayload): void {
+  try {
+    void fetch('/api/stats/abandon', {
+      method: 'POST',
+      credentials: 'include',
+      keepalive: true,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ localProfileId: getLocalProfileId(), ...payload }),
+    }).catch(() => { /* stats are best-effort */ });
+  } catch {
+    // stats are best-effort
+  }
+}
+
+/** Logs the unfinished saved game (if any) as abandoned, then deletes it. */
+export function abandonSavedGame(storage?: Parameters<typeof loadLocalGame>[0]): void {
+  const saved = loadLocalGame(storage);
+  if (saved) recordAbandonedGame(abandonedGamePayload(saved.state, saved.mode, saved.aiDifficulty));
+  clearLocalGame(storage);
 }

@@ -5,8 +5,9 @@ import { MarketDisplay } from './MarketDisplay.tsx';
 import { UtilityArea, UtilityChips } from './UtilityArea.tsx';
 import type { DeckCardId } from '../engine/types.ts';
 import { SpeechBubble } from './SpeechBubble.tsx';
-import { GoldCount, OpponentHandFan } from './life.tsx';
+import { GoldCount } from './life.tsx';
 import { GoldTrack } from './GoldTrack.tsx';
+import { SeatInfo } from './SeatInfo.tsx';
 
 interface OpponentAreaProps {
   player: PlayerState;
@@ -28,13 +29,15 @@ interface OpponentAreaProps {
   seat?: 0 | 1;
   /** The AI trader's portrait (solo), beside the name. */
   portrait?: ReactNode;
+  /** Desktop: right inset that keeps the name clear of the fixed corner button. */
+  rightInset?: number;
   /** compact: a smaller portrait for the phone strip. */
   compactPortrait?: ReactNode;
   /** Under the name, e.g. "Spice merchant · Hard". */
   subtitle?: string;
 }
 
-function OpponentAreaComponent({ player, aiMessage, onMessageHide, goldDelta = 0, marketFlashSlots, label = 'Opponent (AI)', compact = false, onMegaView, slotSize = 26, marketColumns, isActive = false, seat, portrait, compactPortrait, subtitle }: OpponentAreaProps) {
+function OpponentAreaComponent({ player, aiMessage, onMessageHide, goldDelta = 0, marketFlashSlots, label = 'Opponent (AI)', compact = false, onMegaView, slotSize = 26, marketColumns, isActive = false, seat, portrait, compactPortrait, subtitle, rightInset = 0 }: OpponentAreaProps) {
   const goldEl = (
     <span key={`opp-gold-${goldDelta}`} data-gold-anchor={seat} className={goldDelta !== 0 ? 'gold-pop gold-pop-strong' : undefined} style={{ color: 'var(--gold)', fontWeight: 700, fontSize: compact ? 15 : 20, fontFamily: 'var(--font-heading)', position: 'relative' }} aria-label={`${player.gold} gold`}>
       <GoldCount value={player.gold} />
@@ -109,32 +112,8 @@ function OpponentAreaComponent({ player, aiMessage, onMessageHide, goldDelta = 0
         <div data-spotlight-target="opponent-utilities" data-utility-anchor={seat}>
           <UtilityArea utilities={player.utilities} disabled label="Utilities" cardSize="small" maxSlots={3} onMegaView={onMegaView} />
         </div>
-        {/* right padding keeps the name clear of the fixed avatar/settings button */}
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 14, alignItems: 'flex-start', paddingRight: 44 }}>
-        {portrait}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, paddingTop: 2 }}>
-          <span style={{
-            fontFamily: 'var(--font-heading)',
-            fontWeight: 700,
-            fontSize: 18,
-            color: isActive ? 'var(--gold)' : 'var(--text)',
-            textShadow: '0 2px 12px rgba(0,0,0,0.6)',
-          }}>
-            {label}
-          </span>
-          {subtitle && <span style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: -4 }}>{subtitle}</span>}
-          <div style={{ display: 'flex', gap: 14, alignItems: 'baseline' }}>
-            {goldEl}
-            <span style={{ color: 'var(--text-muted)', fontSize: 15 }}>
-              {player.hand.length} {player.hand.length === 1 ? 'card' : 'cards'}
-            </span>
-          </div>
-          <GoldTrack gold={player.gold} />
-          <div data-hand-anchor={seat}>
-            <OpponentHandFan count={player.hand.length} thinking={isActive} />
-          </div>
-        </div>
-        </div>
+        {/* rightInset keeps the name clear of the fixed avatar/settings button, when it overlaps */}
+        <SeatInfo seat={seat} label={label} subtitle={subtitle} portrait={portrait} gold={player.gold} goldDelta={goldDelta} handCount={player.hand.length} isActive={isActive} rightInset={rightInset} handAnchor />
       </div>
     </div>
   );

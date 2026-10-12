@@ -2276,7 +2276,8 @@ button.brown:hover:not(:disabled) {
 /* The player's own avatar, framed like the trader's */
 .player-avatar { display: inline-flex; align-items: center; justify-content: center; }
 .player-avatar-active { box-shadow: 0 0 0 2px var(--gold), 0 4px 12px rgba(0,0,0,0.45); }
-.player-avatar-initial { font-family: var(--font-heading); font-weight: 700; color: var(--gold); line-height: 1; }
+.avatar-silhouette { display: block; width: 100%; height: 100%; fill: currentColor; color: var(--gold-dim); background: var(--surface-light, rgba(255,255,255,0.06)); }
+.trader-portrait .avatar-silhouette { position: absolute; inset: 0; }
 .trader-portrait-speaking[data-mood='pleased'],
 .trader-portrait-speaking[data-mood='annoyed'] { animation: trader-react 520ms var(--anim-ease-emphasis, ease-out), trader-speaking 0.9s ease-in-out infinite alternate; }
 @keyframes trader-speaking {
@@ -2290,7 +2291,7 @@ button.brown:hover:not(:disabled) {
   .trader-portrait[data-mood] { animation: none; }
   .trader-portrait-speaking { animation: none; box-shadow: 0 0 0 3px var(--gold); }
 }
-.endgame-score-opponent { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.endgame-score-side { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .trader-picker { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 @media (max-width: 480px) { .trader-picker { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .trader-picker > button { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }

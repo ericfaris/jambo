@@ -23,8 +23,9 @@ import type { RoomMode } from '../multiplayer/types.ts';
 import { useGameStore } from '../hooks/useGameStore.ts';
 import { extractPublicState } from '../multiplayer/stateSplitter.ts';
 import { getCastSessionController } from '../cast/factory.ts';
-import { loadLocalGame, isGameActiveInTab, setGameActiveInTab, describeSavedGame, clearLocalGame } from '../persistence/savedGame.ts';
+import { loadLocalGame, isGameActiveInTab, setGameActiveInTab, describeSavedGame } from '../persistence/savedGame.ts';
 import type { SavedGame } from '../persistence/savedGame.ts';
+import { abandonSavedGame } from '../persistence/userStatsApi.ts';
 
 type Route = 'local' | 'play';
 type Screen = 'menu' | 'solo' | 'multiplayer' | 'login' | 'settings' | 'castHost';
@@ -139,7 +140,7 @@ function RouterInner() {
   }, []);
 
   const handleAbandonSaved = useCallback(() => {
-    clearLocalGame();
+    abandonSavedGame();
     setSavedGame(null);
   }, []);
 
@@ -211,6 +212,9 @@ function RouterInner() {
       return;
     }
 
+    // A new local game overwrites the save, so an unfinished one counts as abandoned
+    abandonSavedGame();
+    setSavedGame(null);
     const firstPlayer = getRandomFirstPlayer();
     newGame(undefined, firstPlayer);
     setRevealFirstPlayer(firstPlayer);
@@ -234,7 +238,7 @@ function RouterInner() {
           onComplete={handleRevealComplete}
           localMultiplayer={pendingScreen === 'multiplayer'}
         />
-        <AvatarBadge avatarUrl={auth.avatarUrl} avatarLabel={auth.avatarLabel} />
+        <AvatarBadge avatarUrl={auth.avatarUrl} />
       </>
     );
   }
@@ -275,7 +279,7 @@ function RouterInner() {
     return (
       <>
         <CastLobby ws={ws} mode="join" aiDifficulty={aiDifficulty} roomMode={null} />
-        <AvatarBadge avatarUrl={auth.avatarUrl} avatarLabel={auth.avatarLabel} />
+        <AvatarBadge avatarUrl={auth.avatarUrl} />
       </>
     );
   }
@@ -300,7 +304,7 @@ function RouterInner() {
             castStartError={castStartError}
           />
         )}
-        <AvatarBadge avatarUrl={auth.avatarUrl} avatarLabel={auth.avatarLabel} />
+        <AvatarBadge avatarUrl={auth.avatarUrl} />
         {showTutorial && <TutorialOverlay onClose={() => setShowTutorial(false)} />}
       </>
     );
@@ -318,7 +322,7 @@ function RouterInner() {
           onAbandon={handleAbandonSaved}
         />
         <LoginModal onClose={() => setScreen('menu')} />
-        <AvatarBadge avatarUrl={auth.avatarUrl} avatarLabel={auth.avatarLabel} />
+        <AvatarBadge avatarUrl={auth.avatarUrl} />
         {showTutorial && <TutorialOverlay onClose={() => setShowTutorial(false)} />}
       </>
     );
@@ -339,7 +343,7 @@ function RouterInner() {
     return (
       <>
         <CastLobby ws={ws} mode="host" aiDifficulty={aiDifficulty} roomMode={castRoomMode} />
-        <AvatarBadge avatarUrl={auth.avatarUrl} avatarLabel={auth.avatarLabel} />
+        <AvatarBadge avatarUrl={auth.avatarUrl} />
       </>
     );
   }
@@ -347,7 +351,7 @@ function RouterInner() {
   if (screen === 'settings') {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, position: 'relative' }}>
-        <AvatarBadge avatarUrl={auth.avatarUrl} avatarLabel={auth.avatarLabel} />
+        <AvatarBadge avatarUrl={auth.avatarUrl} />
         <div className="etched-wood-border dialog-pop" style={{
           width: 'min(560px, 96vw)',
           borderRadius: 12,

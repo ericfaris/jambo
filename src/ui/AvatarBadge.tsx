@@ -1,10 +1,11 @@
+import { AvatarImage } from './AvatarImage.tsx';
+
 interface AvatarBadgeProps {
   avatarUrl: string | null;
-  avatarLabel: string;
   onClick?: () => void;
 }
 
-export function AvatarBadge({ avatarUrl, avatarLabel, onClick }: AvatarBadgeProps) {
+export function AvatarBadge({ avatarUrl, onClick }: AvatarBadgeProps) {
   return (
     <div style={{ position: 'fixed', top: 12, right: 16, zIndex: 50 }}>
       <button
@@ -24,22 +25,7 @@ export function AvatarBadge({ avatarUrl, avatarLabel, onClick }: AvatarBadgeProp
         }}
         title="Profile"
       >
-        {avatarUrl ? (
-          <img
-            src={avatarUrl}
-            alt="User avatar"
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-          />
-        ) : (
-          <span style={{
-            fontFamily: 'var(--font-heading)',
-            fontSize: 16,
-            fontWeight: 700,
-            color: 'var(--text)',
-          }}>
-            {avatarLabel}
-          </span>
-        )}
+        <AvatarImage avatarUrl={avatarUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
       </button>
     </div>
   );
