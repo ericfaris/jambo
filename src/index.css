@@ -2294,3 +2294,154 @@ button.brown:hover:not(:disabled) {
 .trader-picker { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 @media (max-width: 480px) { .trader-picker { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .trader-picker > button { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }
+
+/* --- Turn plaque: the phase indicator in the centre row ------------------ */
+.turn-plaque {
+  --plaque-gold: #d9ad5b;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 210px;
+  padding: 12px 26px 12px;
+  text-align: center;
+  border-radius: 14px;
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(217,173,91,0.16), transparent 60%),
+    linear-gradient(180deg, #2a1b10 0%, #1a100a 100%);
+  border: 1px solid rgba(217,173,91,0.55);
+  box-shadow:
+    inset 0 0 0 3px #140c07,
+    inset 0 0 0 4px rgba(217,173,91,0.28),
+    inset 0 1px 0 4px rgba(255,226,160,0.06),
+    0 10px 28px rgba(0,0,0,0.55),
+    0 2px 0 rgba(0,0,0,0.6);
+  transition: box-shadow 0.4s ease, border-color 0.4s ease;
+}
+.turn-plaque-mine {
+  border-color: var(--plaque-gold);
+  box-shadow:
+    inset 0 0 0 3px #140c07,
+    inset 0 0 0 4px rgba(217,173,91,0.45),
+    0 0 0 1px rgba(217,173,91,0.25),
+    0 0 26px rgba(217,173,91,0.28),
+    0 10px 28px rgba(0,0,0,0.55);
+  animation: plaque-breathe 3.2s ease-in-out infinite;
+}
+.turn-plaque-glow { box-shadow: 0 0 22px rgba(212,168,80,0.45), inset 0 0 0 3px #140c07, inset 0 0 0 4px rgba(217,173,91,0.45), 0 10px 28px rgba(0,0,0,0.55); }
+@keyframes plaque-breathe {
+  0%, 100% { box-shadow: inset 0 0 0 3px #140c07, inset 0 0 0 4px rgba(217,173,91,0.45), 0 0 0 1px rgba(217,173,91,0.2), 0 0 18px rgba(217,173,91,0.18), 0 10px 28px rgba(0,0,0,0.55); }
+  50% { box-shadow: inset 0 0 0 3px #140c07, inset 0 0 0 4px rgba(217,173,91,0.6), 0 0 0 1px rgba(217,173,91,0.35), 0 0 32px rgba(217,173,91,0.36), 0 10px 28px rgba(0,0,0,0.55); }
+}
+/* brass studs at the plaque's ends */
+.turn-plaque-stud {
+  position: absolute;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  margin-top: -3.5px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff1c9 0%, #d9ad5b 45%, #6e4b17 100%);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.7);
+}
+.turn-plaque-stud-l { left: 9px; }
+.turn-plaque-stud-r { right: 9px; }
+.turn-plaque-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #b89a72;
+  white-space: nowrap;
+}
+.turn-plaque-mine .turn-plaque-eyebrow { color: var(--plaque-gold); }
+.turn-plaque-rule {
+  width: 18px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, currentColor, transparent);
+  opacity: 0.7;
+}
+.turn-plaque-phase {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 24px;
+  line-height: 1.05;
+  letter-spacing: 0.01em;
+  background: linear-gradient(180deg, #fff0c4 0%, #e8bd62 48%, #a8742a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,0.65));
+}
+/* a small gem in the phase's colour under the title */
+.turn-plaque-gem {
+  width: 46px;
+  height: 2px;
+  margin-top: -1px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, var(--phase-color), transparent);
+  box-shadow: 0 0 8px var(--phase-color);
+  transition: background 0.4s ease, box-shadow 0.4s ease;
+}
+.turn-plaque-endgame {
+  font-family: var(--font-heading);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #ff8a6a;
+  text-shadow: 0 0 10px rgba(192,64,48,0.6);
+}
+.turn-plaque-actions { display: flex; flex-direction: column; align-items: center; gap: 4px; margin-top: 2px; }
+.turn-plaque-coins { display: flex; gap: 7px; }
+.turn-plaque-socket {
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 60%, #0d0805 0%, #24170e 100%);
+  box-shadow: inset 0 2px 3px rgba(0,0,0,0.85), 0 1px 0 rgba(255,226,160,0.12);
+  align-items: center;
+  justify-content: center;
+}
+.turn-plaque-coin {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 28%, rgba(255,250,225,0.95) 0%, rgba(255,250,225,0) 32%),
+    radial-gradient(circle at 50% 50%, #f2cb6e 0%, #d39f3f 58%, #8f6020 100%);
+  box-shadow:
+    inset 0 0 0 1.5px rgba(120,78,22,0.75),
+    inset 0 0 0 3px rgba(255,224,150,0.35),
+    0 1px 3px rgba(0,0,0,0.6),
+    0 0 6px rgba(240,190,90,0.35);
+  transition: transform 0.3s ease, opacity 0.3s ease, filter 0.3s ease;
+}
+.turn-plaque-coin-spent { transform: scale(0.55); opacity: 0; }
+.turn-plaque-count {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9c8466;
+  font-variant-numeric: tabular-nums;
+}
+.turn-plaque-compact { min-width: 0; padding: 7px 16px 7px; gap: 3px; border-radius: 11px; }
+.turn-plaque-compact .turn-plaque-stud { display: none; }
+.turn-plaque-compact .turn-plaque-eyebrow { font-size: 9.5px; letter-spacing: 0.12em; gap: 5px; }
+.turn-plaque-compact .turn-plaque-rule { width: 10px; }
+.turn-plaque-compact .turn-plaque-phase { font-size: 17px; }
+.turn-plaque-compact .turn-plaque-gem { width: 34px; }
+.turn-plaque-compact .turn-plaque-coins { gap: 5px; }
+.turn-plaque-compact .turn-plaque-socket { width: 15px; height: 15px; }
+.turn-plaque-compact .turn-plaque-coin { width: 12px; height: 12px; }
+.turn-plaque-compact .turn-plaque-count { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .turn-plaque-mine { animation: none; }
+  .turn-plaque-coin { transition: none; }
+}

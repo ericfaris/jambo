@@ -138,3 +138,18 @@ describe('resolve panel visibility during the AI turn (playtest 2026-10-04)', ()
     expect(shouldShowResolvePanel(false, false, null)).toBe(false);
   });
 });
+
+describe('turn plaque (centre-row phase indicator)', () => {
+  it('shows one coin per action left, says how many, and lights up on your turn', () => {
+    const s = { ...createTestState(), phase: 'PLAY' as const, currentPlayer: 0 as const, actionsLeft: 3 };
+    const mine = renderToStaticMarkup(createElement(CenterRow, { state: s, dispatch: noopDispatch, actorLabels: ['You', 'Baraka'] }));
+    expect(mine).toContain('turn-plaque-mine');
+    expect(mine.match(/class="turn-plaque-coin"/g)).toHaveLength(3);
+    expect(mine.match(/turn-plaque-coin turn-plaque-coin-spent/g)).toHaveLength(2);
+    expect(mine).toContain('3 actions left');
+    expect(mine).toContain('aria-valuenow="3"');
+    const theirs = renderToStaticMarkup(createElement(CenterRow, { state: { ...s, currentPlayer: 1 as const, actionsLeft: 1 }, dispatch: noopDispatch, actorLabels: ['You', 'Baraka'] }));
+    expect(theirs).not.toContain('turn-plaque-mine');
+    expect(theirs).toContain('1 action left');
+  });
+});

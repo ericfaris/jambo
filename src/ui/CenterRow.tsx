@@ -250,47 +250,38 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
         </div>
       </div>
 
-      {/* Phase indicator */}
-      <div key={`phase-${visualFeedback?.phasePulse ?? 0}-${visualFeedback?.actionsPulse ?? 0}`} className={(visualFeedback?.phasePulse || visualFeedback?.actionsPulse) ? 'phase-pulse' : undefined} style={{
-        background: phaseColor + '20',
-        borderRadius: 10,
-        padding: compact ? '6px 12px' : '10px 24px',
-        border: `1px solid ${phaseColor}`,
-        textAlign: 'center',
-        transition: 'background 0.4s ease, border-color 0.4s ease',
-        ...(showGlow && {
-          boxShadow: '0 0 20px rgba(212, 168, 80, 0.4), inset 0 0 20px rgba(212, 168, 80, 0.1)',
-          borderRadius: 12,
-        })
-      }}>
-        <div style={{ fontSize: compact ? 11 : 12, color: 'var(--text-muted)' }}>
+      {/* Phase indicator: a brass turn plaque */}
+      <div
+        key={`phase-${visualFeedback?.phasePulse ?? 0}-${visualFeedback?.actionsPulse ?? 0}`}
+        className={`turn-plaque${compact ? ' turn-plaque-compact' : ''}${actorLabels[state.currentPlayer] === 'You' ? ' turn-plaque-mine' : ''}${showGlow ? ' turn-plaque-glow' : ''}${(visualFeedback?.phasePulse || visualFeedback?.actionsPulse) ? ' phase-pulse' : ''}`}
+        style={{ '--phase-color': phaseColor } as CSSProperties}
+      >
+        <span className="turn-plaque-stud turn-plaque-stud-l" aria-hidden="true" />
+        <span className="turn-plaque-stud turn-plaque-stud-r" aria-hidden="true" />
+        <div className="turn-plaque-eyebrow">
+          <span className="turn-plaque-rule" aria-hidden="true" />
           Turn {state.turn} &middot; {formatTurnOwner(actorLabels[state.currentPlayer])}
+          <span className="turn-plaque-rule" aria-hidden="true" />
         </div>
-        <div style={{ fontWeight: 700, fontSize: compact ? 15 : 17, color: phaseColor, transition: 'color 0.4s ease' }}>
-          {phaseLabel}
-        </div>
+        <div className="turn-plaque-phase">{phaseLabel}</div>
+        <span className="turn-plaque-gem" aria-hidden="true" />
         {state.endgame && (
-          <div style={{ fontSize: 12, color: '#c04030', fontWeight: 700, marginTop: 2 }}>
+          <div className="turn-plaque-endgame">
             {finalTurnStatus(state, actorLabels) ?? (state.endgame.isFinalTurn ? 'FINAL TURN!' : 'Endgame triggered!')}
           </div>
         )}
-        {/* Action tokens */}
-        <div style={{ marginTop: compact ? 5 : 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Actions:</span>
-          <div style={{ display: 'flex', gap: 4 }}>
+        {/* Action tokens: minted coins in carved sockets */}
+        <div className="turn-plaque-actions" role="meter" aria-valuemin={0} aria-valuemax={CONSTANTS.MAX_ACTIONS} aria-valuenow={state.actionsLeft} aria-label={`${state.actionsLeft} of ${CONSTANTS.MAX_ACTIONS} actions left`}>
+          <div className="turn-plaque-coins">
             {Array.from({ length: CONSTANTS.MAX_ACTIONS }, (_, i) => i < state.actionsLeft).map((active, i) => (
-              <div key={`${i}-${spentPips.includes(i) ? state.actionsLeft : 'x'}`} className={spentPips.includes(i) ? 'pip-spent-now' : undefined} style={{
-                width: 12,
-                height: 12,
-                borderRadius: '50%',
-                background: active ? 'radial-gradient(circle, var(--gold) 30%, var(--gold-dim) 100%)' : 'rgba(90,64,48,0.5)',
-                border: '1px solid var(--border-light)',
-                transition: 'background 0.3s ease, transform 0.3s ease, opacity 0.3s ease',
-                transform: active ? 'scale(1)' : 'scale(0.8)',
-                opacity: active ? 1 : 0.5,
-              }} />
+              <span key={`${i}-${spentPips.includes(i) ? state.actionsLeft : 'x'}`} className="turn-plaque-socket">
+                <span className={`turn-plaque-coin${active ? '' : ' turn-plaque-coin-spent'}${spentPips.includes(i) ? ' pip-spent-now' : ''}`} />
+              </span>
             ))}
           </div>
+          <span className="turn-plaque-count">
+            {state.actionsLeft} {state.actionsLeft === 1 ? 'action' : 'actions'} left
+          </span>
         </div>
       </div>
 
