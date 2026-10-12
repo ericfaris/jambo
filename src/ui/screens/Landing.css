@@ -1,0 +1,543 @@
+/* ===========================================================================
+   Landing page (MainMenu). Namespaced .landing-* so the Cast "Rejoining…"
+   screen and the settings shell, which reuse the older .main-menu-* /
+   .menu-action classes, are untouched. Motion follows DESIGN.md › Life:
+   transform/opacity only, off under reduced motion and data-ambient="off".
+   =========================================================================== */
+.landing {
+  --landing-ink: #1e1208;
+  --landing-cream: #f6e6c4;
+  --landing-plate: rgba(30, 18, 8, 0.72);
+  position: fixed;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background:
+    radial-gradient(ellipse 70% 60% at 35% 40%, rgba(255, 176, 84, 0.10), transparent 70%),
+    var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+}
+
+.landing-shell {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(340px, 0.85fr);
+  align-items: center;
+  gap: clamp(24px, 3.5vw, 56px);
+  max-width: 1320px;
+  min-height: 100%;
+  margin: 0 auto;
+  padding: 72px clamp(16px, 3vw, 40px) 40px;
+  box-sizing: border-box;
+}
+
+/* --- Hero ------------------------------------------------------------------ */
+.landing-hero {
+  position: relative;
+  z-index: 2; /* the fan hangs over the panel on phones */
+  min-width: 0;
+  padding-bottom: 92px; /* room for the fan to hang below the art */
+}
+
+.landing-art {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  max-width: 100%;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 2px var(--gold-dim),
+    0 0 0 7px #3a2414,
+    0 0 0 8px rgba(212, 168, 80, 0.35),
+    0 24px 60px rgba(0, 0, 0, 0.6);
+  animation: landingArtIn 700ms var(--anim-ease-standard) both;
+}
+
+.landing-art > picture img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 50%;
+}
+
+/* darkens the sky behind the wordmark and the table edge behind the fan */
+.landing-art-shade {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 60% 70% at 0% 0%, rgba(20, 10, 5, 0.72), transparent 70%),
+    linear-gradient(to top, rgba(20, 10, 5, 0.55), transparent 32%);
+  pointer-events: none;
+}
+
+.landing-wordmark {
+  position: absolute;
+  top: clamp(14px, 4%, 36px);
+  left: clamp(16px, 4%, 40px);
+  display: grid;
+  gap: 2px;
+}
+
+.landing-eyebrow {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--landing-cream);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
+}
+
+.landing-title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: clamp(64px, 9vw, 128px);
+  line-height: 0.9;
+  letter-spacing: 0.01em;
+  color: #f2c86a;
+  text-shadow:
+    0 2px 0 #7a4a14,
+    0 4px 0 #4a2a0c,
+    0 10px 28px rgba(0, 0, 0, 0.7);
+}
+
+/* --- The sale demo: three tea leave the stall, 10 gold rises ------------- */
+.landing-stall {
+  position: absolute;
+  left: 3.5%;
+  bottom: 7%;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+}
+
+.landing-demo {
+  position: relative;
+  display: flex;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(30, 18, 8, 0.78);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(212, 168, 80, 0.45), 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+
+.landing-demo-ware {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.5));
+  animation: landingDemoWare 8s var(--life-ease) infinite;
+  animation-delay: calc(var(--i, 0) * 0.12s);
+}
+
+.landing-demo-gold {
+  position: absolute;
+  left: 50%;
+  top: -6px;
+  translate: -50% 0;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 22px;
+  color: #ffd77a;
+  text-shadow: 0 0 10px rgba(255, 196, 90, 0.8), 0 2px 4px rgba(0, 0, 0, 0.8);
+  opacity: 0;
+  animation: landingDemoGold 8s var(--anim-ease-standard) infinite;
+}
+
+.landing-demo-caption {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--landing-cream);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+}
+
+@keyframes landingDemoWare {
+  0%, 30% { opacity: 1; transform: translateY(0) scale(1); }
+  15% { transform: translateY(-1.5px) scale(1); }
+  42% { opacity: 0; transform: translateY(-26px) scale(0.7); }
+  70% { opacity: 0; transform: translateY(-14px) scale(0.7); }
+  80% { opacity: 1; transform: translateY(2px) scale(1.06); }
+  86%, 100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes landingDemoGold {
+  0%, 38% { opacity: 0; transform: translateY(8px) scale(0.8); }
+  46% { opacity: 1; transform: translateY(-10px) scale(1.1); }
+  60% { opacity: 1; transform: translateY(-22px) scale(1); }
+  70%, 100% { opacity: 0; transform: translateY(-34px) scale(1); }
+}
+
+/* --- The card fan: real cards, dealt in, then breathing ------------------- */
+.landing-fan {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  translate: -50% 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  padding-left: 34px;
+}
+
+.landing-fan-card {
+  margin-left: -34px;
+  rotate: var(--fan-rot, 0deg);
+  translate: 0 var(--fan-lift, 0px);
+  transform-origin: 50% 130%;
+  scale: 1.18;
+  animation: cardDealIn var(--life-deal) var(--anim-ease-standard) both;
+  animation-delay: calc(300ms + var(--i, 0) * 90ms);
+  transition: translate 260ms var(--life-spring), rotate 260ms var(--life-spring);
+  filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.55));
+}
+
+.landing-fan-inner {
+  animation: cardBreathe var(--life-breathe) var(--life-ease) infinite;
+  animation-delay: calc(var(--i, 0) * -0.83s);
+}
+
+.landing-fan-card:nth-child(even) .landing-fan-inner { --breathe-tilt: -0.4deg; }
+
+/* the three-tea card rises while its sale plays out */
+.landing-fan-card-demo .landing-fan-inner {
+  animation: cardBreathe var(--life-breathe) var(--life-ease) infinite, landingDemoCard 8s var(--life-ease) infinite;
+}
+
+@keyframes landingDemoCard {
+  0%, 22%, 62%, 100% { translate: 0 0; filter: none; }
+  32%, 52% { translate: 0 -18px; filter: drop-shadow(0 0 14px rgba(255, 200, 100, 0.75)); }
+}
+
+@media (hover: hover) {
+  .landing-fan-card:hover {
+    translate: 0 calc(var(--fan-lift, 0px) - 16px);
+    rotate: calc(var(--fan-rot, 0deg) * 0.4);
+    z-index: 5;
+  }
+}
+
+@keyframes landingArtIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+
+/* --- Panel ---------------------------------------------------------------- */
+.landing-panel {
+  min-width: 0;
+  display: grid;
+  gap: 18px;
+  padding: clamp(20px, 2.4vw, 32px);
+  border-radius: 16px;
+  background: var(--landing-plate);
+  box-shadow: 0 0 0 1px rgba(212, 168, 80, 0.28), 0 20px 50px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  animation: landingPanelIn 600ms var(--anim-ease-standard) 200ms both;
+}
+
+@keyframes landingPanelIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+
+.landing-pitch {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: clamp(20px, 1.8vw, 24px);
+  line-height: 1.3;
+  color: var(--landing-cream);
+  text-wrap: balance;
+}
+
+.landing-welcome {
+  margin: -8px 0 0;
+  font-size: 15px;
+  color: var(--text-muted);
+}
+
+.landing-primary {
+  display: grid;
+  gap: 8px;
+}
+
+.landing-cta {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  width: 100%;
+  padding: 14px 20px 12px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #f0cd78 0%, #d4a850 55%, #b88a38 100%);
+  color: var(--landing-ink);
+  font-family: var(--font-heading);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.15;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 245, 210, 0.7), 0 2px 0 #7a5418, 0 10px 24px rgba(0, 0, 0, 0.45);
+  transition: transform 160ms var(--life-spring), box-shadow 160ms ease;
+}
+
+.landing-cta:hover { transform: translateY(-2px); box-shadow: inset 0 1px 0 rgba(255, 245, 210, 0.7), 0 4px 0 #7a5418, 0 16px 30px rgba(0, 0, 0, 0.5); }
+.landing-cta:active { transform: translateY(1px); }
+.landing-cta:focus-visible { outline: 3px solid var(--landing-cream); outline-offset: 3px; }
+
+/* a slow glint across the gold, like light on a coin */
+.landing-cta::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 35%, rgba(255, 250, 225, 0.55) 50%, transparent 65%);
+  translate: -120% 0;
+  animation: landingGlint 6.5s var(--anim-ease-standard) 1.4s infinite;
+  pointer-events: none;
+}
+
+@keyframes landingGlint {
+  0% { translate: -120% 0; }
+  18%, 100% { translate: 120% 0; }
+}
+
+.landing-cta-sub {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 400;
+  color: rgba(30, 18, 8, 0.78);
+  letter-spacing: 0.02em;
+}
+
+/* --- Trader row ------------------------------------------------------------ */
+.landing-traders {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.landing-trader {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  justify-items: center;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 4px 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text);
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease, transform 200ms var(--life-spring);
+}
+
+.landing-trader:hover { background: rgba(212, 168, 80, 0.08); border-color: rgba(212, 168, 80, 0.4); transform: translateY(-2px); }
+.landing-trader:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+.landing-trader-selected {
+  border-color: var(--gold);
+  background: rgba(212, 168, 80, 0.14);
+}
+
+.landing-trader-selected .trader-portrait {
+  box-shadow: 0 0 0 2px var(--gold), 0 0 14px rgba(212, 168, 80, 0.55), 0 4px 12px rgba(0, 0, 0, 0.45);
+}
+
+.landing-trader-name {
+  font-family: var(--font-heading);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.landing-trader-selected .landing-trader-name { color: var(--gold); }
+
+.landing-trader-level {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+
+/* --- Other modes ----------------------------------------------------------- */
+.landing-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.landing-modes > *,
+.landing-secondary-wide { flex: 1 1 140px; }
+
+.landing-secondary {
+  padding: 11px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(212, 168, 80, 0.45);
+  background: transparent;
+  color: var(--landing-cream);
+  font-family: var(--font-heading);
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.landing-secondary:hover { background: rgba(212, 168, 80, 0.12); border-color: var(--gold); color: var(--gold); }
+.landing-secondary:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+.landing-modes .confirm-ask,
+.landing-panel > .confirm-ask { flex-basis: 100%; }
+
+/* --- Footer links ---------------------------------------------------------- */
+.landing-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 18px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(212, 168, 80, 0.18);
+}
+
+.landing-link {
+  padding: 4px 0;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+  text-underline-offset: 3px;
+}
+
+.landing-link:hover { color: var(--landing-cream); text-decoration: underline; }
+.landing-link:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 4px; }
+.landing-link-danger { justify-self: center; font-size: 14px; }
+.landing-link-danger:hover { color: #f0a08f; }
+
+.landing-stats {
+  margin-left: auto;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--gold);
+  background: rgba(212, 168, 80, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(212, 168, 80, 0.35);
+}
+
+/* --- Account chip: the one place to sign in or out ----------------------- */
+.landing-account {
+  position: fixed;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  right: 16px;
+  z-index: 60;
+}
+
+.landing-account-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 14px 4px 4px;
+  border-radius: 999px;
+  border: 1px solid var(--border-light);
+  background: rgba(30, 18, 8, 0.82);
+  color: var(--landing-cream);
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+
+.landing-account-btn:hover:enabled { border-color: var(--gold); color: var(--gold); }
+
+.landing-account-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: inline-flex;
+  background: var(--surface-light, var(--surface));
+}
+
+.landing-account-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  min-width: 180px;
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #2a1a0c;
+  box-shadow: 0 0 0 1px rgba(212, 168, 80, 0.35), 0 12px 30px rgba(0, 0, 0, 0.55);
+}
+
+.landing-account-name { font-family: var(--font-heading); color: var(--landing-cream); }
+
+/* --- Phones and narrow windows: art, wordmark, then the panel ------------- */
+@media (max-width: 899px) {
+  .landing-shell {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 4px;
+    max-width: 560px;
+    padding: 64px 16px 28px;
+  }
+  .landing-hero { padding-bottom: 80px; }
+  .landing-art { aspect-ratio: 5 / 4; }
+  .landing-title { font-size: clamp(56px, 17vw, 84px); }
+  .landing-eyebrow { font-size: 11px; }
+  .landing-stall { left: auto; bottom: auto; top: 4%; right: 3%; }
+  .landing-demo { padding: 6px 8px; gap: 4px; }
+  .landing-demo-ware { width: 26px; height: 26px; }
+  .landing-demo-caption { display: none; }
+  .landing-fan { padding-left: 30px; }
+  .landing-fan-card { scale: 0.86; margin-left: -40px; }
+  .landing-panel { gap: 14px; padding: 18px 16px; margin-top: 40px; }
+  .landing-pitch { font-size: 19px; text-align: center; }
+  .landing-welcome { text-align: center; }
+  .landing-trader .trader-portrait { width: 48px !important; height: 48px !important; }
+}
+
+@media (max-width: 420px) {
+  .landing-fan-card { scale: 0.74; margin-left: -46px; }
+  .landing-hero { padding-bottom: 64px; }
+}
+
+@media (max-width: 899px) and (max-height: 720px) {
+  .landing-art { aspect-ratio: 16 / 10; }
+}
+
+/* --- Holding still -------------------------------------------------------- */
+.landing-dimmed *,
+.landing-dimmed *::after {
+  animation-play-state: paused !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-art,
+  .landing-panel,
+  .landing-fan-card,
+  .landing-fan-inner,
+  .landing-demo-ware,
+  .landing-demo-gold,
+  .landing-cta::after {
+    animation: none !important;
+  }
+  .landing-cta::after { display: none; }
+}
+
+:root[data-ambient='off'] .landing-fan-inner,
+:root[data-ambient='off'] .landing-demo-ware,
+:root[data-ambient='off'] .landing-demo-gold,
+:root[data-ambient='off'] .landing-cta::after {
+  animation: none !important;
+}
+
+:root[data-ambient='off'] .landing-cta::after { display: none; }

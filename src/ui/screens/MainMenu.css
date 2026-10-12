@@ -7,16 +7,6 @@
   background: rgba(20,10,5,0.92);
 }
 
-.main-menu-bg {
-  position: absolute;
-  inset: 0;
-  background-image: url('/assets/menu/main_menu.png');
-  background-size: cover;
-  background-position: center;
-  opacity: 0.25;
-  pointer-events: none;
-}
-
 .main-menu-content {
   position: relative;
   z-index: 1;

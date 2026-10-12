@@ -1,0 +1,14 @@
+{
+  "name": "Jambo",
+  "short_name": "Jambo",
+  "description": "A two-player trading card game from the African market. Buy low, sell high, outwit a rival trader. First to 60 gold wins.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1e1208",
+  "theme_color": "#1e1208",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

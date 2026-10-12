@@ -4,13 +4,16 @@ import { TraderPortrait } from '../TraderPortrait.tsx';
 import { useState } from 'react';
 import type { AIDifficulty } from '../../ai/difficulties/index.ts';
 
-type PreGameMode = 'solo' | 'multiplayer';
+import type { RoomMode } from '../../multiplayer/types.ts';
 
+/**
+ * Setting up a game on a Chromecast TV. Solo and pass-and-play start straight
+ * from the landing page; only the TV needs a question first: against whom?
+ */
 interface PreGameSetupModalProps {
-  mode: PreGameMode;
   aiDifficulty: AIDifficulty;
   onCancel: () => void;
-  onStart: (options: { castMode: boolean; aiDifficulty: AIDifficulty }) => void;
+  onStart: (options: { roomMode: RoomMode; aiDifficulty: AIDifficulty }) => void;
   castStartError?: string | null;
 }
 
@@ -23,11 +26,11 @@ const sectionLabelStyle = {
   letterSpacing: 0.5,
 } as const;
 
-export function PreGameSetupModal({ mode, aiDifficulty: initialDifficulty, onCancel, onStart, castStartError }: PreGameSetupModalProps) {
-  const [castMode, setCastMode] = useState(false);
+export function PreGameSetupModal({ aiDifficulty: initialDifficulty, onCancel, onStart, castStartError }: PreGameSetupModalProps) {
+  const [roomMode, setRoomMode] = useState<RoomMode>('ai');
   const [difficulty, setDifficulty] = useState<AIDifficulty>(initialDifficulty);
 
-  const title = mode === 'solo' ? 'New Game' : 'New Multiplayer Game';
+  const title = 'Play on TV';
 
   return (
     <div
@@ -62,7 +65,7 @@ export function PreGameSetupModal({ mode, aiDifficulty: initialDifficulty, onCan
           letterSpacing: 1.5,
           color: 'var(--text-muted)',
         }}>
-          Game Setup
+          Chromecast
         </div>
         <div style={{
           fontFamily: 'var(--font-heading)',
@@ -80,27 +83,27 @@ export function PreGameSetupModal({ mode, aiDifficulty: initialDifficulty, onCan
           opacity: 0.5,
         }} />
 
-        {/* Display mode */}
+        {/* Opponent */}
         <div style={{ width: '100%' }}>
-          <div style={sectionLabelStyle}>Display</div>
+          <div style={sectionLabelStyle}>Board on the TV, hands on phones</div>
           <div style={{ display: 'flex', gap: 8 }}>
             <OptionButton
-              selected={!castMode}
-              onClick={() => setCastMode(false)}
-              label="This Device"
-              description="Play without Chromecast"
+              selected={roomMode === 'ai'}
+              onClick={() => setRoomMode('ai')}
+              label="vs a trader"
+              description="You against the computer"
             />
             <OptionButton
-              selected={castMode}
-              onClick={() => setCastMode(true)}
-              label="Chromecast TV"
-              description="Board on TV, players on phones"
+              selected={roomMode === 'pvp'}
+              onClick={() => setRoomMode('pvp')}
+              label="vs a friend"
+              description="Two phones, one table"
             />
           </div>
         </div>
 
-        {/* AI difficulty (solo only) */}
-        {mode === 'solo' && (
+        {/* AI difficulty (vs a trader only) */}
+        {roomMode === 'ai' && (
           <div style={{ width: '100%' }}>
             <div style={sectionLabelStyle}>Choose your trader</div>
             <div className="trader-picker">
@@ -154,7 +157,7 @@ export function PreGameSetupModal({ mode, aiDifficulty: initialDifficulty, onCan
             Cancel
           </button>
           <button
-            onClick={() => onStart({ castMode, aiDifficulty: difficulty })}
+            onClick={() => onStart({ roomMode, aiDifficulty: difficulty })}
             style={{
               background: 'var(--surface-accent)',
               border: '2px solid var(--gold)',
@@ -167,7 +170,7 @@ export function PreGameSetupModal({ mode, aiDifficulty: initialDifficulty, onCan
               fontFamily: 'var(--font-heading)',
             }}
           >
-            Start Game
+            Cast to TV
           </button>
         </div>
       </div>

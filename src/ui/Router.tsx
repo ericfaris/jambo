@@ -24,7 +24,8 @@ import type { AIDifficulty } from '../ai/difficulties/index.ts';
 import type { RoomMode } from '../multiplayer/types.ts';
 import { useGameStore } from '../hooks/useGameStore.ts';
 import { extractPublicState } from '../multiplayer/stateSplitter.ts';
-import { getCastSessionController } from '../cast/factory.ts';
+import { getCastSessionController, isCastSdkEnabled } from '../cast/factory.ts';
+import { JOIN_TV_HASH } from './screens/landing.ts';
 import { loadLocalGame, isGameActiveInTab, setGameActiveInTab, describeSavedGame } from '../persistence/savedGame.ts';
 import type { SavedGame } from '../persistence/savedGame.ts';
 import { abandonSavedGame } from '../persistence/userStatsApi.ts';
@@ -128,8 +129,7 @@ function RouterInner() {
   const handleBackFromSettings = useCallback(() => setScreen('menu'), []);
   const [aiDifficulty, setAiDifficulty] = useState<AIDifficulty>(autoResume?.aiDifficulty ?? 'medium');
   const [savedGame, setSavedGame] = useState<SavedGame | null>(() => autoResume ?? loadLocalGame());
-  const [pendingMode, setPendingMode] = useState<'solo' | 'multiplayer' | null>(null);
-  const [showPreGameSetup, setShowPreGameSetup] = useState(false);
+  const [showTvSetup, setShowTvSetup] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [revealFirstPlayer, setRevealFirstPlayer] = useState<0 | 1 | null>(null);
   const [pendingScreen, setPendingScreen] = useState<'solo' | 'multiplayer' | null>(null);
@@ -166,65 +166,43 @@ function RouterInner() {
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
 
-  const handleMenuSelect = (option: 'login' | 'solo' | 'multiplayer' | 'settings') => {
-    if (option === 'solo' || option === 'multiplayer') {
-      setPendingMode(option);
-      setShowPreGameSetup(true);
-      setCastStartError(null);
-      return;
-    }
-    setScreen(option);
-  };
+  const handleMenuSelect = (option: 'login' | 'settings') => setScreen(option);
 
-  const handleClosePreGameSetup = () => {
-    setShowPreGameSetup(false);
-    setPendingMode(null);
-    setCastStartError(null);
-  };
-
-  const handleStartFromPreGameSetup = async ({
-    castMode,
-    aiDifficulty: selectedDifficulty,
-  }: {
-    castMode: boolean;
-    aiDifficulty: AIDifficulty;
-  }) => {
-    if (!pendingMode) {
-      return;
-    }
-
-    setShowPreGameSetup(false);
-    setAiDifficulty(selectedDifficulty);
-    setCastStartError(null);
-
-    if (castMode) {
-      ws.resetRoomState();
-      try {
-        const controller = getCastSessionController();
-        if (!controller.getSession()) {
-          await controller.requestSession();
-        }
-      } catch (error) {
-        setCastStartError(error instanceof Error ? error.message : 'Failed to connect to Chromecast.');
-        setShowPreGameSetup(true);
-        return;
-      }
-
-      const roomMode = pendingMode === 'solo' ? 'ai' : 'pvp';
-      setCastRoomMode(roomMode);
-      setScreen('castHost');
-      setPendingMode(null);
-      return;
-    }
-
+  /** Solo vs a trader, or pass-and-play: straight from the landing page. */
+  const startLocalGame = (mode: 'solo' | 'multiplayer', difficulty: AIDifficulty) => {
+    setAiDifficulty(difficulty);
     // A new local game overwrites the save, so an unfinished one counts as abandoned
+    // (the landing page asks before this when a save exists)
     abandonSavedGame();
     setSavedGame(null);
     const firstPlayer = getRandomFirstPlayer();
     newGame(undefined, firstPlayer);
     setRevealFirstPlayer(firstPlayer);
-    setPendingScreen(pendingMode);
-    setPendingMode(null);
+    setPendingScreen(mode);
+  };
+
+  const handleOpenTvSetup = () => {
+    setCastStartError(null);
+    setShowTvSetup(true);
+  };
+
+  const handleStartOnTv = async ({ roomMode, aiDifficulty: selectedDifficulty }: { roomMode: RoomMode; aiDifficulty: AIDifficulty }) => {
+    setShowTvSetup(false);
+    setAiDifficulty(selectedDifficulty);
+    setCastStartError(null);
+    ws.resetRoomState();
+    try {
+      const controller = getCastSessionController();
+      if (!controller.getSession()) {
+        await controller.requestSession();
+      }
+    } catch (error) {
+      setCastStartError(error instanceof Error ? error.message : 'Failed to connect to Chromecast.');
+      setShowTvSetup(true);
+      return;
+    }
+    setCastRoomMode(roomMode);
+    setScreen('castHost');
   };
 
   const handleRevealComplete = useCallback(() => {
@@ -289,45 +267,32 @@ function RouterInner() {
     );
   }
 
-  if (screen === 'menu') {
+  if (screen === 'menu' || screen === 'login') {
+    const overlayOpen = screen === 'login' || showTvSetup || showTutorial;
     return (
       <>
         <MainMenu
           onSelectOption={handleMenuSelect}
+          onPlayTrader={(difficulty) => startLocalGame('solo', difficulty)}
+          onPassAndPlay={() => startLocalGame('multiplayer', aiDifficulty)}
+          onPlayOnTv={isCastSdkEnabled() ? handleOpenTvSetup : undefined}
+          onJoinTv={() => { window.location.hash = JOIN_TV_HASH; }}
           onTutorial={() => setShowTutorial(true)}
           auth={auth}
           resumeLabel={savedGame ? describeSavedGame(savedGame) : null}
           onResume={handleResume}
           onAbandon={handleAbandonSaved}
+          dimmed={overlayOpen}
         />
-        {showPreGameSetup && pendingMode && (
+        {showTvSetup && (
           <PreGameSetupModal
-            mode={pendingMode}
             aiDifficulty={aiDifficulty}
-            onCancel={handleClosePreGameSetup}
-            onStart={(options) => { void handleStartFromPreGameSetup(options); }}
+            onCancel={() => { setShowTvSetup(false); setCastStartError(null); }}
+            onStart={(options) => { void handleStartOnTv(options); }}
             castStartError={castStartError}
           />
         )}
-        <AvatarBadge avatarUrl={auth.avatarUrl} />
-        {showTutorial && <TutorialOverlay onClose={() => setShowTutorial(false)} />}
-      </>
-    );
-  }
-
-  if (screen === 'login') {
-    return (
-      <>
-        <MainMenu
-          onSelectOption={handleMenuSelect}
-          onTutorial={() => setShowTutorial(true)}
-          auth={auth}
-          resumeLabel={savedGame ? describeSavedGame(savedGame) : null}
-          onResume={handleResume}
-          onAbandon={handleAbandonSaved}
-        />
-        <LoginModal onClose={() => setScreen('menu')} />
-        <AvatarBadge avatarUrl={auth.avatarUrl} />
+        {screen === 'login' && <LoginModal onClose={() => setScreen('menu')} />}
         {showTutorial && <TutorialOverlay onClose={() => setShowTutorial(false)} />}
       </>
     );

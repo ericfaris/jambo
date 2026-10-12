@@ -482,3 +482,23 @@ overwrites tracked files.)
   instead of throwing.
 - **`pkill -f <pattern>` from the Bash tool can kill its own shell** when the
   pattern appears in the command line; stop background servers by task, not pkill.
+
+## 2026-10-12 — Landing page redesign; faded utilities
+- **What good game landing pages share** (Wordle, Chess.com, Lichess,
+  Balatro, Board Game Arena): one filled verb, play before sign-up, the game
+  itself in the hero, a one-line rules pitch, modes named by task, opponents
+  as characters, and no stats you can't back up. A 0–0 record or a "Stats
+  unavailable" line is negative proof, so hide it until it's real.
+- **A wide hero needs wide art.** The old portrait `main_menu.png` stretched
+  to `cover` on desktop showed two cropped faces. Generate 16:9 art with no
+  painted text, keep the wordmark as live type, and serve a square crop to phones.
+- **A bare `.x img` selector hits every image inside**, including the demo
+  tokens nested in the art, which collapsed to 20×16 at one spot. Scope it
+  (`.landing-art > picture img`).
+- **The Ideogram 3 path errored twice with no detail**; Ideogram 4.5 worked.
+  The `balanced/…@2k` URL is only 1024px; full size is at
+  `ideogram.ai/api/images/direct/<id>.png`.
+- **Faded utilities use the engine's own verdict.** `computeUtilityHints`
+  calls `validateActivateUtility` per utility, like `computeHandHints` does
+  for the hand, and a 40-game randomized test checks they agree. It only runs
+  in your own play phase so the row doesn't flicker during the draw phase.

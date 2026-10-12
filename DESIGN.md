@@ -225,10 +225,31 @@ Keyframes are named descriptively (`pilePulse`, `marketSlotFlash`,
   or utility they just started (engine `CANCEL_ACTION`, see
   `src/engine/cancelAction.ts` for exactly which cards and steps qualify).
   Label: "Cancel <card> and get your action back".
-- **Resume Game** (`.menu-action-resume` + `.menu-action-sub`) — takes the
-  primary slot on the main menu when an unfinished local game is saved, with a
-  one-line summary ("vs Hard AI · turn 12 · you 34g · AI 28g"); Play Solo
-  drops to a normal button. A refresh mid-game skips the menu entirely.
+- **Landing page** (`MainMenu.tsx` + `screens/Landing.css`, all `.landing-*`;
+  2026-10-12, from the web-game landing research) — two columns on desktop
+  (framed hero art with the wordmark, a fan of real cards hanging off its
+  bottom edge, and a looping "sell 3 tea · 10 gold" demo tray; then a plate
+  with the pitch line and the buttons), one column on phones with Play inside
+  the first screen.
+  - **One gold button** (`.landing-cta`, the only filled button): *Resume
+    game* (with the save summary) when a local game is saved, otherwise
+    *Play vs {trader}* — one click, against the trader picked in the row of
+    four portraits below it (remembered in `jambo.lastTrader`). With a save,
+    *New game vs …* and *Pass & play* ask before overwriting it.
+  - **Modes named by task** (`.landing-secondary`, outlined): Pass & play,
+    Play on TV (only when Cast is configured; opens the TV setup modal), Join
+    a TV game (`#/play`).
+  - **Footer links**: How to play · Settings · Sound on/off. The win/loss
+    chip only shows once a game exists — never a 0–0.
+  - **Account chip** (`.landing-account`, top right) is the one sign-in /
+    sign-out point.
+  - Motion: art and panel fade up, cards deal in, then breathe; the demo card
+    lifts as its tea leaves and +10g rises; the gold button glints every
+    ~6.5s. All of it pauses while a modal is open (`.landing-dimmed`) and is
+    off under reduced motion / `data-ambient="off"`.
+  - The Cast "Rejoining…" screen and settings shell still use the older
+    `.main-menu-*` / `.menu-action` classes — restyling the landing never
+    touches them.
 - **Rejoining screen** — while a refreshed Cast tab reconnects to its room:
   "Room 1234 / Rejoining your game…" with a Cancel, so the menu or code
   entry never flashes.
@@ -417,8 +438,11 @@ your panel       Market · Utilities (3 reserved slots, medium) · "You · your 
 - **Page background**: `wood_1.png` (a wood-grain panel photo/illustration)
   under a dark scrim (`rgba(20,10,5,0.85)` double-layered), `background-size:
   cover`, fixed to `--bg` as fallback.
-- **Main menu background**: `main_menu.png` at 25% opacity behind the menu
-  content, over the same dark scrim.
+- **Landing hero**: `landing_hero.webp` (1920×1080) on desktop,
+  `landing_hero_mobile.webp` (960² crop) on phones, shown at full strength
+  inside an etched frame — never as a faded wash. No painted text in the art;
+  the wordmark is live type (Judson Bold, gold with a two-step brown
+  extrusion). `main_menu.png` is still used by the tutorial.
 - **`.linen-texture`** (added this pass, see Changelog) — a 4-layer CSS
   crosshatch gradient (`0deg`/`90deg` at 0.08 alpha, `135deg`/`45deg` at 0.04
   alpha, 1–1.5px tile) over an `#e8e4df` base — the cream "card stock" finish
@@ -435,7 +459,10 @@ textiles, wildlife), consistent linework and palette across all pieces.
 
 | Path | Role |
 |---|---|
-| `public/assets/menu/main_menu.png` | Main menu backdrop |
+| `public/assets/menu/main_menu.png` | Tutorial backdrop (was the main menu) |
+| `public/assets/menu/landing_hero.webp`, `landing_hero_mobile.webp` | Landing hero (Ideogram 4.5, 2026-10-12; wide market stall, no text) |
+| `public/og-image.jpg` | 1200×630 link-preview card |
+| `public/apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `icon-maskable-512.png` | Home-screen / PWA icons, redrawn from the favicon's gold gem |
 | `public/assets/panels/wood_1.png` | Page background wood panel |
 | `public/assets/cards/*.png` (53 files) | Per-card-design illustrations + `card_back.png` + `cards_fanned_out.png` (tutorial/menu use) |
 | `public/assets/tokens/{trinkets,hides,tea,silk,fruit,salt}.png` | Ware token icons |
@@ -555,6 +582,15 @@ existing set already covers the full identity; this pass's job was
 documenting it, fixing one duplication, and identifying the SFX gap.
 
 ## Changelog
+### 2026-10-12 — Landing page redesign
+Researched five web-game landing pages (Wordle, Chess.com, Lichess, Balatro,
+Board Game Arena) and rebuilt the main menu on what they share: one filled
+verb, play before sign-up, the game itself in the hero, a one-line rules
+pitch, modes named by task, opponents as characters, honest stats only. See
+Components › Landing page. Also: meta description, Open Graph/Twitter card,
+theme-color, manifest and touch icons; dropped the unused Crimson Pro /
+Source Sans 3 font request.
+
 ### 2026-10-11 — Trader & endgame polish (v1.11.0)
 Eight real-time playthroughs (all four traders, desktop and phone) drove these:
 - **One voice** (`planBark` in `useTrader.ts`): lines never overlap; a Guard

@@ -98,7 +98,7 @@ describe('status pill matches the board labels', () => {
 
 describe('Expert difficulty describes how it actually plays', () => {
   it('no longer claims 2-ply look-ahead', () => {
-    const html = renderToStaticMarkup(createElement(PreGameSetupModal, { mode: 'solo', aiDifficulty: 'medium', onCancel: noop, onStart: noop }));
+    const html = renderToStaticMarkup(createElement(PreGameSetupModal, { aiDifficulty: 'medium', onCancel: noop, onStart: noop }));
     expect(html).toContain('Simulates future turns');
     expect(html).not.toContain('2-ply');
   });

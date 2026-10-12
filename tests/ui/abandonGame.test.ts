@@ -23,10 +23,10 @@ describe('abandoning a game', () => {
   });
 
   it('the main menu offers to abandon a saved game only when there is one to resume', () => {
-    const withSave = renderToStaticMarkup(createElement(MainMenu, { onSelectOption: () => {}, auth, resumeLabel: 'vs Baraka (Hard) · turn 12', onResume: () => {}, onAbandon: () => {} }));
-    expect(withSave).toContain('Resume Game');
+    const withSave = renderToStaticMarkup(createElement(MainMenu, { onSelectOption: () => {}, onPlayTrader: () => {}, onPassAndPlay: () => {}, onJoinTv: () => {}, auth, resumeLabel: 'vs Baraka (Hard) · turn 12', onResume: () => {}, onAbandon: () => {} }));
+    expect(withSave).toContain('Resume game');
     expect(withSave).toContain('Abandon saved game');
-    const none = renderToStaticMarkup(createElement(MainMenu, { onSelectOption: () => {}, auth, resumeLabel: null, onResume: () => {}, onAbandon: () => {} }));
+    const none = renderToStaticMarkup(createElement(MainMenu, { onSelectOption: () => {}, onPlayTrader: () => {}, onPassAndPlay: () => {}, onJoinTv: () => {}, auth, resumeLabel: null, onResume: () => {}, onAbandon: () => {} }));
     expect(none).not.toContain('Abandon saved game');
   });
 
