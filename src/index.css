@@ -2490,3 +2490,58 @@ button.brown:hover:not(:disabled) {
 .confirm-ask .confirm-ask-no:hover:not(:disabled) { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.3); color: var(--text); }
 button.menu-abandon:hover:not(:disabled) { background: rgba(192,64,48,0.16); border-color: rgba(192,64,48,0.7); color: #f0a08f; }
 button.menu-abandon-link:hover:not(:disabled) { background: none; border: 0; color: #f0a08f; }
+
+/* --- Card tilt: lean toward the pointer, catch the light, show depth ----- */
+.card-tilt {
+  --rx: 0deg; --ry: 0deg; --gx: 50%; --gy: 50%; --px: 0; --py: 0;
+  position: relative;
+  border-radius: 10px;
+  transform: perspective(900px) rotateX(var(--rx)) rotateY(var(--ry));
+  transition: transform 520ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.card-tilt-active { transition: transform 90ms linear; }
+.card-tilt-mega { touch-action: none; cursor: grab; }
+.card-tilt-mega.card-tilt-active { box-shadow: 0 14px 30px rgba(0,0,0,0.45); }
+.card-tilt-window {
+  position: relative;
+  overflow: hidden;
+  border-radius: 10px;
+  aspect-ratio: 864 / 1152;
+  max-height: calc(100dvh - 260px);
+  margin-inline: auto;
+  background: #2a1b10;
+}
+.card-tilt-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 520ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.card-tilt-active .card-tilt-layer { transition: transform 90ms linear; }
+/* one picture: it sits behind the frame and slides like a view through a window */
+.card-tilt-flat { transform: scale(1.06) translate(calc(var(--px) * 2.2%), calc(var(--py) * 2.2%)); }
+/* layered: each layer slides by its own --shift, far ones with the scenery,
+   near ones toward the viewer — real depth */
+.card-tilt-depth { transform: scale(var(--scale, 1.04)) translate(calc(var(--px) * var(--shift) * 1%), calc(var(--py) * var(--shift) * 1%)); }
+.card-tilt-glare {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at var(--gx) var(--gy), rgba(255,246,220,0.42) 0%, rgba(255,246,220,0.14) 26%, rgba(255,246,220,0) 58%),
+    linear-gradient(115deg, rgba(255,255,255,0) 40%, rgba(255,250,235,0.10) 50%, rgba(255,255,255,0) 60%);
+  mix-blend-mode: overlay;
+  opacity: 0;
+  transition: opacity 400ms ease;
+}
+.card-tilt-active .card-tilt-glare { opacity: 1; }
+.card-tilt-hand { display: inline-block; }
+@media (prefers-reduced-motion: reduce) {
+  .card-tilt, .card-tilt-active { transform: none !important; transition: none !important; }
+  .card-tilt-layer { transform: none !important; transition: none !important; }
+  .card-tilt-glare { display: none; }
+}

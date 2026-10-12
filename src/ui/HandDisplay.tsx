@@ -4,6 +4,7 @@ import type { DeckCardId } from '../engine/types.ts';
 import { CardFace } from './CardFace.tsx';
 import { splitIntoRows } from './fitLayout.ts';
 import type { HandCardHint } from './handHints.ts';
+import { useCardTilt } from './cardTilt.ts';
 
 interface HandDisplayProps {
   hand: DeckCardId[];
@@ -44,6 +45,8 @@ function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaVie
   useEffect(() => { dealtRef.current = true; }, []);
 
   // Detect mobile screen size
+  // Mouse/pen only: on touch a tap plays the card, so it shouldn't wobble
+  const handTilt = useCardTilt({ maxDeg: 9 });
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth <= 768);
@@ -131,12 +134,15 @@ function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaVie
       >
         {hint?.sellReady && <span className="hand-sell-ready" aria-label="Can sell now">Sell ✓</span>}
         <div className="hand-card-inner">
-          <CardFace
-            cardId={cardId}
-            scale={cardScale}
-            onClick={!disabled && onPlayCard ? () => onPlayCard(cardId) : undefined}
-            onMegaView={onMegaView}
-          />
+          <div className="card-tilt card-tilt-hand" {...handTilt}>
+            <CardFace
+              cardId={cardId}
+              scale={cardScale}
+              onClick={!disabled && onPlayCard ? () => onPlayCard(cardId) : undefined}
+              onMegaView={onMegaView}
+            />
+            <span className="card-tilt-glare" aria-hidden="true" />
+          </div>
         </div>
         {cardError && cardError.cardId === cardId && (
           <div style={{

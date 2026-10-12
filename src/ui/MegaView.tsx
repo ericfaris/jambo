@@ -3,6 +3,7 @@ import type { DeckCardId, WareType } from '../engine/types.ts';
 import { MarketSummary } from './MarketSummary.tsx';
 import { getCard } from '../engine/cards/CardDatabase.ts';
 import { WARE_COLORS } from './CardFace.tsx';
+import { TiltCardArt } from './TiltCardArt.tsx';
 
 interface MegaViewProps {
   cardId: DeckCardId;
@@ -52,30 +53,8 @@ export function MegaView({ cardId, onClose, market }: MegaViewProps) {
           gap: 10,
         }}
       >
-        <div
-          className="mega-view-art"
-          onMouseMove={(e) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            const xRatio = (e.clientX - rect.left) / rect.width - 0.5;
-            const yRatio = (e.clientY - rect.top) / rect.height - 0.5;
-            const rotateY = xRatio * 5;
-            const rotateX = yRatio * -5;
-            e.currentTarget.style.transform = `perspective(900px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) translateY(-2px)`;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'perspective(900px) rotateX(0deg) rotateY(0deg) translateY(0)';
-          }}
-        >
-          <img
-            src={`/assets/cards/${card.designId}.png`}
-            alt={card.name}
-            style={{
-              width: '100%',
-              borderRadius: 10,
-              display: 'block',
-            }}
-            draggable={false}
-          />
+        <div className="mega-view-art">
+          <TiltCardArt designId={card.designId} alt={card.name} />
         </div>
         <div style={{ padding: '0 6px 6px', textAlign: 'center', minHeight: 96, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           {card.wares ? (
