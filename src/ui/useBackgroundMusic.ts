@@ -17,10 +17,14 @@ export const BACKGROUND_MUSIC = [
 
 const MUSIC_BASE_VOLUME = 0.15;
 
-// Market crowd/stall/birdsong bed under the music, looped forever. Three
+// Market hum/stall/birdsong bed under the music, looped forever. Three
 // ElevenLabs SFX loops (30s/25s/20s) stacked into one 5-minute file, so the
 // texture never repeats within the file and the file itself loops seamlessly.
-export const MARKET_AMBIENCE = '/audio/Market_Ambience_Loop.mp3';
+// Voice-free on purpose (2026-10-12): the first bed had a woman singing in
+// one layer, which repeated every 20-30s and read as an obvious loop. No
+// crowd, singing or melody in any layer — nothing to recognise coming round.
+// Renamed (not overwritten) so the 4-hour CDN cache can't serve the old one.
+export const MARKET_AMBIENCE = '/audio/Market_Ambience_Bed.mp3';
 export const AMBIENCE_BASE_VOLUME = 0.1;
 
 // Silence between music tracks — the market ambience carries the room alone

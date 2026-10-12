@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { GameState } from '../engine/types.ts';
-import { getCard } from '../engine/cards/CardDatabase.ts';
+import { CardFace } from './CardFace.tsx';
 import { anchorSelector, planFlights, snapshotForFlights } from './flights.ts';
 import type { Flight, FlightAnchor, FlightSnapshot } from './flights.ts';
 
 export const FLIGHT_DURATION_MS = { ware: 560, coin: 480, card: 620 } as const;
+/** A flying card: CardFace's `small` (96×128) at two-thirds. */
+const FLIGHT_CARD_SCALE = 0.66;
 /** Give up waiting for a spotlight that never showed (it's skipped, or off). */
 export const SPOTLIGHT_WAIT_FALLBACK_MS = 3200;
 
@@ -214,7 +216,10 @@ function FlightSprite({ flight, onDone }: { flight: LaunchedFlight; onDone: (f: 
     <div ref={ref} className={`flight flight-${flight.kind}`} style={{ left: flight.x, top: flight.y }}>
       {flight.kind === 'ware' && flight.ware && <img src={`/assets/tokens/${flight.ware}.png`} alt="" draggable={false} />}
       {flight.kind === 'coin' && <span className="flight-coin" />}
-      {flight.kind === 'card' && <img src={flight.cardId ? `/assets/cards/${getCard(flight.cardId).designId}.png` : '/assets/cards/card_back.png'} alt="" draggable={false} />}
+      {/* a real card face — white frame and name — never bare art */}
+      {flight.kind === 'card' && (flight.cardId
+        ? <CardFace cardId={flight.cardId} small scale={FLIGHT_CARD_SCALE} />
+        : <CardFace cardId="ware_3k_1" faceDown small scale={FLIGHT_CARD_SCALE} />)}
     </div>
   );
 }

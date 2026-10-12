@@ -445,3 +445,24 @@ overwrites tracked files.)
 - SFX v2 caps at 30s but has `loop: true`. For a long non-repeating bed, generate loops whose lengths divide the target (30/25/20s → 300s, the LCM) and stack them with `ffmpeg -stream_loop`; trim each decoded layer to exact sample count first or the seam drifts.
 - Gotchas: `ffmpeg` inside a bash heredoc eats stdin (use `-nostdin`); zsh doesn't word-split `set -- $p`.
 - Background music lives in two places — `useBackgroundMusic.ts` and the CAF receiver — plus the design-system page; `tests/ui/backgroundMusic.test.ts` keeps them in sync.
+
+## 2026-10-12 — Ambience bed v2, flying card faces, resolve uplift, cancel-anywhere
+
+- **An ambience loop must have nothing recognisable in it.** A woman singing
+  in one 20–30s layer was instantly heard as "the loop". Prompt every layer for
+  texture only (hum, foley, nature). Avoid "crowd", which drifts into voices.
+  ElevenLabs Scribe returned an empty transcript for the singing bed too, so
+  speech-to-text can't detect wordless vocals (and it cost ~60¢ on 5 minutes).
+  Ask the person which file it is instead.
+- **Replace cached static assets under a new filename.** `/audio` is served
+  with `max-age=14400`, so overwriting would keep the old bed for hours.
+- **Flying cards render `CardFace`, never bare `/assets/cards/*.png`.** The
+  white frame and name are what make it read as a card.
+- **Cancel = snapshot restore.** `cancellableAction.restore` holds the
+  pre-play state, kept through the active player's own steps and dropped when
+  `getResponder()` points at the opponent. Hand-written per-card undo logic
+  (the old `isAtFirstStep`) didn't scale to "cancel on every screen". The
+  fuzzer exercises it (1,142 cancels per 300 games).
+- **Scroll boxes clip hover lifts.** A card picker inside `overflow:auto`
+  needs padding of roughly lift + shadow (14px top, 42px bottom), and a
+  negative bottom margin so that padding doesn't become a gap.

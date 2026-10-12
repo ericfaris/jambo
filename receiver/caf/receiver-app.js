@@ -11,7 +11,7 @@
   ];
 
   // Keep in sync with src/ui/useBackgroundMusic.ts
-  var TV_AMBIENCE_URL = '/audio/Market_Ambience_Loop.mp3';
+  var TV_AMBIENCE_URL = '/audio/Market_Ambience_Bed.mp3';
   var TV_AMBIENCE_VOLUME = 0.1;
   var TV_TRACK_GAP_MS = 20000;
 

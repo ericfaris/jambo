@@ -456,11 +456,14 @@ guard against double-playback:
 - `Golden_Hour_Kalimba.mp3` (ElevenLabs Music v2.5, 2026-10-12; the others are Suno)
 
 Songs are separated by a 20s gap (`TRACK_GAP_MS`). Under everything, a
-second `<audio loop>` plays **`Market_Ambience_Loop.mp3`** nonstop at 0.1 base
+second `<audio loop>` plays **`Market_Ambience_Bed.mp3`** nonstop at 0.1 base
 volume (follows volume/mute/ducking; never pauses between songs, so it fills
-the gaps): three ElevenLabs SFX v2 seamless loops — crowd bed (30s), stall
-trading/coins (25s), birds/goats/awnings (20s) — stacked to 300s, the LCM, so
-the texture doesn't repeat inside the file and the file itself loops cleanly.
+the gaps): three ElevenLabs SFX v2 seamless loops — distant market hum and
+footsteps (30s), stall crates/pots/cloth/coins (25s), breeze/birdsong/insects
+(20s) — stacked to 300s, the LCM, so the texture doesn't repeat inside the
+file and the file itself loops cleanly. **No voices, singing or melody in any
+layer**: the first bed had a woman singing in one layer and it was instantly
+recognisable as a loop (replaced 2026-10-12). Mixed to −20 LUFS, peak −1 dB.
 The Cast receiver (`receiver/caf/receiver-app.js`) mirrors the same file,
 level and gap; `tests/ui/backgroundMusic.test.ts` keeps them in sync.
 

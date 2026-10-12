@@ -145,3 +145,10 @@ describe('startBackgroundMusic', () => {
     expect(existsSync(file)).toBe(true);
   });
 });
+
+describe('market ambience bed', () => {
+  it('is the voice-free bed, under a new name so the CDN cache cannot serve the old one', () => {
+    expect(MARKET_AMBIENCE).toBe('/audio/Market_Ambience_Bed.mp3');
+    expect(existsSync(resolve(root, 'public/audio/Market_Ambience_Loop.mp3'))).toBe(false);
+  });
+});

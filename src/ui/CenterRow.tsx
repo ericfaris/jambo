@@ -2,7 +2,6 @@ import type { GameState, GameAction } from '../engine/types.ts';
 import { CONSTANTS } from '../engine/types.ts';
 import { CardFace } from './CardFace.tsx';
 import type { VisualFeedbackState } from './useVisualFeedback.ts';
-import { getCard } from '../engine/cards/CardDatabase.ts';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import { FEEDBACK_TIMINGS } from './animationTimings.ts';
@@ -167,10 +166,11 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
           } as CSSProperties}
           aria-hidden
         >
+          {/* real card faces (white frame + name), never bare art */}
           {visualFeedback.trail.kind === 'discard' && visualFeedback.trail.cardId ? (
-            <img src={`/assets/cards/${getCard(visualFeedback.trail.cardId).designId}.png`} alt="" draggable={false} />
+            <CardFace cardId={visualFeedback.trail.cardId} small scale={0.75} />
           ) : (
-            <img src="/assets/cards/card_back.png" alt="" draggable={false} />
+            <CardFace cardId="ware_3k_1" faceDown small scale={0.75} />
           )}
         </div>
       )}

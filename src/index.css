@@ -517,11 +517,8 @@ button.brown:hover:not(:disabled) {
   pointer-events: none;
 }
 
-.center-row-trail img {
-  width: 72px;
-  height: 96px;
-  border-radius: 8px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+.center-row-trail .card-face {
+  box-shadow: 0 4px 10px rgba(0,0,0,0.4) !important;
 }
 
 
@@ -533,9 +530,9 @@ button.brown:hover:not(:disabled) {
   opacity: 1;
 }
 
-.center-row-trail-strong img {
+.center-row-trail-strong .card-face {
   filter: brightness(1.12);
-  box-shadow: 0 6px 16px rgba(0,0,0,0.5);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.5) !important;
 }
 
 .center-row-action-tag {
@@ -2032,7 +2029,7 @@ button.brown:hover:not(:disabled) {
 .flight-layer { position: fixed; inset: 0; z-index: 9100; pointer-events: none; }
 .flight { position: absolute; transform: translate(-50%, -50%); will-change: transform, opacity; }
 .flight-ware img { width: 34px; height: 34px; object-fit: contain; filter: drop-shadow(0 6px 8px rgba(0,0,0,0.55)); }
-.flight-card img { width: 46px; height: 62px; border-radius: 5px; box-shadow: 0 8px 16px rgba(0,0,0,0.5); }
+.flight-card .card-face { box-shadow: 0 8px 16px rgba(0,0,0,0.5) !important; }
 .flight-coin {
   display: block;
   width: 20px;

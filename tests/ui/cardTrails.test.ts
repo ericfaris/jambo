@@ -56,3 +56,25 @@ describe('opponent spotlight grows from, and lands on, the right place', () => {
     expect(spotlightTargetSelectors('inPlace', 1)).toEqual([]);
   });
 });
+
+describe('flying cards are real card faces, not bare art', () => {
+  it('the center-row discard trail renders a CardFace (frame + name)', async () => {
+    const { renderToStaticMarkup } = await import('react-dom/server');
+    const { createElement } = await import('react');
+    const { CenterRow } = await import('../../src/ui/CenterRow.tsx');
+    const { createTestState } = await import('../helpers/testHelpers.ts');
+    const s = createTestState();
+    // the trail needs measured endpoints, which SSR can't do — so check the source instead
+    const html = renderToStaticMarkup(createElement(CenterRow, { state: s, dispatch: () => {}, actorLabels: ['You', 'Baraka'] }));
+    expect(html).not.toContain('center-row-trail');
+    const { readFileSync } = await import('node:fs');
+    const src = readFileSync(new URL('../../src/ui/CenterRow.tsx', import.meta.url), 'utf-8');
+    const trail = src.slice(src.indexOf('center-row-trail center-row-trail-'), src.indexOf('{actionTag && ('));
+    expect(trail).toContain('<CardFace');
+    expect(trail).not.toContain('<img');
+    const layer = readFileSync(new URL('../../src/ui/FlightLayer.tsx', import.meta.url), 'utf-8');
+    const sprite = layer.slice(layer.indexOf("flight.kind === 'card'"));
+    expect(sprite).toContain('<CardFace');
+    expect(sprite.split('\n').slice(0, 4).join('\n')).not.toContain('<img');
+  });
+});
