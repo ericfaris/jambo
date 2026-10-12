@@ -130,17 +130,6 @@ describe('living table components', () => {
   });
 });
 
-describe('ambient motion setting', () => {
-  beforeEach(() => {
-    // node test env: no DOM; the helpers must not throw without one
-  });
-  it('applyAmbient/getInitialAmbient are safe without a DOM', async () => {
-    const { applyAmbient, getInitialAmbient } = await import('../../src/ui/life.tsx');
-    expect(() => applyAmbient(false)).not.toThrow();
-    expect(getInitialAmbient()).toBe(true);
-  });
-});
-
 describe('speech bubble timing', () => {
   it('short asides go quickly; a full sentence stays long enough to read', () => {
     expect(speechBubbleMs('Done!')).toBeLessThan(2500);

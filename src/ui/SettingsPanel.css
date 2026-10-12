@@ -1,0 +1,496 @@
+/* ==========================================================================
+   Settings — shared panel (main menu page + in-game profile menus)
+   ========================================================================== */
+
+.settings-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  text-align: left;
+  color: var(--text);
+}
+
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--gold);
+  opacity: 0.9;
+}
+
+.settings-section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(212,168,80,0.45), rgba(212,168,80,0));
+}
+
+.settings-section-icon {
+  display: inline-flex;
+  color: var(--gold);
+}
+
+.settings-section-body {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(212,168,80,0.16);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.025);
+  overflow: hidden;
+}
+
+/* --- Rows ---------------------------------------------------------------- */
+
+.settings-row,
+.settings-panel button.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+  min-height: 52px;
+  padding: 10px 14px;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  text-shadow: none;
+}
+
+.settings-row + .settings-row {
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+.settings-panel button.settings-row-switch:hover:not(:disabled) {
+  background: rgba(212,168,80,0.07);
+  border-color: transparent;
+  border-top-color: rgba(255,255,255,0.06);
+  color: var(--text);
+}
+.settings-panel button.settings-row-switch:first-child:hover:not(:disabled) { border-top-color: transparent; }
+
+.settings-panel button.settings-row-switch:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: -2px;
+}
+
+.settings-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-row-label {
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.settings-row-hint {
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--text-muted);
+}
+
+/* --- Switch -------------------------------------------------------------- */
+
+.settings-switch {
+  position: relative;
+  flex: none;
+  width: 42px;
+  height: 24px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.18);
+  transition: background-color 0.18s ease, border-color 0.18s ease;
+}
+
+.settings-switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+  transition: transform 0.18s cubic-bezier(.3,.7,.4,1.2), background-color 0.18s ease;
+}
+
+.settings-switch.is-on {
+  background: rgba(212,168,80,0.35);
+  border-color: var(--gold);
+}
+
+.settings-switch.is-on .settings-switch-thumb {
+  transform: translateX(18px);
+  background: var(--gold);
+}
+
+/* --- Segmented control ---------------------------------------------------- */
+
+.settings-segmented {
+  display: inline-flex;
+  flex: none;
+  padding: 3px;
+  gap: 2px;
+  border-radius: 10px;
+  background: rgba(0,0,0,0.28);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.settings-panel button.settings-segment {
+  padding: 5px 11px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.2;
+  text-shadow: none;
+}
+
+.settings-panel button.settings-segment:hover:not(:disabled) {
+  background: rgba(255,255,255,0.06);
+  border-color: transparent;
+  color: var(--text);
+}
+
+.settings-panel button.settings-segment.is-active,
+.settings-panel button.settings-segment.is-active:hover:not(:disabled) {
+  background: rgba(212,168,80,0.2);
+  border-color: rgba(212,168,80,0.6);
+  color: var(--gold);
+  font-weight: 700;
+}
+
+/* --- Volume -------------------------------------------------------------- */
+
+.settings-volume {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  max-width: 240px;
+}
+
+.settings-panel button.settings-mute {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(212,168,80,0.35);
+  background: rgba(212,168,80,0.1);
+  color: var(--gold);
+  text-shadow: none;
+}
+
+.settings-volume.is-muted button.settings-mute {
+  border-color: rgba(192,64,48,0.55);
+  background: rgba(192,64,48,0.14);
+  color: #f0a08f;
+}
+
+.settings-range {
+  --fill: 50%;
+  flex: 1 1 auto;
+  min-width: 70px;
+  height: 22px;
+  margin: 0;
+  background: transparent;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+
+.settings-range:disabled { cursor: default; opacity: 0.4; }
+
+.settings-range::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--gold) var(--fill), rgba(255,255,255,0.12) var(--fill));
+}
+.settings-range::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.12);
+}
+.settings-range::-moz-range-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--gold);
+}
+.settings-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  margin-top: -6px;
+  border-radius: 50%;
+  background: #f3dca6;
+  border: 2px solid var(--gold);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+.settings-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #f3dca6;
+  border: 2px solid var(--gold);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+
+.settings-volume-value {
+  flex: none;
+  width: 36px;
+  text-align: right;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+/* --- Footer -------------------------------------------------------------- */
+
+.settings-footer {
+  display: flex;
+  justify-content: center;
+}
+
+.settings-footer .confirm-ask { width: 100%; }
+
+.settings-panel button.settings-reset {
+  background: none;
+  border: 0;
+  padding: 4px 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: rgba(168,144,112,0.5);
+  text-shadow: none;
+}
+
+.settings-panel button.settings-reset:hover:not(:disabled) {
+  background: none;
+  border: 0;
+  color: var(--text);
+}
+
+/* --- Compact (in-game popover) ------------------------------------------- */
+
+.settings-panel-compact { gap: 12px; }
+.settings-panel-compact .settings-row-hint { display: none; }
+.settings-panel-compact .settings-row,
+.settings-panel-compact button.settings-row { min-height: 44px; padding: 8px 12px; }
+.settings-panel-compact .settings-row-label { font-size: 14px; }
+.settings-panel-compact .settings-volume { max-width: 180px; }
+
+@media (max-width: 420px) {
+  .settings-row-volume { flex-wrap: wrap; }
+  .settings-row-volume .settings-volume { max-width: none; flex-basis: 100%; }
+  /* Full-width page: the hint gets its own line, the choices sit under it */
+  .settings-panel:not(.settings-panel-compact) .settings-row-segmented { flex-wrap: wrap; }
+  .settings-panel:not(.settings-panel-compact) .settings-row-segmented .settings-row-text { flex-basis: 100%; }
+  .settings-panel:not(.settings-panel-compact) .settings-row-segmented .settings-segmented { margin-left: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-switch,
+  .settings-switch-thumb { transition: none; }
+}
+
+/* ==========================================================================
+   In-game profile menu (solo / hotseat / Cast player)
+   ========================================================================== */
+
+.game-menu {
+  position: absolute;
+  top: 50px;
+  right: 0;
+  width: min(330px, calc(100vw - 24px));
+  max-height: calc(100dvh - 76px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid rgba(212,168,80,0.35);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(45,28,18,0.97), rgba(24,13,7,0.97));
+  box-shadow: 0 14px 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05);
+  backdrop-filter: blur(4px);
+  color: var(--text);
+  text-align: left;
+}
+
+.game-menu-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(212,168,80,0.22);
+  background: radial-gradient(120% 140% at 0% 0%, rgba(212,168,80,0.16), rgba(212,168,80,0.03));
+}
+
+.game-menu-avatar {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid rgba(212,168,80,0.6);
+}
+
+.game-menu-avatar img,
+.game-menu-avatar svg { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.game-menu-who { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.game-menu-name { font-family: var(--font-heading); font-weight: 700; font-size: 16px; color: var(--gold); }
+.game-menu-meta { font-size: 12px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.game-menu-levels { display: flex; flex-wrap: wrap; gap: 4px 8px; font-size: 11px; color: var(--text-muted); }
+.game-menu-error { font-size: 12px; color: var(--accent-red); }
+
+.game-menu button.game-menu-logout {
+  flex: none;
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 8px;
+  color: var(--text-muted);
+}
+
+.game-menu-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.game-menu-actions > .menu-abandon,
+.game-menu-actions > .confirm-ask { grid-column: 1 / -1; }
+
+.game-menu button.game-menu-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 10px;
+  font-size: 14px;
+  border-radius: 10px;
+}
+
+.game-menu-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.game-menu button.game-menu-tool {
+  flex: 1 1 auto;
+  padding: 6px 10px;
+  font-size: 12px;
+  border-radius: 8px;
+  color: var(--text-muted);
+  background: transparent;
+}
+
+.game-menu-version {
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+/* ==========================================================================
+   Main menu → Settings page
+   ========================================================================== */
+
+.settings-page {
+  position: fixed;
+  inset: 0;
+  overflow-y: auto;
+  background: rgba(20,10,5,0.92);
+}
+
+.settings-page-inner {
+  position: relative;
+  z-index: 1;
+  width: min(520px, 100%);
+  margin: 0 auto;
+  padding: max(28px, env(safe-area-inset-top)) 16px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.settings-page-header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.settings-page button.settings-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 7px 12px 7px 8px;
+  font-size: 14px;
+  border-radius: 999px;
+  color: var(--text-muted);
+}
+
+.settings-page-title {
+  margin: 0;
+  text-align: center;
+  font-family: var(--font-heading);
+  font-size: clamp(30px, 7vw, 42px);
+  color: var(--gold);
+  text-shadow: 0 2px 16px rgba(0,0,0,0.7);
+  line-height: 1.1;
+}
+
+.settings-page-subtitle {
+  margin-top: -10px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.settings-page-card {
+  padding: 18px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(212,168,80,0.28);
+  background: linear-gradient(180deg, rgba(45,28,18,0.97), rgba(30,18,8,0.97));
+  box-shadow: 0 18px 50px rgba(0,0,0,0.55);
+}
+
+.settings-page-footer {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  opacity: 0.75;
+}
+
+/* Keeps the header's grid balanced: the back button's width on the right */
+.settings-page-spacer { width: 72px; }

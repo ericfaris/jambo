@@ -34,18 +34,20 @@ import { traderChatter } from '../ai/traderChatter.ts';
 import { TraderPortrait } from './TraderPortrait.tsx';
 import { PlayerAvatar } from './PlayerAvatar.tsx';
 import { SeatInfo } from './SeatInfo.tsx';
-import { useTrader, getInitialTraderVoices, TRADER_VOICES_STORAGE_KEY } from './useTrader.ts';
+import { useTrader } from './useTrader.ts';
 import { ResolveMegaView } from './ResolveMegaView.tsx';
 import { isHandInteraction } from './HandReferenceStrip.tsx';
 import { MegaView } from './MegaView.tsx';
 import { TutorialOverlay } from './TutorialOverlay.tsx';
-import { ActionPips, AmbientLayer, GoldCount, applyAmbient, getInitialAmbient } from './life.tsx';
+import { ActionPips, AmbientLayer, GoldCount } from './life.tsx';
 import { PassDeviceScreen, needsHandoff } from './PassDeviceScreen.tsx';
-import { shouldAiAct, isWareDialogValid, shouldShowResolvePanel, aiActionDelayMs, parseAiSpeed, AI_SPEEDS, AI_SPEED_LABELS, quoteForSpotlight } from './gameScreenLogic.ts';
-import type { AiSpeed, TraderLine } from './gameScreenLogic.ts';
+import { shouldAiAct, isWareDialogValid, shouldShowResolvePanel, aiActionDelayMs, quoteForSpotlight } from './gameScreenLogic.ts';
+import type { TraderLine } from './gameScreenLogic.ts';
 import { useVisualFeedback } from './useVisualFeedback.ts';
 import { getDrawDisabledReason, getPlayDisabledReason, friendlyPlayError } from './uiHints.ts';
-import { getVolume, setVolume as saveVolume, getMuted, setMuted as saveMuted, resetAudioSettings } from './audioSettings.ts';
+import { usePreferences, isDevMode } from './preferences.ts';
+import { SettingsPanel } from './SettingsPanel.tsx';
+import { GameMenuShell } from './GameMenuShell.tsx';
 import { fetchUserStatsSummary, fetchDifficultyBreakdown, recordCompletedGame, recordAbandonedGame, abandonedGamePayload } from '../persistence/userStatsApi.ts';
 import type { UserStatsSummary, DifficultyBreakdown } from '../persistence/userStatsApi.ts';
 import { getWinner, getFinalScores } from '../engine/endgame/EndgameManager.ts';
@@ -59,53 +61,11 @@ import { useElementSize } from './useElementSize.ts';
 import { fitCardsToBox, fitMarketSlots } from './fitLayout.ts';
 import { useCornerButtonInset } from './cornerClearance.ts';
 import { viewerPriceModifiers } from './WareCoin.tsx';
-import { AvatarImage } from './AvatarImage.tsx';
 
-type AnimationSpeed = 'normal' | 'fast';
 const HOTSEAT_LABELS = ['Player 1', 'Player 2'] as const;
-const ANIMATION_SPEED_STORAGE_KEY = 'jambo.animationSpeed';
-const DEV_TELEMETRY_STORAGE_KEY = 'jambo.devTelemetry';
-const HIGH_CONTRAST_STORAGE_KEY = 'jambo.highContrast';
-const UX_DEBUG_STORAGE_KEY = 'jambo.uxDebugCounters';
 const TUTORIAL_SEEN_STORAGE_KEY = 'jambo.tutorialSeen';
-const LOG_PINNED_STORAGE_KEY = 'jambo.logPinned';
-const AI_SPEED_STORAGE_KEY = 'jambo.aiSpeed';
 /** A trader's line stays on screen this long. */
 const TRADER_LINE_MS = 4500;
-
-function getInitialLogPinned(): boolean {
-  try {
-    return typeof window !== 'undefined' && window.localStorage.getItem(LOG_PINNED_STORAGE_KEY) === 'true';
-  } catch {
-    return false;
-  }
-}
-
-function getInitialAnimationSpeed(): AnimationSpeed {
-  if (typeof window === 'undefined') return 'normal';
-  const saved = window.localStorage.getItem(ANIMATION_SPEED_STORAGE_KEY);
-  return saved === 'fast' ? 'fast' : 'normal';
-}
-
-function getInitialDevTelemetry(): boolean {
-  if (typeof window === 'undefined') return false;
-  return window.localStorage.getItem(DEV_TELEMETRY_STORAGE_KEY) === 'true';
-}
-
-function getInitialHighContrast(): boolean {
-  if (typeof window === 'undefined') return false;
-  return window.localStorage.getItem(HIGH_CONTRAST_STORAGE_KEY) === 'true';
-}
-
-function getInitialUxDebug(): boolean {
-  if (typeof window === 'undefined') return true;
-  return window.localStorage.getItem(UX_DEBUG_STORAGE_KEY) !== 'false';
-}
-
-function isDevMode(): boolean {
-  if (typeof window === 'undefined') return false;
-  return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-}
 
 export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultiplayer = false }: { onBackToMenu?: () => void; aiDifficulty?: AIDifficulty; localMultiplayer?: boolean }) {
   const { state, dispatch, error, newGame, exportReplay, importReplay, replayActions, taggedActions } = useGameStore();
@@ -129,22 +89,18 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
     setGameActiveInTab(true);
   }, []);
   const [wareDialog, setWareDialog] = useState<DeckCardId | null>(null);
-  const [aiSpeed, setAiSpeed] = useState<AiSpeed>(() => {
-    try {
-      return parseAiSpeed(typeof window === 'undefined' ? null : window.localStorage.getItem(AI_SPEED_STORAGE_KEY));
-    } catch {
-      return 'normal';
-    }
-  });
+  // Settings — shared with the main menu's Settings screen (preferences.ts)
+  const preferences = usePreferences();
+  const { prefs, setPref, resetPrefs } = preferences;
+  const { aiSpeed, traderVoices, devTelemetry: showDevTelemetry, uxDebug: showUxDebug } = prefs;
+  const logPinnedPref = prefs.logPinned;
   const [logOpen, setLogOpen] = useState(false);
   // Solo: the AI is a named trader with a face and a voice (step 11)
   const trader = useMemo(() => (localMultiplayer ? null : traderFor(aiDifficulty)), [localMultiplayer, aiDifficulty]);
   const soloLabels = useMemo<readonly [string, string] | null>(() => (trader ? ['You', trader.name] : null), [trader]);
   const difficultyLabel = `${aiDifficulty.charAt(0).toUpperCase()}${aiDifficulty.slice(1)}`;
-  const [traderVoices, setTraderVoices] = useState(() => getInitialTraderVoices());
   // Rematch: a fresh coin toss decides who goes first (as from the menu)
   const [rematchReveal, setRematchReveal] = useState<0 | 1 | null>(null);
-  const [logPinnedPref, setLogPinnedPref] = useState(() => getInitialLogPinned());
   // Log length when the drawer was last open — newer opponent entries are "unread"
   const [logSeenLength, setLogSeenLength] = useState(() => state.log.length);
   const [spotlightActive, setSpotlightActive] = useState(false);
@@ -184,13 +140,6 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   const setTraderLine = useCallback((text: string | null) => setTraderLineSaid(text ? { text, at: Date.now() } : null), []);
   const [megaCardId, setMegaCardId] = useState<DeckCardId | null>(null);
   const [replayError, setReplayError] = useState<string | null>(null);
-  const [animationSpeed, setAnimationSpeed] = useState<AnimationSpeed>(() => getInitialAnimationSpeed());
-  const [showDevTelemetry, setShowDevTelemetry] = useState(() => getInitialDevTelemetry());
-  const [highContrast, setHighContrast] = useState(() => getInitialHighContrast());
-  const [ambientMotion, setAmbientMotion] = useState(() => getInitialAmbient());
-  const [volume, setVolume] = useState(() => getVolume());
-  const [muted, setMuted] = useState(() => getMuted());
-  const [showUxDebug, setShowUxDebug] = useState(() => getInitialUxDebug());
   const { authUser, authError, avatarUrl, logout: authLogout } = useAuthSession();
   const [topPanelRef, cornerInset] = useCornerButtonInset<HTMLDivElement>();
   const [statsSummary, setStatsSummary] = useState<UserStatsSummary | null>(null);
@@ -225,47 +174,13 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   const opponentPlayer: 0 | 1 = viewerPlayer === 0 ? 1 : 0;
 
   useEffect(() => {
-    if (typeof document === 'undefined') return;
-    // OpponentPlaySpotlight reads this to scale its hold with the AI's pace
-    document.documentElement.setAttribute('data-ai-speed', aiSpeed);
-    try {
-      window.localStorage.setItem(AI_SPEED_STORAGE_KEY, aiSpeed);
-    } catch { /* storage blocked — the setting just won't persist */ }
-  }, [aiSpeed]);
-
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    document.documentElement.setAttribute('data-anim-speed', animationSpeed);
-    window.localStorage.setItem(ANIMATION_SPEED_STORAGE_KEY, animationSpeed);
-  }, [animationSpeed]);
-
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    if (highContrast) {
-      document.documentElement.setAttribute('data-contrast', 'high');
-    } else {
-      document.documentElement.removeAttribute('data-contrast');
-    }
-    window.localStorage.setItem(HIGH_CONTRAST_STORAGE_KEY, String(highContrast));
-  }, [highContrast]);
-
-  useEffect(() => {
-    applyAmbient(ambientMotion);
-  }, [ambientMotion]);
-
-  useEffect(() => {
     // While open, everything is read; a shorter log means a new game started
     if (logVisible || state.log.length < logSeenLength) setLogSeenLength(state.log.length);
   }, [logVisible, state.log.length, logSeenLength]);
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(LOG_PINNED_STORAGE_KEY, String(logPinnedPref));
-    } catch { /* storage blocked — the pin just won't persist */ }
-  }, [logPinnedPref]);
   const toggleLogPin = useCallback(() => {
-    setLogPinnedPref((p) => !p);
+    setPref('logPinned', !logPinnedPref);
     setLogOpen(false);
-  }, []);
+  }, [setPref, logPinnedPref]);
   const closeLog = useCallback(() => setLogOpen(false), []);
   // One voice per moment: the spotlight caption replaces the AI's line about
   // the same play (a hidden bubble would otherwise pop up stale afterwards).
@@ -278,17 +193,6 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
     const t = window.setTimeout(() => setTraderLine(null), TRADER_LINE_MS);
     return () => window.clearTimeout(t);
   }, [traderLine]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem(DEV_TELEMETRY_STORAGE_KEY, String(showDevTelemetry));
-  }, [showDevTelemetry]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem(UX_DEBUG_STORAGE_KEY, String(showUxDebug));
-  }, [showUxDebug]);
-
 
   useEffect(() => {
     let isMounted = true;
@@ -550,11 +454,6 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
     ready: rematchReveal === null && !showTutorial,
     onLine: setTraderLine,
   });
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(TRADER_VOICES_STORAGE_KEY, String(traderVoices));
-    } catch { /* storage blocked */ }
-  }, [traderVoices]);
   // The story of a finished game: replayed from the seeded start
   const isGameOver = state.phase === 'GAME_OVER';
   const gameStory = useMemo(() => {
@@ -672,33 +571,13 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   }, []);
 
   const resetUiPrefs = useCallback(() => {
-    setLogPinnedPref(false);
-    setAiSpeed('normal');
-    setTraderVoices(true);
-    setAnimationSpeed('normal');
-    setShowDevTelemetry(false);
-    setHighContrast(false);
-    setVolume(50);
-    setMuted(false);
-    setShowUxDebug(false);
+    resetPrefs();
     setTelemetryEvents([]);
     setUxDebugCounts({ longPending: 0, blockedPlay: 0, blockedDraw: 0 });
     pendingSecondsRef.current = 0;
     blockedPlaySecondsRef.current = 0;
     blockedDrawSecondsRef.current = 0;
-    if (typeof window !== 'undefined') {
-      window.localStorage.removeItem('jambo.showGameLog'); // retired sidebar setting
-      window.localStorage.removeItem(LOG_PINNED_STORAGE_KEY);
-      window.localStorage.removeItem(AI_SPEED_STORAGE_KEY);
-      window.localStorage.removeItem(TRADER_VOICES_STORAGE_KEY);
-      window.localStorage.removeItem(ANIMATION_SPEED_STORAGE_KEY);
-      window.localStorage.removeItem(DEV_TELEMETRY_STORAGE_KEY);
-      window.localStorage.removeItem(HIGH_CONTRAST_STORAGE_KEY);
-      window.localStorage.removeItem(UX_DEBUG_STORAGE_KEY);
-      resetAudioSettings();
-      window.dispatchEvent(new Event('jambo-volume-change'));
-    }
-  }, []);
+  }, [resetPrefs]);
 
   // Block the entire game UI until the tutorial is dismissed
   if (showTutorial) {
@@ -1051,394 +930,75 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
       </div>
       )}
 
-      {/* Settings hamburger menu */}
+      {/* Profile & settings menu */}
       <div ref={menuRef} style={{ position: 'fixed', top: 12, right: 16, zIndex: 50 }}>
-        <button
-          onClick={() => setMenuOpen(prev => !prev)}
-          style={{
-            width: 42,
-            height: 42,
-            padding: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: menuOpen ? 'rgba(212,168,80,0.15)' : 'rgba(20,10,5,0.85)',
-            border: menuOpen ? '1px solid var(--gold)' : '1px solid rgba(122,90,62,0.5)',
-            borderRadius: '50%',
-            overflow: 'hidden',
-          }}
-          title="Profile & Settings"
-        >
-          <AvatarImage avatarUrl={avatarUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        </button>
-
-        {menuOpen && (
-          <div className="dialog-pop" style={{
-            position: 'absolute',
-            top: 42,
-            right: 0,
-            background: 'rgba(20,10,5,0.92)',
-            border: '1px solid rgba(122,90,62,0.5)',
-            borderRadius: 10,
-            padding: 12,
-            minWidth: 220,
-            boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-            backdropFilter: 'blur(3px)',
-          }}>
-            <div style={{ fontFamily: 'var(--font-heading)', fontSize: 16, fontWeight: 700, color: 'var(--gold)', marginBottom: 12, textShadow: '0 2px 12px rgba(0,0,0,0.6)' }}>
-              Settings
-            </div>
-            <div style={{
-              padding: 10,
-              border: '1px solid rgba(212,168,80,0.2)',
-              borderRadius: 10,
-              background: 'rgba(212,168,80,0.08)',
-              marginBottom: 10,
-            }}>
-              <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)' }}>
-                {authUser ? `Welcome, ${authUser.name}` : 'Welcome, Trader'}
-              </div>
-              {authUser && (
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                  {authUser.email}
-                </div>
-              )}
-              {authError && (
-                <div style={{ fontSize: 12, color: 'var(--accent-red)', marginTop: 4 }}>
-                  {authError}
-                </div>
-              )}
-              {statsSummary && (
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-                  {statsSummary.wins}-{statsSummary.losses} · {Math.round(statsSummary.winRate * 100)}% win · {statsSummary.gamesPlayed} games
-                </div>
-              )}
-              {diffBreakdown && diffBreakdown.some((d) => d.gamesPlayed > 0) && (
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, display: 'flex', gap: 8 }}>
-                  {diffBreakdown.filter((d) => d.gamesPlayed > 0).map((d) => (
-                    <span key={d.difficulty} style={{ opacity: d.difficulty === aiDifficulty ? 1 : 0.6 }}>
-                      {d.difficulty[0]!.toUpperCase() + d.difficulty.slice(1)}: Lv{d.level}
-                      <span style={{ opacity: 0.5 }}> ({d.gamesPlayed}g)</span>
-                    </span>
-                  ))}
-                </div>
-              )}
-              {statsError && (
-                <div style={{ fontSize: 12, color: 'var(--accent-red)', marginTop: 4 }}>
-                  {statsError}
-                </div>
-              )}
-              {authUser && (
-                <button
-                  onClick={() => void handleLogout()}
-                  style={{
-                    marginTop: 8,
-                    width: '100%',
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    color: 'var(--text-muted)',
-                    borderRadius: 10,
-                    padding: '6px 8px',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    fontSize: 14,
-                  }}
-                >
-                  Logout
-                </button>
-              )}
-            </div>
-            {onBackToMenu && (
-              <>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                  Menu
-                </div>
-                <button
-                  onClick={() => {
+        <GameMenuShell
+          open={menuOpen}
+          onToggle={() => setMenuOpen(prev => !prev)}
+          avatarUrl={avatarUrl}
+          authUser={authUser}
+          authError={authError ?? statsError}
+          onLogout={() => void handleLogout()}
+          stats={statsSummary && (
+            <>
+              {statsSummary.wins}-{statsSummary.losses} · {Math.round(statsSummary.winRate * 100)}% win · {statsSummary.gamesPlayed} games
+            </>
+          )}
+          levels={diffBreakdown && diffBreakdown.some((d) => d.gamesPlayed > 0) && (
+            diffBreakdown.filter((d) => d.gamesPlayed > 0).map((d) => (
+              <span key={d.difficulty} style={{ opacity: d.difficulty === aiDifficulty ? 1 : 0.6 }}>
+                {d.difficulty[0]!.toUpperCase() + d.difficulty.slice(1)} Lv{d.level}
+                <span style={{ opacity: 0.6 }}> ({d.gamesPlayed}g)</span>
+              </span>
+            ))
+          )}
+          actions={onBackToMenu && (
+            <>
+              <button
+                type="button"
+                className="game-menu-action"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onBackToMenu();
+                }}
+              >
+                Main Menu
+              </button>
+              <button
+                type="button"
+                className="game-menu-action"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setShowTutorial(true);
+                }}
+              >
+                How to Play
+              </button>
+              {state.phase !== 'GAME_OVER' && (
+                <ConfirmButton
+                  className="menu-abandon"
+                  label="Abandon Game"
+                  question={localMultiplayer ? 'Abandon this game? It ends for both players and can\'t be resumed.' : 'Abandon this game? It can\'t be resumed.'}
+                  confirmLabel="Abandon"
+                  cancelLabel="Keep playing"
+                  onConfirm={() => {
+                    recordAbandonedGame(abandonedGamePayload(state, localMultiplayer ? 'multiplayer' : 'solo', aiDifficulty));
+                    // Delete the save first, so the menu offers no "Resume Game"
+                    clearLocalGame();
                     setMenuOpen(false);
                     onBackToMenu();
                   }}
-                  style={{
-                    width: '100%',
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    color: 'var(--text)',
-                    borderRadius: 10,
-                    padding: '8px 10px',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    marginBottom: 6,
-                  }}
-                >
-                  Back to Menu
-                </button>
-                <button
-                  onClick={() => {
-                    setMenuOpen(false);
-                    setShowTutorial(true);
-                  }}
-                  style={{
-                    width: '100%',
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    color: 'var(--text)',
-                    borderRadius: 10,
-                    padding: '8px 10px',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    marginBottom: 10,
-                  }}
-                >
-                  How to Play
-                </button>
-                {state.phase !== 'GAME_OVER' && (
-                  <ConfirmButton
-                    className="menu-abandon"
-                    label="Abandon Game"
-                    question={localMultiplayer ? 'Abandon this game? It ends for both players and can\'t be resumed.' : 'Abandon this game? It can\'t be resumed.'}
-                    confirmLabel="Abandon"
-                    cancelLabel="Keep playing"
-                    onConfirm={() => {
-                      recordAbandonedGame(abandonedGamePayload(state, localMultiplayer ? 'multiplayer' : 'solo', aiDifficulty));
-                      // Delete the save first, so the menu offers no "Resume Game"
-                      clearLocalGame();
-                      setMenuOpen(false);
-                      onBackToMenu();
-                    }}
-                  />
-                )}
-                <div style={{ width: 60, height: 3, borderRadius: 2, background: 'var(--gold)', opacity: 0.5, marginBottom: 10, marginTop: 4 }} />
-              </>
-            )}
-            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-              Settings
-            </div>
-            <label style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 10,
-              fontSize: 15,
-              color: 'var(--text)',
-            }}>
-              Animation Speed
-              <select
-                value={animationSpeed}
-                onChange={(event) => setAnimationSpeed(event.target.value as AnimationSpeed)}
-                style={{
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  color: 'var(--text)',
-                  borderRadius: 8,
-                  padding: '4px 8px',
-                  fontSize: 14,
-                }}
-              >
-                <option value="normal">Normal</option>
-                <option value="fast">Fast</option>
-              </select>
-            </label>
-            {!localMultiplayer && (
-              <label style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 10,
-                marginTop: 10,
-                fontSize: 15,
-                color: 'var(--text)',
-              }}>
-                AI Speed
-                <select
-                  id="ai-speed"
-                  value={aiSpeed}
-                  onChange={(event) => setAiSpeed(parseAiSpeed(event.target.value))}
-                  style={{
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    color: 'var(--text)',
-                    borderRadius: 8,
-                    padding: '4px 8px',
-                    fontSize: 14,
-                  }}
-                >
-                  {AI_SPEEDS.map((speed) => <option key={speed} value={speed}>{AI_SPEED_LABELS[speed]}</option>)}
-                </select>
-              </label>
-            )}
-            {!localMultiplayer && (
-              <label style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 10,
-                marginTop: 10,
-                cursor: 'pointer',
-                fontSize: 15,
-                color: 'var(--text)',
-              }}>
-                Trader Voices
-                <input
-                  id="trader-voices"
-                  type="checkbox"
-                  checked={traderVoices}
-                  onChange={() => setTraderVoices((v) => !v)}
-                  style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
                 />
-              </label>
-            )}
-            <label style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 10,
-              marginTop: 10,
-              cursor: 'pointer',
-              fontSize: 15,
-              color: 'var(--text)',
-            }}>
-              Mute Audio
-              <input
-                type="checkbox"
-                checked={muted}
-                onChange={() => {
-                  const next = !muted;
-                  setMuted(next);
-                  saveMuted(next);
-                  window.dispatchEvent(new Event('jambo-volume-change'));
-                }}
-                style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
-              />
-            </label>
-            <label style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 10,
-              marginTop: 10,
-              fontSize: 15,
-              color: muted ? 'var(--text-muted)' : 'var(--text)',
-            }}>
-              Volume
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={volume}
-                disabled={muted}
-                onChange={(e) => {
-                  const v = Number(e.target.value);
-                  setVolume(v);
-                  saveVolume(v);
-                  window.dispatchEvent(new Event('jambo-volume-change'));
-                }}
-                style={{ width: 100, accentColor: 'var(--gold)', cursor: muted ? 'default' : 'pointer' }}
-              />
-            </label>
-            <label style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 10,
-              marginTop: 10,
-              cursor: 'pointer',
-              fontSize: 15,
-              color: 'var(--text)',
-            }}>
-              High Contrast Mode
-              <input
-                type="checkbox"
-                checked={highContrast}
-                onChange={() => setHighContrast((previous) => !previous)}
-                style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
-              />
-            </label>
-            <label style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 10,
-              marginTop: 10,
-              cursor: 'pointer',
-              fontSize: 15,
-              color: 'var(--text)',
-            }}>
-              Ambient Motion
-              <input
-                type="checkbox"
-                checked={ambientMotion}
-                onChange={() => setAmbientMotion((previous) => !previous)}
-                style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
-              />
-            </label>
-            {isDevMode() && (
-              <label style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 10,
-                marginTop: 10,
-                cursor: 'pointer',
-                fontSize: 15,
-                color: 'var(--text)',
-              }}>
-                Dev Telemetry Overlay
-                <input
-                  type="checkbox"
-                  checked={showDevTelemetry}
-                  onChange={() => setShowDevTelemetry((previous) => !previous)}
-                  style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
-                />
-              </label>
-            )}
-            {isDevMode() && (
-              <label style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 10,
-                marginTop: 10,
-                cursor: 'pointer',
-                fontSize: 15,
-                color: 'var(--text)',
-              }}>
-                UX Debug Counters
-                <input
-                  type="checkbox"
-                  checked={showUxDebug}
-                  onChange={() => setShowUxDebug((previous) => !previous)}
-                  style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
-                />
-              </label>
-            )}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
-              <button
-                onClick={handleExportReplay}
-                style={{
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  color: 'var(--text)',
-                  borderRadius: 10,
-                  padding: '8px 10px',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                }}
-              >
-                Export Replay JSON
+              )}
+            </>
+          )}
+          tools={
+            <>
+              <button type="button" className="game-menu-tool" onClick={handleExportReplay}>
+                Export replay
               </button>
-              <button
-                onClick={() => replayInputRef.current?.click()}
-                style={{
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  color: 'var(--text)',
-                  borderRadius: 10,
-                  padding: '8px 10px',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                }}
-              >
-                Import Replay JSON
+              <button type="button" className="game-menu-tool" onClick={() => replayInputRef.current?.click()}>
+                Import replay
               </button>
               <input
                 ref={replayInputRef}
@@ -1447,28 +1007,18 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
                 onChange={handleReplayFileChange}
                 style={{ display: 'none' }}
               />
-              {replayError && (
-                <div style={{ color: '#c04030', fontSize: 12 }}>
-                  {replayError}
-                </div>
-              )}
-              <button
-                onClick={resetUiPrefs}
-                style={{
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  color: 'var(--text)',
-                  borderRadius: 10,
-                  padding: '8px 10px',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                }}
-              >
-                Reset UI Preferences
-              </button>
-            </div>
-          </div>
-        )}
+              {replayError && <div className="game-menu-error" style={{ flexBasis: '100%' }}>{replayError}</div>}
+            </>
+          }
+        >
+          <SettingsPanel
+            {...preferences}
+            resetPrefs={resetUiPrefs}
+            showAiOptions={!localMultiplayer}
+            showLogPin={!isPhone}
+            compact
+          />
+        </GameMenuShell>
       </div>
 
       {/* Ware buy/sell dialog */}

@@ -12,7 +12,7 @@ import type { GameAction, DeckCardId, WareType, GameState } from '../engine/type
 import { getCard, isValidDeckCardId, ALL_DECK_CARD_IDS } from '../engine/cards/CardDatabase.ts';
 import { validatePlayCard, validateActivateUtility } from '../engine/validation/actionValidator.ts';
 import { UtilityArea } from './UtilityArea.tsx';
-import { ActionPips, AmbientLayer, GoldCount, applyAmbient, getInitialAmbient } from './life.tsx';
+import { ActionPips, AmbientLayer, GoldCount } from './life.tsx';
 import { HandDisplay } from './HandDisplay.tsx';
 import { InteractionPanel } from './InteractionPanel.tsx';
 import { endTurnBonus } from './handHints.ts';
@@ -21,7 +21,6 @@ import { MegaView } from './MegaView.tsx';
 import { CardPlayDialog, DrawModal as SharedDrawModal } from './ActionButtons.tsx';
 import { useAudioEvents, useOutcomeAudio } from './useAudioEvents.ts';
 import { useVisualFeedback } from './useVisualFeedback.ts';
-import { getVolume, setVolume as saveVolume, getMuted, setMuted as saveMuted, resetAudioSettings } from './audioSettings.ts';
 import { getPlayDisabledReason, getDrawDisabledReason, friendlyPlayError } from './uiHints.ts';
 import { CastEndgameOverlay } from './CastEndgameOverlay.tsx';
 import { useCastRoomSync } from '../cast/useCastRoomSync.ts';
@@ -29,34 +28,10 @@ import { getCastSessionController, isCastSdkEnabled } from '../cast/factory.ts';
 import { useAuthSession } from './useAuthSession.ts';
 import { fitCardsToBox } from './fitLayout.ts';
 import { useElementSize } from './useElementSize.ts';
-import { AvatarImage } from './AvatarImage.tsx';
+import { usePreferences, isDevMode } from './preferences.ts';
+import { SettingsPanel, SettingsSection, TvIcon } from './SettingsPanel.tsx';
+import { GameMenuShell } from './GameMenuShell.tsx';
 import { viewerPriceModifiers } from './WareCoin.tsx';
-
-type AnimationSpeed = 'normal' | 'fast';
-const ANIMATION_SPEED_STORAGE_KEY = 'jambo.animationSpeed';
-const DEV_TELEMETRY_STORAGE_KEY = 'jambo.devTelemetry';
-const HIGH_CONTRAST_STORAGE_KEY = 'jambo.highContrast';
-
-function getInitialAnimationSpeed(): AnimationSpeed {
-  if (typeof window === 'undefined') return 'normal';
-  const saved = window.localStorage.getItem(ANIMATION_SPEED_STORAGE_KEY);
-  return saved === 'fast' ? 'fast' : 'normal';
-}
-
-function getInitialDevTelemetry(): boolean {
-  if (typeof window === 'undefined') return false;
-  return window.localStorage.getItem(DEV_TELEMETRY_STORAGE_KEY) === 'true';
-}
-
-function getInitialHighContrast(): boolean {
-  if (typeof window === 'undefined') return false;
-  return window.localStorage.getItem(HIGH_CONTRAST_STORAGE_KEY) === 'true';
-}
-
-function isDevMode(): boolean {
-  if (typeof window === 'undefined') return false;
-  return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-}
 
 interface PlayerScreenProps {
   ws: WebSocketGameState;
@@ -78,13 +53,9 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
   const [cardError, setCardError] = useState<{cardId: DeckCardId, message: string} | null>(null);
   const [megaCardId, setMegaCardId] = useState<DeckCardId | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [animationSpeed, setAnimationSpeed] = useState<AnimationSpeed>(() => getInitialAnimationSpeed());
-  const [showDevTelemetry, setShowDevTelemetry] = useState(() => getInitialDevTelemetry());
-  const [highContrast, setHighContrast] = useState(() => getInitialHighContrast());
-  // Ambient motion is set from the solo game's settings; honour it here too
-  useEffect(() => { applyAmbient(getInitialAmbient()); }, []);
-  const [volume, setVolume] = useState(() => getVolume());
-  const [muted, setMuted] = useState(() => getMuted());
+  // Settings — shared with the main menu and the solo game (preferences.ts)
+  const preferences = usePreferences();
+  const showDevTelemetry = preferences.prefs.devTelemetry;
   const { authUser, authError, avatarUrl, logout: authLogout } = useAuthSession();
   const [telemetryEvents, setTelemetryEvents] = useState<string[]>([]);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -118,27 +89,6 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
       ws.clearError();
     }
   }, [ws.error, ws.clearError]);
-
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    document.documentElement.setAttribute('data-anim-speed', animationSpeed);
-    window.localStorage.setItem(ANIMATION_SPEED_STORAGE_KEY, animationSpeed);
-  }, [animationSpeed]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem(DEV_TELEMETRY_STORAGE_KEY, String(showDevTelemetry));
-  }, [showDevTelemetry]);
-
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    if (highContrast) {
-      document.documentElement.setAttribute('data-contrast', 'high');
-    } else {
-      document.documentElement.removeAttribute('data-contrast');
-    }
-    window.localStorage.setItem(HIGH_CONTRAST_STORAGE_KEY, String(highContrast));
-  }, [highContrast]);
 
   const handleLogout = useCallback(async () => {
     await authLogout();
@@ -234,21 +184,11 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
     };
   }, [menuOpen]);
 
+  const { resetPrefs } = preferences;
   const resetUiPrefs = useCallback(() => {
-    setAnimationSpeed('normal');
-    setShowDevTelemetry(false);
-    setHighContrast(false);
-    setVolume(50);
-    setMuted(false);
+    resetPrefs();
     setTelemetryEvents([]);
-    if (typeof window !== 'undefined') {
-      window.localStorage.removeItem(ANIMATION_SPEED_STORAGE_KEY);
-      window.localStorage.removeItem(DEV_TELEMETRY_STORAGE_KEY);
-      window.localStorage.removeItem(HIGH_CONTRAST_STORAGE_KEY);
-      resetAudioSettings();
-      window.dispatchEvent(new Event('jambo-volume-change'));
-    }
-  }, []);
+  }, [resetPrefs]);
 
   const hasPendingInteraction = !!(
     priv.pendingResolution ||
@@ -527,231 +467,39 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
         />
       )}
 
-      {/* Settings */}
+      {/* Profile & settings menu */}
       <div ref={menuRef} style={{ position: 'fixed', top: 'max(12px, env(safe-area-inset-top))', right: 12, zIndex: 50 }}>
-        <button
-          onClick={() => setMenuOpen((previous) => !previous)}
-          style={{
-            width: 42,
-            height: 42,
-            padding: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: menuOpen ? 'var(--surface-accent)' : 'var(--surface-light)',
-            border: '1px solid var(--border-light)',
-            borderRadius: '50%',
-            overflow: 'hidden',
-          }}
-          title="Profile & Settings"
+        <GameMenuShell
+          open={menuOpen}
+          onToggle={() => setMenuOpen((previous) => !previous)}
+          avatarUrl={avatarUrl}
+          authUser={authUser}
+          authError={authError}
+          onLogout={() => void handleLogout()}
         >
-          <AvatarImage avatarUrl={avatarUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        </button>
-
-        {menuOpen && (
-          <div className="dialog-pop" style={{
-            position: 'absolute',
-            top: 42,
-            right: 0,
-            background: 'var(--surface)',
-            border: '1px solid var(--border-light)',
-            borderRadius: 10,
-            padding: 12,
-            minWidth: 220,
-            boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-          }}>
-            <div style={{ fontFamily: 'var(--font-heading)', fontSize: 16, fontWeight: 700, color: 'var(--gold)', marginBottom: 12 }}>
-              Player Settings
-            </div>
-            <div style={{
-              padding: 10,
-              border: '1px solid var(--border-light)',
-              borderRadius: 8,
-              background: 'var(--surface-light)',
-              marginBottom: 10,
-            }}>
-              <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)' }}>
-                {authUser ? `Welcome, ${authUser.name}` : 'Welcome, Trader'}
-              </div>
-              {authUser && (
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                  {authUser.email}
-                </div>
-              )}
-              {authError && (
-                <div style={{ fontSize: 12, color: 'var(--accent-red)', marginTop: 4 }}>
-                  {authError}
-                </div>
-              )}
-              {authUser && (
+          <SettingsPanel
+            {...preferences}
+            resetPrefs={resetUiPrefs}
+            showAiOptions={false}
+            showLogPin={false}
+            compact
+            extraSections={castSync.status === 'synced' && (
+              <SettingsSection title="TV" icon={<TvIcon />}>
                 <button
-                  onClick={() => void handleLogout()}
-                  style={{
-                    marginTop: 8,
-                    width: '100%',
-                    background: 'var(--surface)',
-                    border: '1px solid var(--border-light)',
-                    color: 'var(--text)',
-                    borderRadius: 6,
-                    padding: '6px 8px',
-                    cursor: 'pointer',
-                    textAlign: 'left',
+                  type="button"
+                  className="settings-row settings-row-switch"
+                  onClick={() => {
+                    void getCastSessionController().sendMessage({ type: 'TOGGLE_DEBUG' });
                   }}
                 >
-                  Logout
+                  <span className="settings-row-text">
+                    <span className="settings-row-label">Toggle TV debug log</span>
+                  </span>
                 </button>
-              )}
-            </div>
-            <label style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 10,
-              fontSize: 15,
-              color: 'var(--text)',
-            }}>
-              Animation Speed
-              <select
-                value={animationSpeed}
-                onChange={(event) => setAnimationSpeed(event.target.value as AnimationSpeed)}
-                style={{
-                  background: 'var(--surface-light)',
-                  border: '1px solid var(--border-light)',
-                  color: 'var(--text)',
-                  borderRadius: 6,
-                  padding: '4px 8px',
-                  fontSize: 14,
-                }}
-              >
-                <option value="normal">Normal</option>
-                <option value="fast">Fast</option>
-              </select>
-            </label>
-            <label style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 10,
-              marginTop: 10,
-              cursor: 'pointer',
-              fontSize: 15,
-              color: 'var(--text)',
-            }}>
-              Mute Audio
-              <input
-                type="checkbox"
-                checked={muted}
-                onChange={() => {
-                  const next = !muted;
-                  setMuted(next);
-                  saveMuted(next);
-                  window.dispatchEvent(new Event('jambo-volume-change'));
-                }}
-                style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
-              />
-            </label>
-            <label style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 10,
-              marginTop: 10,
-              fontSize: 15,
-              color: muted ? 'var(--text-muted)' : 'var(--text)',
-            }}>
-              Volume
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={volume}
-                disabled={muted}
-                onChange={(e) => {
-                  const v = Number(e.target.value);
-                  setVolume(v);
-                  saveVolume(v);
-                  window.dispatchEvent(new Event('jambo-volume-change'));
-                }}
-                style={{ width: 100, accentColor: 'var(--gold)', cursor: muted ? 'default' : 'pointer' }}
-              />
-            </label>
-            <label style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 10,
-              marginTop: 10,
-              cursor: 'pointer',
-              fontSize: 15,
-              color: 'var(--text)',
-            }}>
-              High Contrast Mode
-              <input
-                type="checkbox"
-                checked={highContrast}
-                onChange={() => setHighContrast((previous) => !previous)}
-                style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
-              />
-            </label>
-            {castSync.status === 'synced' && (
-              <button
-                onClick={() => {
-                  void getCastSessionController().sendMessage({ type: 'TOGGLE_DEBUG' });
-                }}
-                style={{
-                  marginTop: 10,
-                  width: '100%',
-                  background: 'var(--surface-light)',
-                  border: '1px solid var(--border-light)',
-                  color: 'var(--text)',
-                  borderRadius: 8,
-                  padding: '8px 10px',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  fontSize: 15,
-                }}
-              >
-                Toggle TV Debug Log
-              </button>
+              </SettingsSection>
             )}
-            {isDevMode() && (
-              <label style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 10,
-                marginTop: 10,
-                cursor: 'pointer',
-                fontSize: 15,
-                color: 'var(--text)',
-              }}>
-                Dev Telemetry Overlay
-                <input
-                  type="checkbox"
-                  checked={showDevTelemetry}
-                  onChange={() => setShowDevTelemetry((previous) => !previous)}
-                  style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
-                />
-              </label>
-            )}
-            <button
-              onClick={resetUiPrefs}
-              style={{
-                marginTop: 12,
-                width: '100%',
-                background: 'var(--surface-light)',
-                border: '1px solid var(--border-light)',
-                color: 'var(--text)',
-                borderRadius: 8,
-                padding: '8px 10px',
-                cursor: 'pointer',
-                textAlign: 'left',
-              }}
-            >
-              Reset UI Preferences
-            </button>
-          </div>
-        )}
+          />
+        </GameMenuShell>
       </div>
 
       {/* Draw modal */}

@@ -6,28 +6,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 
+/** The "Ambient motion" setting (read/applied by preferences.ts). */
 export const AMBIENT_STORAGE_KEY = 'jambo.ambientMotion';
-
-export function getInitialAmbient(): boolean {
-  if (typeof window === 'undefined') return true;
-  try {
-    return window.localStorage.getItem(AMBIENT_STORAGE_KEY) !== 'false';
-  } catch {
-    return true;
-  }
-}
-
-/** Reflect the "Ambient motion" setting on <html> and persist it. */
-export function applyAmbient(on: boolean): void {
-  if (typeof document === 'undefined') return;
-  if (on) document.documentElement.removeAttribute('data-ambient');
-  else document.documentElement.setAttribute('data-ambient', 'off');
-  try {
-    window.localStorage.setItem(AMBIENT_STORAGE_KEY, String(on));
-  } catch {
-    // private mode — the setting just won't persist
-  }
-}
 
 function prefersReducedMotion(): boolean {
   return typeof window !== 'undefined'

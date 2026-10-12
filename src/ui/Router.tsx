@@ -10,6 +10,8 @@ import { PlayerScreen } from './PlayerScreen.tsx';
 import { TVScreen } from './TVScreen.tsx';
 import { DevPlayerPreview, isDevPlayerMode } from './DevPlayerPreview.tsx';
 import { MainMenu } from './screens/MainMenu.tsx';
+import { SettingsScreen } from './screens/SettingsScreen.tsx';
+import { applyDocumentPreferences, readPreferences } from './preferences.ts';
 import { LoginModal } from './screens/LoginModal.tsx';
 import { PreGameSetupModal } from './screens/PreGameSetupModal.tsx';
 import { FirstPlayerReveal } from './FirstPlayerReveal.tsx';
@@ -112,6 +114,8 @@ export function Router() {
 function RouterInner() {
   const ws = useWebSocketGame();
   const auth = useAuthSession();
+  // High contrast, motion and pace apply from the first screen, not just in-game
+  useEffect(() => { applyDocumentPreferences(readPreferences()); }, []);
   const [route, setRoute] = useState<Route>(getRoute);
   // A refresh mid-game in this tab drops straight back into the autosaved
   // game; a fresh visit offers "Resume game" on the menu instead.
@@ -121,6 +125,7 @@ function RouterInner() {
     return saved;
   });
   const [screen, setScreen] = useState<Screen>(autoResume ? autoResume.mode : 'menu');
+  const handleBackFromSettings = useCallback(() => setScreen('menu'), []);
   const [aiDifficulty, setAiDifficulty] = useState<AIDifficulty>(autoResume?.aiDifficulty ?? 'medium');
   const [savedGame, setSavedGame] = useState<SavedGame | null>(() => autoResume ?? loadLocalGame());
   const [pendingMode, setPendingMode] = useState<'solo' | 'multiplayer' | null>(null);
@@ -349,39 +354,7 @@ function RouterInner() {
   }
 
   if (screen === 'settings') {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, position: 'relative' }}>
-        <AvatarBadge avatarUrl={auth.avatarUrl} />
-        <div className="etched-wood-border dialog-pop" style={{
-          width: 'min(560px, 96vw)',
-          borderRadius: 12,
-          padding: 20,
-          background: 'var(--surface)',
-          color: 'var(--text)',
-          textAlign: 'center',
-        }}>
-          <h1 style={{ fontFamily: 'var(--font-heading)', color: 'var(--gold)', fontSize: 28, margin: '0 0 10px 0' }}>
-            Settings
-          </h1>
-          <div style={{ color: 'var(--text-muted)', marginBottom: 16 }}>
-            Version {__APP_VERSION__}
-          </div>
-          <button
-            onClick={() => setScreen('menu')}
-            style={{
-              background: 'var(--surface-accent)',
-              border: '1px solid var(--border-light)',
-              color: 'var(--gold)',
-              borderRadius: 8,
-              padding: '10px 16px',
-              cursor: 'pointer',
-            }}
-          >
-            Back to Menu
-          </button>
-        </div>
-      </div>
-    );
+    return <SettingsScreen onBack={handleBackFromSettings} />;
   }
 
   return null;
