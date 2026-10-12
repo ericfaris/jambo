@@ -40,6 +40,7 @@ import { ResolveMegaView } from './ResolveMegaView.tsx';
 import { isHandInteraction } from './HandReferenceStrip.tsx';
 import { MegaView } from './MegaView.tsx';
 import { TutorialOverlay } from './TutorialOverlay.tsx';
+import { hasSeenTutorial, markTutorialSeen } from './tutorial/tutorial.ts';
 import { ActionPips, AmbientLayer, GoldCount } from './life.tsx';
 import { PassDeviceScreen, needsHandoff } from './PassDeviceScreen.tsx';
 import { shouldAiAct, isWareDialogValid, shouldShowResolvePanel, aiActionDelayMs, quoteForSpotlight } from './gameScreenLogic.ts';
@@ -64,7 +65,6 @@ import { useCornerButtonInset } from './cornerClearance.ts';
 import { viewerPriceModifiers } from './WareCoin.tsx';
 
 const HOTSEAT_LABELS = ['Player 1', 'Player 2'] as const;
-const TUTORIAL_SEEN_STORAGE_KEY = 'jambo.tutorialSeen';
 /** A trader's line stays on screen this long. */
 const TRADER_LINE_MS = 4500;
 
@@ -146,10 +146,9 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   const [statsSummary, setStatsSummary] = useState<UserStatsSummary | null>(null);
   const [statsError, setStatsError] = useState<string | null>(null);
   const [diffBreakdown, setDiffBreakdown] = useState<DifficultyBreakdown[] | null>(null);
-  const [showTutorial, setShowTutorial] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return window.localStorage.getItem(TUTORIAL_SEEN_STORAGE_KEY) !== 'true';
-  });
+  const [showTutorial, setShowTutorial] = useState(() => typeof window !== 'undefined' && !hasSeenTutorial());
+  // Reopened from the in-game menu: its last button goes back to the game
+  const [tutorialFromMenu, setTutorialFromMenu] = useState(false);
   const [telemetryEvents, setTelemetryEvents] = useState<string[]>([]);
   const [uxDebugCounts, setUxDebugCounts] = useState({ longPending: 0, blockedPlay: 0, blockedDraw: 0 });
   const menuRef = useRef<HTMLDivElement>(null);
@@ -569,7 +568,8 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
 
   const handleCloseTutorial = useCallback(() => {
     setShowTutorial(false);
-    window.localStorage.setItem(TUTORIAL_SEEN_STORAGE_KEY, 'true');
+    setTutorialFromMenu(false);
+    markTutorialSeen();
   }, []);
 
   const resetUiPrefs = useCallback(() => {
@@ -583,7 +583,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
 
   // Block the entire game UI until the tutorial is dismissed
   if (showTutorial) {
-    return <TutorialOverlay onClose={handleCloseTutorial} />;
+    return <TutorialOverlay onClose={handleCloseTutorial} finishLabel={tutorialFromMenu ? 'Back to the game' : 'Start playing'} />;
   }
 
   if (needsHandoff(localMultiplayer, state.phase, confirmedViewer, viewerPlayer)) {
@@ -973,6 +973,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
                 className="game-menu-action"
                 onClick={() => {
                   setMenuOpen(false);
+                  setTutorialFromMenu(true);
                   setShowTutorial(true);
                 }}
               >

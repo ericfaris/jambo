@@ -524,3 +524,21 @@ overwrites tracked files.)
   at the silence that overlaps each line boundary.
 - A re-voice gets a new file prefix (`Trader.voiceFiles`), because the CDN
   caches /audio.
+
+## 2026-10-12 — How to Play redesign
+- **What good game tutorials share** (Wordle, Chess.com, Lichess, Balatro,
+  Board Game Arena): goal before mechanics, then generic → specific (BGA's
+  authoring guide); a guide character (Chess.com's coach, Balatro's Jimbo);
+  one idea per step with visible progress (Lichess stages); make the player
+  *do* the move instead of reading about it; always skippable; the rules stay
+  reachable later; finish straight into play.
+- **Tutorial copy drifts from the rules.** The old slides said a Hyena swaps
+  hands and implied a 6-ware card sells any six wares. Content now lives in
+  `tutorial/tutorial.ts`, reads numbers from engine `CONSTANTS`/the card
+  database, and a test pins the rest.
+- **"Seen" must be global, not per-entry-point.** Reading How to Play from the
+  menu used to leave `jambo.tutorialSeen` unset, so the first game showed it
+  again. Any close now marks it seen.
+- **A vertically centred dialog with per-chapter content jumps**; give it a
+  fixed height and scroll the body. On phones a stretched grid body leaves a
+  gap under short rows — `align-content: start`.

@@ -25,7 +25,9 @@ import type { RoomMode } from '../multiplayer/types.ts';
 import { useGameStore } from '../hooks/useGameStore.ts';
 import { extractPublicState } from '../multiplayer/stateSplitter.ts';
 import { getCastSessionController, isCastSdkEnabled } from '../cast/factory.ts';
-import { JOIN_TV_HASH } from './screens/landing.ts';
+import { JOIN_TV_HASH, readLastTrader } from './screens/landing.ts';
+import { markTutorialSeen } from './tutorial/tutorial.ts';
+import { traderFor } from '../ai/traders.ts';
 import { loadLocalGame, isGameActiveInTab, setGameActiveInTab, describeSavedGame } from '../persistence/savedGame.ts';
 import type { SavedGame } from '../persistence/savedGame.ts';
 import { abandonSavedGame } from '../persistence/userStatsApi.ts';
@@ -293,7 +295,16 @@ function RouterInner() {
           />
         )}
         {screen === 'login' && <LoginModal onClose={() => setScreen('menu')} />}
-        {showTutorial && <TutorialOverlay onClose={() => setShowTutorial(false)} />}
+        {showTutorial && (
+          <TutorialOverlay
+            onClose={() => { markTutorialSeen(); setShowTutorial(false); }}
+            // Straight from the lesson into a game — unless that would overwrite a saved one
+            {...(savedGame ? { finishLabel: 'Done' } : {
+              finishLabel: `Play vs ${traderFor(readLastTrader()).name}`,
+              onFinish: () => { markTutorialSeen(); setShowTutorial(false); startLocalGame('solo', readLastTrader()); },
+            })}
+          />
+        )}
       </>
     );
   }

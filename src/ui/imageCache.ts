@@ -93,7 +93,7 @@ export function getCoreImageManifest(): string[] {
     imagePaths.push(`/assets/wares/${ware}.png`);
   }
 
-  imagePaths.push('/assets/menu/main_menu.png');
+  imagePaths.push('/assets/menu/landing_hero.webp');
   imagePaths.push('/assets/panels/wood_1.png');
 
   coreImageManifestCache = imagePaths;

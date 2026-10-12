@@ -250,6 +250,50 @@ Keyframes are named descriptively (`pilePulse`, `marketSlotFlash`,
   - The Cast "Rejoining…" screen and settings shell still use the older
     `.main-menu-*` / `.menu-action` classes — restyling the landing never
     touches them.
+- **Player tableau** (`.tableau`, `TableauCorners` in `Tableau.tsx`; 2026-10-12)
+  — both seats' desktop panels in the turn plaque's metalwork: lacquered
+  panel lit from above, double brass rim (3px dark + 1px brass inset),
+  brass corner brackets with studs, and a band of lamplight that crosses the
+  panel once when the turn reaches it (`tableauSheen`, off under reduced
+  motion). Inside:
+  - **Labels** — plaque eyebrows: a short brass rule, gold-gradient caps,
+    and a `.tableau-count` chip ("5/9", "2/3", hand size). Phone and Cast
+    boards (`.player-board`) use the same labels and chips.
+  - **Market** — slots are carved wells (`.market-slot`; a filled well
+    glows faintly in its ware colour via `--ware-c`). The board market groups
+    slots into real stands (`marketStands()`: large stand, then 3 per small
+    stand), each on a wooden shelf (`.market-stand-shelf`). A long market
+    wraps whole stands. Dialog copies and the compact phone row stay one
+    flat row, because `fitMarketSlots()` assumes it. The paid 6th space is
+    a worn brass coin (`.market-slot-fee`).
+  - **Utilities** — empty spaces are recessed felt sockets with a stitched
+    edge and an embossed diamond (`.empty-card-slot-mark`). The utility row
+    never shrinks, so it never wraps to two rows.
+  - **Seat** — gold-gradient name on your turn, a minted coin beside a
+    gradient gold total (`.seat-coin`, `.seat-gold-num`; the rising glint is
+    a filter because gradient text can't take a text-shadow).
+  - **Hand** — a stitched leather mat (`HandDisplay mat`, `.hand-mat`)
+    replaces the dashed box.
+- **How to play** (`TutorialOverlay.tsx` + `tutorial/Tutorial.css`, all
+  `.tut-*`; content and rules in `tutorial/tutorial.ts`; 2026-10-12, from the
+  web-game tutorial research) — the landing's framed plate as a dialog
+  (full-height sheet on phones) with seven named chapter tabs (✓ once seen):
+  Goal → Your turn → Trade → Cards → Stall → Attacks → Tips. Goal first, then
+  generic → specific.
+  - **A guide**: Mama Zawadi's portrait and a parchment bubble beside the
+    stage (a strip above it on phones); her mood turns pleased when you get
+    something right.
+  - **Do, don't read**: Trade is hands-on — real Tea Stall card, a purse and a
+    six-space stall; Buy and Sell follow the engine's rules (disabled with the
+    reason). Cards: tap any of five real cards for its database description.
+  - **One gold button** (`.tut-cta`), only on the last chapter: *Play vs
+    {trader}* from the menu (or *Done* when a save exists), *Start playing*
+    on first run, *Back to the game* from the in-game menu. Skip/✕/Esc
+    always close; ←/→ move between chapters; focus is trapped and restored.
+  - Closing it anywhere sets `jambo.tutorialSeen`, so reading it from the menu
+    means the first game doesn't show it again.
+  - Numbers come from the engine's `CONSTANTS` and the card database; a test
+    holds them there.
 - **Rejoining screen** — while a refreshed Cast tab reconnects to its room:
   "Room 1234 / Rejoining your game…" with a Cancel, so the menu or code
   entry never flashes.
@@ -442,7 +486,7 @@ your panel       Market · Utilities (3 reserved slots, medium) · "You · your 
   `landing_hero_mobile.webp` (960² crop) on phones, shown at full strength
   inside an etched frame — never as a faded wash. No painted text in the art;
   the wordmark is live type (Judson Bold, gold with a two-step brown
-  extrusion). `main_menu.png` is still used by the tutorial.
+  extrusion). The tutorial's Goal chapter reuses the landing hero art.
 - **`.linen-texture`** (added this pass, see Changelog) — a 4-layer CSS
   crosshatch gradient (`0deg`/`90deg` at 0.08 alpha, `135deg`/`45deg` at 0.04
   alpha, 1–1.5px tile) over an `#e8e4df` base — the cream "card stock" finish
@@ -459,7 +503,7 @@ textiles, wildlife), consistent linework and palette across all pieces.
 
 | Path | Role |
 |---|---|
-| `public/assets/menu/main_menu.png` | Tutorial backdrop (was the main menu) |
+| `public/assets/menu/main_menu.png` | Unused since the tutorial redesign (was the main menu, then the tutorial backdrop) |
 | `public/assets/menu/landing_hero.webp`, `landing_hero_mobile.webp` | Landing hero (Ideogram 4.5, 2026-10-12; wide market stall, no text) |
 | `public/og-image.jpg` | 1200×630 link-preview card |
 | `public/apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `icon-maskable-512.png` | Home-screen / PWA icons, redrawn from the favicon's gold gem |
@@ -582,6 +626,22 @@ existing set already covers the full identity; this pass's job was
 documenting it, fixing one duplication, and identifying the SFX gap.
 
 ## Changelog
+### 2026-10-12 — How to Play redesign
+Researched how five web games teach (Wordle, Chess.com, Lichess, Balatro,
+Board Game Arena) and rebuilt the eight static slides on what they share:
+goal first, a guide character, one idea per step, try it instead of reading
+it, named and skippable chapters, and a finish that goes straight into a game.
+Fixed copy that was wrong (Hyena doesn't swap hands; the 6-ware tip). See
+Components › How to play.
+
+### 2026-10-12 — Player tableau polish
+Carried the turn plaque's brass-and-lacquer finish across both seats'
+panels: rims, corner brackets, a turn-start light sweep, eyebrow labels with
+count chips, carved market wells on stand shelves, felt utility sockets,
+a coin-and-gradient gold readout, and a leather hand mat (see Components ›
+Player tableau). The opponent panel lost its inner double frame. Still fits
+1440×900, 1366×768 and 360×640 without scrolling. Tests: `tests/ui/tableau.test.ts`.
+
 ### 2026-10-12 — Landing page redesign
 Researched five web-game landing pages (Wordle, Chess.com, Lichess, Balatro,
 Board Game Arena) and rebuilt the main menu on what they share: one filled

@@ -8,7 +8,7 @@ describe('imageCache', () => {
 
     expect(manifest.length).toBe(uniqueManifest.size);
     expect(manifest).toContain('/assets/cards/card_back.png');
-    expect(manifest).toContain('/assets/menu/main_menu.png');
+    expect(manifest).toContain('/assets/menu/landing_hero.webp');
     expect(manifest).toContain('/assets/panels/wood_1.png');
     expect(manifest).toContain('/assets/coins/coin_18.png');
     expect(manifest).toContain('/assets/tokens/trinkets.png');
