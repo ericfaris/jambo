@@ -140,6 +140,19 @@ export function checkInvariants(state: GameState): InvariantViolation[] {
       'Phase is GAME_OVER but endgame state is null');
   }
 
+  // 28. A card being played is out of every hand until it resolves — a
+  // Crocodile must never be offered as the discard that pays for its own effect.
+  const inPlay = new Set<string>();
+  if (state.pendingResolution?.sourceCard) inPlay.add(state.pendingResolution.sourceCard);
+  if (state.pendingGuardReaction) inPlay.add(state.pendingGuardReaction.animalCard);
+  if (state.crocodileCleanup) inPlay.add(state.crocodileCleanup.crocodileCardId);
+  for (const p of [0, 1] as const) {
+    for (const id of state.players[p].hand) {
+      check(`P${p}_PLAYED_CARD_IN_HAND`, !inPlay.has(id),
+        `Player ${p} still holds ${id}, which is being played`);
+    }
+  }
+
   return violations;
 }
 
