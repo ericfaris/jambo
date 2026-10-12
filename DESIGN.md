@@ -444,7 +444,7 @@ textiles, wildlife), consistent linework and palette across all pieces.
 
 ## Sound
 
-**Background music** (`useBackgroundMusic.ts`) — 5 tracks in
+**Background music** (`useBackgroundMusic.ts`) — 6 tracks in
 `public/audio/`, shuffled into a playlist, one DOM-attached `<audio>`
 element (required for Chromecast compatibility), 0.15 base volume, singleton
 guard against double-playback:
@@ -453,6 +453,16 @@ guard against double-playback:
 - `River_Paths_Village_Hearts_Voice.mp3`
 - `Sun_In_Our_Hands.mp3`
 - `Sun_on_the_Courtyard.mp3`
+- `Golden_Hour_Kalimba.mp3` (ElevenLabs Music v2.5, 2026-10-12; the others are Suno)
+
+Songs are separated by a 20s gap (`TRACK_GAP_MS`). Under everything, a
+second `<audio loop>` plays **`Market_Ambience_Loop.mp3`** nonstop at 0.1 base
+volume (follows volume/mute/ducking; never pauses between songs, so it fills
+the gaps): three ElevenLabs SFX v2 seamless loops — crowd bed (30s), stall
+trading/coins (25s), birds/goats/awnings (20s) — stacked to 300s, the LCM, so
+the texture doesn't repeat inside the file and the file itself loops cleanly.
+The Cast receiver (`receiver/caf/receiver-app.js`) mirrors the same file,
+level and gap; `tests/ui/backgroundMusic.test.ts` keeps them in sync.
 
 **Sound effects** — 6 short clips in `public/audio/sfx/`, played in **every
 mode**. `detectAudioEvent()` (`src/multiplayer/audioEvents.ts`) maps a game

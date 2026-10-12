@@ -439,3 +439,9 @@ overwrites tracked files.)
   `goto(BASE)` until "Resume Game" shows. A MutationObserver recorder must
   also search *inside* added nodes, because the flight layer mounts with its
   sprites already in it.
+
+## 2026-10-12 — ElevenLabs music + market ambience
+- ElevenLabs Music v2.5 does a solid instrumental (set `lyrics_type: instrumental`, `duration_seconds`); ~$0.98 per 3-min generation. Default `generations_count` is 4 — pass 1.
+- SFX v2 caps at 30s but has `loop: true`. For a long non-repeating bed, generate loops whose lengths divide the target (30/25/20s → 300s, the LCM) and stack them with `ffmpeg -stream_loop`; trim each decoded layer to exact sample count first or the seam drifts.
+- Gotchas: `ffmpeg` inside a bash heredoc eats stdin (use `-nostdin`); zsh doesn't word-split `set -- $p`.
+- Background music lives in two places — `useBackgroundMusic.ts` and the CAF receiver — plus the design-system page; `tests/ui/backgroundMusic.test.ts` keeps them in sync.

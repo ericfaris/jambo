@@ -7,7 +7,13 @@
     '/audio/River_Paths_Village_Hearts_Voice.mp3',
     '/audio/Sun_In_Our_Hands.mp3',
     '/audio/Sun_on_the_Courtyard.mp3',
+    '/audio/Golden_Hour_Kalimba.mp3',
   ];
+
+  // Keep in sync with src/ui/useBackgroundMusic.ts
+  var TV_AMBIENCE_URL = '/audio/Market_Ambience_Loop.mp3';
+  var TV_AMBIENCE_VOLUME = 0.1;
+  var TV_TRACK_GAP_MS = 20000;
 
   var cafPlayerManager = null;
 
@@ -27,6 +33,7 @@
     playlist: [],
     index: 0,
     enabled: false,
+    gapTimer: null,
   };
 
   var placeholderEl = document.getElementById('placeholder');
@@ -69,8 +76,29 @@
     return shuffled;
   }
 
+  function startTvAmbience() {
+    var el = document.getElementById('bgAmbience');
+    if (!el || !el.paused) return;
+    var baseUrl = (roomState.apiBaseUrl || '').replace(/\/+$/, '');
+    el.src = baseUrl + TV_AMBIENCE_URL;
+    el.loop = true;
+    el.volume = TV_AMBIENCE_VOLUME;
+    el.play().catch(function (err) {
+      console.warn('[TV Music] Ambience play failed:', err);
+    });
+  }
+
   function stopTvMusic() {
     tvMusic.enabled = false;
+    if (tvMusic.gapTimer !== null) {
+      clearTimeout(tvMusic.gapTimer);
+      tvMusic.gapTimer = null;
+    }
+    var ambienceEl = document.getElementById('bgAmbience');
+    if (ambienceEl) {
+      ambienceEl.pause();
+      ambienceEl.src = '';
+    }
     if (cafPlayerManager) {
       try { cafPlayerManager.stop(); } catch { /* ignore */ }
     }
@@ -121,6 +149,7 @@
   }
 
   function ensureTvMusicPlaying() {
+    startTvAmbience();
     if (!tvMusic.enabled) {
       tvMusic.enabled = true;
       tvMusic.playlist = shufflePlaylist(TV_MUSIC_PLAYLIST);
@@ -128,9 +157,10 @@
       playNextTvTrack();
       return;
     }
-    // If already enabled but paused (e.g. after error recovery), restart
+    // If already enabled but paused (e.g. after error recovery), restart —
+    // unless it's just the quiet gap between tracks
     var bgMusicEl = document.getElementById('bgMusic');
-    if (bgMusicEl && bgMusicEl.paused && cafPlayerManager) {
+    if (bgMusicEl && bgMusicEl.paused && cafPlayerManager && tvMusic.gapTimer === null) {
       playNextTvTrack();
     }
   }
@@ -674,8 +704,12 @@
       cast.framework.events.EventType.MEDIA_FINISHED,
       function () {
         if (tvMusic.enabled) {
-          console.log('[TV Music] Track ended, advancing playlist');
-          playNextTvTrack();
+          console.log('[TV Music] Track ended, next one after the gap');
+          if (tvMusic.gapTimer !== null) clearTimeout(tvMusic.gapTimer);
+          tvMusic.gapTimer = setTimeout(function () {
+            tvMusic.gapTimer = null;
+            if (tvMusic.enabled) playNextTvTrack();
+          }, TV_TRACK_GAP_MS);
         }
       }
     );
