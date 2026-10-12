@@ -47,6 +47,15 @@ describe('the four traders', () => {
     }
   });
 
+  it("Baraka speaks with the dry re-voice under a new filename (the CDN caches /audio)", () => {
+    const baraka = traderFor('hard');
+    expect(barkUrl(baraka, 'greet')).toBe('/audio/traders/baraka-v2-greet.mp3');
+    expect(barkUrl(baraka, 'attack', 1)).toBe('/audio/traders/baraka-v2-attack-2.mp3');
+    expect(existsSync('public/audio/traders/baraka-greet.mp3')).toBe(false);
+    // the others keep their id as the file prefix
+    expect(barkUrl(traderFor('expert'), 'win')).toBe('/audio/traders/zawadi-win.mp3');
+  });
+
   it('the portrait stacks all three expressions and shows only the current one', () => {
     const html = renderToStaticMarkup(createElement(TraderPortrait, { trader: traderFor('hard'), mood: 'annoyed' }));
     expect(html.match(/<img /g)).toHaveLength(3);

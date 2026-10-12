@@ -633,8 +633,9 @@ Eight real-time playthroughs (all four traders, desktop and phone) drove these:
 - Voices: `public/audio/traders/{id}-{greet|big-sale|attack|blocked|win|lose}.mp3`
   — ElevenLabs eleven_v3, one take per trader with all six lines separated
   by `[long pause]`, split on silence, faded and peak-normalised to −2 dB.
-  Voices: Josh (Kito), Amara (Amara), Kelechi (Baraka), "Monique African
-  Queen" (Mama Zawadi). 12s cooldown except greet / blocked / win / lose;
+  Voices: Josh (Kito), Amara (Amara), De-Prince (Baraka, re-voiced
+  2026-10-12 as `baraka-v2-*` — Kelechi's takes were too roomy), "Monique
+  African Queen" (Mama Zawadi). 12s cooldown except greet / blocked / win / lose;
   they duck the music; Settings › Trader Voices.
 - Setup screen: "Choose your trader" cards (portrait, name, level, play
   style; 2×2 on phones).

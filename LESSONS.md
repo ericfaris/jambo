@@ -507,3 +507,20 @@ overwrites tracked files.)
   `application/octet-stream` until a test that walks `public/` caught it.
   Anything under `/assets/` is also cached `immutable` for a year, hashed or
   not, so replace hero art under a new filename.
+
+## 2026-10-12 — Baraka re-voiced (too much reverb)
+- **Reverb lives in the library voice itself.** Kelechi's preview was already
+  roomy; ElevenLabs Voice Isolator only took ~1 dB off. A drier library voice
+  (De-Prince) is the fix. Measure a voice's *preview* before generating a
+  whole take with it.
+- **A cheap reverb meter**: the level 40–120 ms after each word ends (5 ms
+  frames, word end = crossing −25 dB and staying under it for 150 ms). Mama
+  Zawadi is about −62 dB, the other traders about −37. A downward expander
+  (`agate`) reaches −56 to −68, but the user preferred the unprocessed new voice
+  on an A/B listening page. Let the ear decide; don't ship just the number.
+- **eleven_v3's dramatic pauses inside a line can be longer than the
+  `[long pause]` between lines**, so "split on the N−1 longest pauses" cut
+  "Ahh." off its line. Transcribe the take (Scribe returns word timings) and cut
+  at the silence that overlaps each line boundary.
+- A re-voice gets a new file prefix (`Trader.voiceFiles`), because the CDN
+  caches /audio.

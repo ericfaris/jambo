@@ -23,6 +23,12 @@ export interface Trader {
    * more than one take; they rotate so the same line doesn't come back.
    */
   lines: Record<BarkEvent, readonly string[]>;
+  /**
+   * File prefix of the voiced lines when it isn't the id. A re-voice gets a
+   * new prefix, because /audio is cached by the CDN and an overwritten file
+   * keeps playing the old voice for hours.
+   */
+  voiceFiles?: string;
 }
 
 export const TRADERS: Record<AIDifficulty, Trader> = {
@@ -59,6 +65,8 @@ export const TRADERS: Record<AIDifficulty, Trader> = {
   hard: {
     id: 'baraka',
     name: 'Baraka',
+    // v2 (2026-10-12): re-voiced with De-Prince — Kelechi's recordings had a roomy reverb
+    voiceFiles: 'baraka-v2',
     title: 'Spice merchant',
     tagline: 'Deep evaluation — always counting',
     lines: {
@@ -96,9 +104,9 @@ export function portraitUrl(trader: Pick<Trader, 'id'>, mood: TraderMood = 'neut
   return `/assets/traders/${trader.id}-${mood}.webp`;
 }
 
-/** Take 0 is `{id}-{event}.mp3`; later takes are `{id}-{event}-2.mp3`, … */
-export function barkUrl(trader: Pick<Trader, 'id'>, event: BarkEvent, take = 0): string {
-  return `/audio/traders/${trader.id}-${event}${take > 0 ? `-${take + 1}` : ''}.mp3`;
+/** Take 0 is `{voiceFiles ?? id}-{event}.mp3`; later takes are `…-{event}-2.mp3`, … */
+export function barkUrl(trader: Pick<Trader, 'id' | 'voiceFiles'>, event: BarkEvent, take = 0): string {
+  return `/audio/traders/${trader.voiceFiles ?? trader.id}-${event}${take > 0 ? `-${take + 1}` : ''}.mp3`;
 }
 
 /** A one-move gold swing this big counts as a big moment. */
