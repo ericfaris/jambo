@@ -2445,3 +2445,48 @@ button.brown:hover:not(:disabled) {
   .turn-plaque-mine { animation: none; }
   .turn-plaque-coin { transition: none; }
 }
+
+/* --- Abandon game (asks in place before acting) ------------------------- */
+.menu-abandon {
+  width: 100%;
+  background: rgba(192,64,48,0.08);
+  border: 1px solid rgba(192,64,48,0.45);
+  color: #f0a08f;
+  border-radius: 10px;
+  padding: 8px 10px;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+.menu-abandon:hover { background: rgba(192,64,48,0.16); border-color: rgba(192,64,48,0.7); }
+.menu-abandon-link {
+  width: auto;
+  align-self: center;
+  background: none;
+  border: 0;
+  padding: 2px 6px;
+  font-size: 14px;
+  color: var(--text-muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.menu-abandon-link:hover { background: none; color: #f0a08f; }
+.confirm-ask {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(192,64,48,0.55);
+  background: rgba(192,64,48,0.1);
+  text-align: left;
+}
+.confirm-ask-question { font-size: 14px; color: var(--text); }
+.confirm-ask-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.confirm-ask-actions button { flex: 1 1 auto; border-radius: 8px; padding: 7px 12px; cursor: pointer; font: inherit; font-size: 14px; }
+.confirm-ask-yes { background: var(--accent-red); border: 1px solid var(--accent-red); color: #fff; font-weight: 700; }
+.confirm-ask-no { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); color: var(--text); }
+.confirm-ask-actions button:focus-visible, .menu-abandon:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.confirm-ask .confirm-ask-yes:hover:not(:disabled) { background: #d4503b; border-color: #e0705c; color: #fff; }
+.confirm-ask .confirm-ask-no:hover:not(:disabled) { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.3); color: var(--text); }
+button.menu-abandon:hover:not(:disabled) { background: rgba(192,64,48,0.16); border-color: rgba(192,64,48,0.7); color: #f0a08f; }
+button.menu-abandon-link:hover:not(:disabled) { background: none; border: 0; color: #f0a08f; }

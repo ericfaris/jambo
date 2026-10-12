@@ -11,9 +11,12 @@ interface MainMenuProps {
   /** Set when an unfinished local game is saved — shows "Resume game". */
   resumeLabel?: string | null;
   onResume?: () => void;
+  /** Throw the saved game away (asks first). */
+  onAbandon?: () => void;
 }
 
-export function MainMenu({ onSelectOption, onTutorial, auth, resumeLabel, onResume }: MainMenuProps) {
+import { ConfirmButton } from '../ConfirmButton.tsx';
+export function MainMenu({ onSelectOption, onTutorial, auth, resumeLabel, onResume, onAbandon }: MainMenuProps) {
   const [statsSummary, setStatsSummary] = useState<UserStatsSummary | null>(null);
   const [statsError, setStatsError] = useState<string | null>(null);
 
@@ -71,6 +74,16 @@ export function MainMenu({ onSelectOption, onTutorial, auth, resumeLabel, onResu
               Resume Game
               <span className="menu-action-sub">{resumeLabel}</span>
             </button>
+          )}
+          {resumeLabel && onResume && onAbandon && (
+            <ConfirmButton
+              className="menu-abandon menu-abandon-link"
+              label="Abandon saved game"
+              question="Abandon your saved game? It can't be resumed."
+              confirmLabel="Abandon"
+              cancelLabel="Keep it"
+              onConfirm={onAbandon}
+            />
           )}
           <button className={`menu-action${resumeLabel && onResume ? '' : ' menu-action-primary'}`} onClick={() => onSelectOption('solo')}>
             Play Solo

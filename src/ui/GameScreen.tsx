@@ -51,7 +51,8 @@ import { getWinner, getFinalScores } from '../engine/endgame/EndgameManager.ts';
 import { useAuthSession } from './useAuthSession.ts';
 import { useLocalActionAudio, playSfx } from './useAudioEvents.ts';
 import type { Flight } from './flights.ts';
-import { saveLocalGame, setGameActiveInTab } from '../persistence/savedGame.ts';
+import { saveLocalGame, setGameActiveInTab, clearLocalGame } from '../persistence/savedGame.ts';
+import { ConfirmButton } from './ConfirmButton.tsx';
 import { useMediaQuery, PHONE_MEDIA_QUERY, SHORT_DESKTOP_MEDIA_QUERY } from './useMediaQuery.ts';
 import { useElementSize } from './useElementSize.ts';
 import { fitCardsToBox, fitMarketSlots } from './fitLayout.ts';
@@ -1209,7 +1210,22 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
                 >
                   How to Play
                 </button>
-                <div style={{ width: 60, height: 3, borderRadius: 2, background: 'var(--gold)', opacity: 0.5, marginBottom: 10 }} />
+                {state.phase !== 'GAME_OVER' && (
+                  <ConfirmButton
+                    className="menu-abandon"
+                    label="Abandon Game"
+                    question={localMultiplayer ? 'Abandon this game? It ends for both players and can\'t be resumed.' : 'Abandon this game? It can\'t be resumed.'}
+                    confirmLabel="Abandon"
+                    cancelLabel="Keep playing"
+                    onConfirm={() => {
+                      // Delete the save first, so the menu offers no "Resume Game"
+                      clearLocalGame();
+                      setMenuOpen(false);
+                      onBackToMenu();
+                    }}
+                  />
+                )}
+                <div style={{ width: 60, height: 3, borderRadius: 2, background: 'var(--gold)', opacity: 0.5, marginBottom: 10, marginTop: 4 }} />
               </>
             )}
             <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>

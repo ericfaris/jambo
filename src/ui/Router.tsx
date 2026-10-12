@@ -23,7 +23,7 @@ import type { RoomMode } from '../multiplayer/types.ts';
 import { useGameStore } from '../hooks/useGameStore.ts';
 import { extractPublicState } from '../multiplayer/stateSplitter.ts';
 import { getCastSessionController } from '../cast/factory.ts';
-import { loadLocalGame, isGameActiveInTab, setGameActiveInTab, describeSavedGame } from '../persistence/savedGame.ts';
+import { loadLocalGame, isGameActiveInTab, setGameActiveInTab, describeSavedGame, clearLocalGame } from '../persistence/savedGame.ts';
 import type { SavedGame } from '../persistence/savedGame.ts';
 
 type Route = 'local' | 'play';
@@ -136,6 +136,11 @@ function RouterInner() {
     setGameActiveInTab(false);
     setSavedGame(loadLocalGame());
     setScreen('menu');
+  }, []);
+
+  const handleAbandonSaved = useCallback(() => {
+    clearLocalGame();
+    setSavedGame(null);
   }, []);
 
   const handleResume = useCallback(() => {
@@ -284,6 +289,7 @@ function RouterInner() {
           auth={auth}
           resumeLabel={savedGame ? describeSavedGame(savedGame) : null}
           onResume={handleResume}
+          onAbandon={handleAbandonSaved}
         />
         {showPreGameSetup && pendingMode && (
           <PreGameSetupModal
@@ -309,6 +315,7 @@ function RouterInner() {
           auth={auth}
           resumeLabel={savedGame ? describeSavedGame(savedGame) : null}
           onResume={handleResume}
+          onAbandon={handleAbandonSaved}
         />
         <LoginModal onClose={() => setScreen('menu')} />
         <AvatarBadge avatarUrl={auth.avatarUrl} avatarLabel={auth.avatarLabel} />
