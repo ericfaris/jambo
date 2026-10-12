@@ -52,6 +52,10 @@ export interface FlightSnapshot {
   draft: { mode: 'cards' | 'utilities'; available: DeckCardId[]; picker: 0 | 1 } | null;
   /** An Elephant ware draft is in progress (its wares sit on the Elephant card). */
   wareDraft?: boolean;
+  /** Which cards each player holds and has in play — so when Ape / Lion pool
+   *  them, each card flies from its owner into the draft panel. */
+  hands?: [DeckCardId[], DeckCardId[]];
+  utilityIds?: [DeckCardId[], DeckCardId[]];
 }
 
 export function snapshotForFlights(state: GameState): FlightSnapshot {
@@ -66,6 +70,8 @@ export function snapshotForFlights(state: GameState): FlightSnapshot {
     utilityCounts: [state.players[0].utilities.length, state.players[1].utilities.length],
     draft: draftOf(state),
     wareDraft: state.pendingResolution?.type === 'DRAFT' && state.pendingResolution.draftMode === 'wares',
+    hands: [state.players[0].hand, state.players[1].hand],
+    utilityIds: [state.players[0].utilities.map((u) => u.cardId), state.players[1].utilities.map((u) => u.cardId)],
   };
 }
 
@@ -81,6 +87,8 @@ export const MAX_COINS_PER_FLIGHT = 6;
 const COIN_STAGGER_MS = 70;
 const WARE_STAGGER_MS = 90;
 const CARD_STAGGER_MS = 120;
+/** Ape / Lion pooling: many cards at once, so a quicker ripple. */
+const POOL_STAGGER_MS = 70;
 
 export function coinCount(delta: number): number {
   return Math.max(1, Math.min(MAX_COINS_PER_FLIGHT, Math.ceil(Math.abs(delta) / 2)));
@@ -101,6 +109,18 @@ interface SlotChange { player: 0 | 1; index: number; ware: WareType }
 export function planFlights(prev: FlightSnapshot, next: FlightSnapshot, startId = 1): Flight[] {
   let id = startId;
   const flights: Flight[] = [];
+
+  // --- Ape / Lion pool forms: every card flies from its owner into the pool --
+  if (!prev.draft && next.draft && prev.hands && prev.utilityIds) {
+    const owners = next.draft.mode === 'cards' ? prev.hands : prev.utilityIds;
+    next.draft.available.forEach((cardId, i) => {
+      const owner: 0 | 1 | null = owners[0].includes(cardId) ? 0 : owners[1].includes(cardId) ? 1 : null;
+      if (owner === null) return;
+      const from: FlightAnchor = next.draft!.mode === 'cards' ? { type: 'hand', player: owner } : { type: 'utilities', player: owner };
+      flights.push({ id: id++, kind: 'card', cardId, from, to: { type: 'draft-card', cardId }, delayMs: i * POOL_STAGGER_MS });
+    });
+    if (flights.length > 0) return flights;
+  }
 
   // --- draft picks (Ape / Lion) — a pick logs nothing until the draft ends --
   if (prev.draft) {

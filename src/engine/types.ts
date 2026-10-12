@@ -356,10 +356,13 @@ export interface GameState {
   log: GameLogEntry[];
 }
 
-/** What CANCEL_ACTION must undo: refund 1 action plus the card or utility use. */
-export type CancellableAction =
-  | { kind: 'utility'; utilityIndex: number }
-  | { kind: 'card'; cardId: DeckCardId; handIndex: number };
+/** What CANCEL_ACTION restores: the state from just before the card/utility. */
+export interface CancellableAction {
+  /** The card or utility being backed out of, for the log. */
+  name: string;
+  /** The whole state just before it was played/used — restored exactly. */
+  restore: GameState;
+}
 
 // --- Game Log ---
 export interface GameLogEntry {

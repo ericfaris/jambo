@@ -53,15 +53,17 @@ export function detectAudioEvent(action: GameAction, before?: GameState): AudioE
 
 /**
  * Sounds for what *happened* between two states rather than for an action:
- * an auction knocked down, the final turn beginning, the game ending.
+ * an auction knocked down, the end-of-turn gold bonus, the final turn
+ * beginning, the game ending.
  * `viewer` is the seat at this screen (null on the TV / in hotseat, where
  * every ending gets the victory flourish).
  */
 export function detectOutcomeSounds(prev: OutcomeView, next: OutcomeView, viewer: 0 | 1 | null): AudioEvent[] {
   const out: AudioEvent[] = [];
-  if (next.log.length > prev.log.length && next.log.slice(prev.log.length).some((e) => e.action === 'AUCTION_WON')) {
-    out.push('gavel');
-  }
+  const fresh = next.log.length > prev.log.length ? next.log.slice(prev.log.length) : [];
+  if (fresh.some((e) => e.action === 'AUCTION_WON')) out.push('gavel');
+  // Ending a turn with 2+ actions to spare pays +1g: let it be heard
+  if (fresh.some((e) => e.action === 'ACTION_BONUS')) out.push('coin');
   if (next.endgame?.isFinalTurn && !prev.endgame?.isFinalTurn && next.phase !== 'GAME_OVER') out.push('final-turn');
   if (next.phase === 'GAME_OVER' && prev.phase !== 'GAME_OVER') {
     const winner = getWinner(next);

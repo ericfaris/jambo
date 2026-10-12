@@ -189,9 +189,9 @@ resolver's empty-state guard) — never a panel with nothing to tap.
 2. Put auto-resolve guard BEFORE response type check in resolver
 3. Handle empty state in AI (`RandomAI.ts:getRandomInteractionResponse`)
 4. Handle empty state in UI (`InteractionPanel.tsx`)
-5. Decide whether its first step can be cancelled — add it to
-   `isAtFirstStep()` in `src/engine/cancelAction.ts` only if backing out
-   reveals no hidden info and undoes no opponent decision (never animals)
+5. Cancel comes for free (snapshot restore, `src/engine/cancelAction.ts`) —
+   just make sure any step that waits on the *opponent* reports them via
+   `getResponder()`, which is what ends the cancel window
 6. Run `npm run typecheck` to verify
 
 ## Draft Panel Visibility — IMPORTANT
@@ -303,14 +303,17 @@ Each ware type has a shared supply pool (not unlimited). When wares are bought, 
 - **Rain Maker**: Take opponent's just-used ware card from discard
 
 ### Cancelling (digital-only convenience)
-`CANCEL_ACTION` backs out of a card/utility the active player just started,
-before its first choice: refunds the action, returns the card to the same
-hand slot or clears the utility's used flag. Allowed: Boat, Kettle, Weapons,
-Drums, Leopard Statue, Throne, Mask, Supplies, Scale (before drawing),
-Shaman, Tribal Elder, Carrier, Portuguese, Basket Maker, Dancer, Drummer,
-Traveling Merchant (before any bid), choosing a utility to replace. Never:
-Psychic, Arabian Merchant (reveal deck cards), animals (Guard window already
-offered). Not in `getValidActions()` — the AI never cancels.
+`CANCEL_ACTION` backs out of a card/utility the active player started, from
+**any** of its resolution screens, until the opponent acts (2026-10-12
+decision). Playing/using a card that opens a resolution stores a snapshot of
+the state just before it (`cancellableAction.restore`); cancelling restores
+it exactly (deck order, gold, wares, hands, the action) and logs "Cancelled
+X". Cards a step already showed you (Scale, Psychic, Arabian Merchant) go back
+where they were — you've seen them, by design. The snapshot is dropped as
+soon as the opponent is involved (Guard decision, bid, draft pick, opponent
+choice) or the effect finishes. Scale draws its 2 cards as it starts (no
+"draw" step). The snapshot never goes into the public Cast state. Not in
+`getValidActions()` — the AI never cancels.
 
 ### Endgame
 - **Trigger**: Player ends turn with >= 60g

@@ -81,7 +81,7 @@ describe('Draft panel stays visible during opponent pick', () => {
       expect(html).toContain('Opponent is picking...');
       expect(html).toContain('4 in pool');
       // Should NOT have clickable buttons — wares rendered as divs with opacity
-      expect(html).toContain('opacity:0.6');
+      expect(html).toContain('ware-pick-waiting');
     });
 
     it('shows updated pool as wares are picked', () => {
@@ -131,7 +131,7 @@ describe('Draft panel stays visible during opponent pick', () => {
       expect(html).toContain('Opponent is picking a card...');
       expect(html).toContain('3 in pool');
       // Panel should still be rendered (not null/empty)
-      expect(html).toContain('Ape - Resolve');
+      expect(html).toContain('resolve-title">Ape<');
     });
   });
 
@@ -166,7 +166,7 @@ describe('Draft panel stays visible during opponent pick', () => {
 
       expect(html).toContain('Opponent is picking a utility...');
       expect(html).toContain('2 in pool');
-      expect(html).toContain('Lion - Resolve');
+      expect(html).toContain('resolve-title">Lion<');
     });
   });
 
@@ -196,8 +196,8 @@ describe('Draft panel stays visible during opponent pick', () => {
       );
 
       // Both should render the Elephant resolve panel
-      expect(htmlMyPick).toContain('Elephant - Resolve');
-      expect(htmlOppPick).toContain('Elephant - Resolve');
+      expect(htmlMyPick).toContain('resolve-title">Elephant<');
+      expect(htmlOppPick).toContain('resolve-title">Elephant<');
 
       // My pick is interactive, opp pick shows waiting text
       expect(htmlMyPick).toContain('Pick 1 ware to keep');

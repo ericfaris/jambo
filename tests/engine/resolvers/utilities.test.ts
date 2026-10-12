@@ -163,21 +163,19 @@ describe('Scale (Draw 2, keep 1, give 1)', () => {
     return s;
   }
 
-  it('auto-draw 2 → keep 1 (other to opponent)', () => {
+  it('activating draws 2 straight away → keep 1 (other to opponent)', () => {
     const s = setupScale();
     const s2 = act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 });
-    expect(s2.pendingResolution!.type).toBe('UTILITY_EFFECT');
-
-    // First resolve triggers the draw of 2 cards
-    const s3 = resolve(s2, { type: 'SELECT_CARD', cardId: 'dummy' });
-    const pending = s3.pendingResolution as any;
-    if (pending && pending.selectedCards && pending.selectedCards.length === 2) {
-      const [card1, card2] = pending.selectedCards;
-      const s4 = resolve(s3, { type: 'SELECT_CARD', cardId: card1 });
-      expect(s4.pendingResolution).toBeNull();
-      expect(hand(s4, 0)).toContain(card1);
-      expect(hand(s4, 1)).toContain(card2);
-    }
+    // no "draw cards" step: the 2 cards are already on offer
+    const pending = s2.pendingResolution as { type: string; selectedCards?: string[] };
+    expect(pending.type).toBe('UTILITY_EFFECT');
+    expect(pending.selectedCards).toHaveLength(2);
+    expect(s2.deck.length).toBe(s.deck.length - 2);
+    const [card1, card2] = pending.selectedCards!;
+    const s4 = resolve(s2, { type: 'SELECT_CARD', cardId: card1 });
+    expect(s4.pendingResolution).toBeNull();
+    expect(hand(s4, 0)).toContain(card1);
+    expect(hand(s4, 1)).toContain(card2);
   });
 });
 

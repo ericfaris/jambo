@@ -21,12 +21,18 @@ describe('AI pacing', () => {
     expect(aiActionDelayMs('PLAY_CARD', 'normal')).toBeLessThan(aiActionDelayMs('PLAY_CARD', 'relaxed'));
   });
 
-  it('a typical AI turn takes under 10s at Normal (was 15–20s)', () => {
+  // Budgets re-set 2026-10-12 when every AI pause got +300ms on purpose
+  // ("a little more time to breathe"); they still catch accidental creep.
+  it('every AI pause is 300ms longer than the old pacing', () => {
+    expect(AI_BASE_DELAY_MS).toEqual({ hidden: 1050, choice: 1300, play: 1200, endTurn: 1100 });
+  });
+
+  it('a typical AI turn takes under 11.5s at Normal (was 15–20s before pacing work)', () => {
     // draw, keep, play a person (spotlit) + resolve it, play a ware (spotlit), end turn
     const turn = ['DRAW_CARD', 'KEEP_CARD', 'PLAY_CARD', 'RESOLVE_INTERACTION', 'PLAY_CARD', 'END_TURN'];
     const pauses = turn.reduce((ms, t) => ms + aiActionDelayMs(t), 0);
     const spotlights = 2 * spotlightDurationMs(false);
-    expect(pauses + spotlights).toBeLessThan(10_000);
+    expect(pauses + spotlights).toBeLessThan(11_500);
   });
 
   it('parses stored values defensively', () => {
@@ -37,11 +43,11 @@ describe('AI pacing', () => {
 });
 
 describe('busy AI turns', () => {
-  it('a 4-play turn (new card, two trades, a utility re-use, two choices) stays under 13s', () => {
+  it('a 4-play turn (new card, two trades, a utility re-use, two choices) stays under 16s', () => {
     const turn = ['DRAW_CARD', 'KEEP_CARD', 'PLAY_CARD', 'RESOLVE_INTERACTION', 'PLAY_CARD', 'PLAY_CARD', 'ACTIVATE_UTILITY', 'RESOLVE_INTERACTION', 'END_TURN'];
     const pauses = turn.reduce((ms, t) => ms + aiActionDelayMs(t), 0);
     const spotlights = spotlightBlockingMs({}) + 2 * spotlightBlockingMs({ weight: 'trade' }) + spotlightBlockingMs({ weight: 'routine' });
-    expect(pauses + spotlights).toBeLessThan(13_000); // was ~16-20s measured
+    expect(pauses + spotlights).toBeLessThan(16_000); // ~15.1s with the +300ms pauses; was ~16-20s measured originally
   });
 
   it('holds scale with how newsworthy the play is', () => {

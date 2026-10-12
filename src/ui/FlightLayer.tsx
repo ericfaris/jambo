@@ -52,9 +52,11 @@ function centerOfElement(el: Element | null): { x: number; y: number } | null {
 
 function centerOf(anchor: FlightAnchor): { x: number; y: number } | null {
   const at = centerOfElement(document.querySelector(anchorSelector(anchor)));
-  // the draft panel isn't up (yet): the table still says "into the middle"
-  if (!at && anchor.type === 'draft-source') return centerOf({ type: 'table' });
-  return at;
+  if (at) return at;
+  // a pool card not laid out (yet): the card running the draft, then the table
+  if (anchor.type === 'draft-card') return centerOf({ type: 'draft-source' });
+  if (anchor.type === 'draft-source') return centerOf({ type: 'table' });
+  return null;
 }
 
 /** Where every draft-pool card sits right now (read before the next change). */
@@ -66,6 +68,10 @@ function measureDraftCards(): Map<string, { x: number; y: number }> {
     if (c && id) out.set(id, c);
   });
   return out;
+}
+
+function draftCardElement(cardId: string): HTMLElement | null {
+  return document.querySelector<HTMLElement>(`[data-draft-card="${cardId}"]`);
 }
 
 function slotElement(player: 0 | 1, index: number): HTMLElement | null {
@@ -139,6 +145,8 @@ export function FlightLayer({ state, viewer, spotlightEnabled, spotlightActive, 
           continue;
         }
         out.push({ ...f, x: from.x, y: from.y, dx: to.x - from.x, dy: to.y - from.y });
+        // a card flying into the draft pool: its spot stays empty until it lands
+        if (f.to.type === 'draft-card') draftCardElement(f.to.cardId)?.setAttribute('data-incoming', '');
       }
       if (out.length > 0) setLaunched((cur) => [...cur, ...out]);
     }
@@ -151,6 +159,7 @@ export function FlightLayer({ state, viewer, spotlightEnabled, spotlightActive, 
   // Stable identity: sprites key their animation effect on it
   const land = useCallback((f: LaunchedFlight) => {
     setLaunched((cur) => cur.filter((x) => x.id !== f.id));
+    if (f.to.type === 'draft-card') draftCardElement(f.to.cardId)?.removeAttribute('data-incoming');
     if (f.revealsSlot) {
       const el = slotElement(f.revealsSlot.player, f.revealsSlot.index);
       el?.removeAttribute('data-incoming');

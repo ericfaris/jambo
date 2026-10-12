@@ -37,10 +37,10 @@ describe('InteractionPanel auction continuity', () => {
       createElement(InteractionPanel, { state: withAuctionState(base, ['tea']), dispatch: noopDispatch, viewerPlayer: 0 }),
     );
 
-    expect(stepOne).toContain('Traveling Merchant - Resolve');
+    expect(stepOne).toContain('resolve-title">Traveling Merchant<');
     expect(stepOne).toContain('Pick first ware from supply for auction');
 
-    expect(stepTwo).toContain('Traveling Merchant - Resolve');
+    expect(stepTwo).toContain('resolve-title">Traveling Merchant<');
     expect(stepTwo).toContain('Pick second ware from supply');
   });
 
@@ -54,10 +54,10 @@ describe('InteractionPanel auction continuity', () => {
       createElement(InteractionPanel, { state: withAuctionState(base, ['salt']), dispatch: noopDispatch, viewerPlayer: 1 }),
     );
 
-    expect(stepOneWaiting).toContain('Traveling Merchant - Resolve');
+    expect(stepOneWaiting).toContain('resolve-title">Traveling Merchant<');
     expect(stepOneWaiting).toContain('Step 1/2: waiting for opponent to select auction wares');
 
-    expect(stepTwoWaiting).toContain('Traveling Merchant - Resolve');
+    expect(stepTwoWaiting).toContain('resolve-title">Traveling Merchant<');
     expect(stepTwoWaiting).toContain('Step 1/2: waiting for opponent to select auction wares');
   });
 
@@ -78,16 +78,20 @@ describe('InteractionPanel auction continuity', () => {
       createElement(InteractionPanel, { state: withAuctionState(base, ['tea', 'salt']), dispatch: noopDispatch, viewerPlayer: 1 }),
     );
 
-    expect(beforeBiddingForActive).toContain('Traveling Merchant - Resolve');
+    expect(beforeBiddingForActive).toContain('resolve-title">Traveling Merchant<');
     expect(beforeBiddingForActive).toContain('Pick second ware from supply');
-    expect(biddingForActive).toContain('Traveling Merchant - Resolve');
-    expect(biddingForActive).toContain('Step 2/2: waiting for opponent bid');
+    expect(biddingForActive).toContain('resolve-title">Traveling Merchant<');
+    expect(biddingForActive).toContain('Waiting for opponent bid');
+    expect(biddingForActive).toContain('On the block');
 
-    expect(beforeBiddingForOpponent).toContain('Traveling Merchant - Resolve');
+    expect(beforeBiddingForOpponent).toContain('resolve-title">Traveling Merchant<');
     expect(beforeBiddingForOpponent).toContain('Step 1/2: waiting for opponent to select auction wares');
-    expect(biddingForOpponent).toContain('Traveling Merchant - Resolve');
-    expect(biddingForOpponent).toContain('Auction:');
-    expect(biddingForOpponent).toContain('Current bid: 1g. Your turn.');
+    expect(biddingForOpponent).toContain('resolve-title">Traveling Merchant<');
+    expect(biddingForOpponent).toContain('On the block');
+    expect(biddingForOpponent).toContain('Current bid');
+    expect(biddingForOpponent).toContain('aria-label="1g"');
+    expect(biddingForOpponent).toContain('Bid 2g');
+    expect(biddingForOpponent).toContain('Your call');
   });
 });
 
@@ -111,7 +115,7 @@ describe('InteractionPanel Arabian Merchant card auction', () => {
 
   it('shows the revealed cards and bid/pass to the bidder', () => {
     const html = renderToStaticMarkup(createElement(InteractionPanel, { state: cardAuction(createTestState(), 0), dispatch: noopDispatch, viewerPlayer: 0 }));
-    expect(html).toContain('Arabian Merchant - Resolve');
+    expect(html).toContain('resolve-title">Arabian Merchant<');
     expect(html).toContain('Auction for 3 cards');
     expect(html).toContain('Bid 1g');
     expect(html).toContain('Pass');

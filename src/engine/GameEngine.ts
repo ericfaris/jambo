@@ -236,8 +236,11 @@ export function processAction(state: GameState, action: GameAction): GameState {
       throw new Error(`Unknown action type`);
   }
 
-  // Offer a cancel only right after the action that opened the resolution;
-  // any further action (the first choice, a reaction, …) withdraws it.
+  // Scale draws its 2 cards straight away — straight to "keep 1, give 1"
+  next = autoStartScale(next);
+
+  // A cancel point lasts from the play through its player's own choices; the
+  // opponent acting, or the effect finishing, withdraws it (cancelAction.ts).
   const cancellable = action.type === 'CANCEL_ACTION' ? null : deriveCancellableAction(state, action, next);
   if (cancellable || next.cancellableAction) {
     next = { ...next, cancellableAction: cancellable };
@@ -253,6 +256,15 @@ export function processAction(state: GameState, action: GameAction): GameState {
   }
 
   return next;
+}
+
+/** Scale's first step is just "draw 2": do it as the utility starts (also when
+ *  a Crocodile uses an opponent's Scale), so the player lands on the choice. */
+function autoStartScale(state: GameState): GameState {
+  const pr = state.pendingResolution;
+  if (!pr || pr.type !== 'UTILITY_EFFECT' || pr.utilityDesign !== 'scale') return state;
+  if (pr.selectedCards && pr.selectedCards.length > 0) return state;
+  return resolveInteraction(state, { type: 'SELECT_CARD', cardId: '' });
 }
 
 // ---------------------------------------------------------------------------

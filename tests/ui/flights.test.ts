@@ -204,3 +204,25 @@ describe('Elephant: the pooled wares gather on the Elephant card', () => {
     expect(anchorSelector({ type: 'draft-source' })).toBe('[data-draft-source]');
   });
 });
+
+describe('Ape / Lion: every pooled card flies from its owner into the draft panel', () => {
+  it('Ape: both hands fly in — each card from the hand it was in', () => {
+    const prev = snap({ hands: [['guard_1', 'well_1'], ['drums_1', 'ware_3k_1', 'parrot_1']], utilityIds: [[], []], handCounts: [2, 3] });
+    const next = snap({
+      handCounts: [0, 0], logLength: 11, hands: [[], []], utilityIds: [[], []],
+      draft: { mode: 'cards', available: ['guard_1', 'well_1', 'drums_1', 'ware_3k_1', 'parrot_1'], picker: 0 },
+    });
+    const flights = planFlights(prev, next);
+    expect(flights).toHaveLength(5);
+    expect(flights.every((f) => f.kind === 'card' && f.to.type === 'draft-card')).toBe(true);
+    expect(flights.filter((f) => f.from.type === 'hand' && f.from.player === 1).map((f) => f.cardId)).toEqual(['drums_1', 'ware_3k_1', 'parrot_1']);
+    expect(flights.find((f) => f.cardId === 'guard_1')?.from).toEqual({ type: 'hand', player: 0 });
+  });
+
+  it('Lion: utilities fly in from each utility row', () => {
+    const prev = snap({ hands: [[], []], utilityIds: [['well_1'], ['drums_1', 'boat_1']], utilityCounts: [1, 2] });
+    const next = snap({ utilityCounts: [0, 0], logLength: 11, hands: [[], []], utilityIds: [[], []], draft: { mode: 'utilities', available: ['well_1', 'drums_1', 'boat_1'], picker: 1 } });
+    const flights = planFlights(prev, next);
+    expect(flights.map((f) => f.from)).toEqual([{ type: 'utilities', player: 0 }, { type: 'utilities', player: 1 }, { type: 'utilities', player: 1 }]);
+  });
+});

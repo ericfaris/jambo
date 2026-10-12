@@ -52,11 +52,12 @@ export function parseAiSpeed(value: string | null | undefined): AiSpeed {
  * separately (the AI holds while one is on screen).
  */
 export const AI_BASE_DELAY_MS = {
-  hidden: 750,
-  choice: 1000,
+  // +300ms each (2026-10-12): a little more room to breathe between moves
+  hidden: 1050,
+  choice: 1300,
   // the spotlight that follows a play carries the beat
-  play: 900,
-  endTurn: 800,
+  play: 1200,
+  endTurn: 1100,
 } as const;
 
 export function aiActionDelayMs(actionType: string, speed: AiSpeed = 'normal'): number {

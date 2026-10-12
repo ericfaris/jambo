@@ -115,3 +115,22 @@ describe('Cast phones and TV hear the outcomes too', () => {
     expect(detectOutcomeSounds(a, b, null)).toEqual(['win']);
   });
 });
+
+describe('end-of-turn gold bonus is heard', () => {
+  it('ending a turn with 2+ actions to spare plays the coin sound (any player, from the real engine)', async () => {
+    const { processAction } = await import('../../src/engine/GameEngine.ts');
+    const spare = { ...toPlayPhase(createTestState()), actionsLeft: 3 };
+    const ended = processAction(spare, { type: 'END_TURN' });
+    expect(ended.players[spare.currentPlayer].gold).toBe(spare.players[spare.currentPlayer].gold + 1);
+    expect(detectOutcomeSounds(spare, ended, 0)).toContain('coin');
+    expect(detectOutcomeSounds(spare, ended, 1)).toContain('coin'); // the opponent's bonus too
+    // the turn-end sound still plays alongside it
+    expect(detectAudioEvent({ type: 'END_TURN' })).toBe('turn-end');
+  });
+
+  it('no bonus, no coin', async () => {
+    const { processAction } = await import('../../src/engine/GameEngine.ts');
+    const spent = { ...toPlayPhase(createTestState()), actionsLeft: 1 };
+    expect(detectOutcomeSounds(spent, processAction(spent, { type: 'END_TURN' }), 0)).not.toContain('coin');
+  });
+});

@@ -23,7 +23,11 @@ function resolve(dispatch: InteractionPanelProps['dispatch'], response: Interact
   dispatch({ type: 'RESOLVE_INTERACTION', response });
 }
 
-function getCardGridStyle(cardCount: number) {
+/** Space a scrolling card picker keeps around its cards so a hovered card's
+ *  lift, scale and shadow are never clipped by the scroll box. */
+export const CARD_HOVER_ROOM_PX = 14;
+
+export function getCardGridStyle(cardCount: number) {
   if (cardCount <= 0) {
     return { display: 'grid' } as const;
   }
@@ -41,7 +45,9 @@ function getCardGridStyle(cardCount: number) {
       maxHeight: 'min(42vh, 360px)',
       overflowY: 'auto',
       overflowX: 'hidden',
-      paddingRight: 4,
+      // room for a card's hover lift (8px up, a little scale, its shadow) inside the scroller
+      padding: `${CARD_HOVER_ROOM_PX}px ${CARD_HOVER_ROOM_PX - 4}px ${CARD_HOVER_ROOM_PX * 3}px`,
+      marginBottom: -20, // the shadow room overlaps what follows instead of adding a gap
     } as const;
   }
   return {
@@ -58,7 +64,9 @@ function getCardGridStyle(cardCount: number) {
     maxHeight: 'min(42vh, 360px)',
     overflowY: 'auto',
     overflowX: 'hidden',
-    paddingRight: 4,
+    // room for a card's hover lift (8px up, a little scale, its shadow) inside the scroller
+    padding: `${CARD_HOVER_ROOM_PX}px ${CARD_HOVER_ROOM_PX - 4}px ${CARD_HOVER_ROOM_PX * 3}px`,
+      marginBottom: -20, // the shadow room overlaps what follows instead of adding a gap
   } as const;
 }
 
@@ -138,9 +146,12 @@ function SelectableCardArea({
         overflowX: 'auto',
         overflowY: 'hidden',
         maxWidth: '100%',
-        padding: '2px 4px 6px',
+        // overflow-x scrolling clips vertically too: leave room for the hover lift
+        padding: `${CARD_HOVER_ROOM_PX + 2}px ${CARD_HOVER_ROOM_PX - 4}px ${CARD_HOVER_ROOM_PX * 3}px`,
+      marginBottom: -20, // the shadow room overlaps what follows instead of adding a gap
         scrollbarWidth: 'thin',
       }}
+      className="resolve-card-row"
     >
       {cards.map((cardId, index) => (
         <div
@@ -228,14 +239,14 @@ export function InteractionPanel({ state, dispatch, viewerPlayer = 0, onMegaView
 
   return (
     <PanelShell
-      title={`${source.name} - Resolve`}
+      title={source.name}
       breadcrumb={breadcrumb}
       sourceCardId={pr.sourceCard}
       onMegaView={onMegaView}
       compactSourceCard={compactSourceCard}
       onCancel={cancellable ? () => dispatch({ type: 'CANCEL_ACTION' }) : undefined}
       cancelLabel={`Cancel ${source.name} and get your action back`}
-      draftSource={pr.type === 'DRAFT' && pr.draftMode === 'wares'}
+      draftSource={pr.type === 'DRAFT'}
     >
       <ResolutionContent state={state} pr={pr} dispatch={dispatch} viewerPlayer={viewerPlayer} onMegaView={onMegaView} />
     </PanelShell>
@@ -389,7 +400,7 @@ function PanelShell({ title, breadcrumb, children, sourceCardId, onMegaView, com
   return (
     <div className="panel-slide" style={{ maxWidth: compactSourceCard ? 980 : 460, margin: '0 auto', width: '100%' }}>
       <div
-        className="dialog-pop linen-texture"
+        className="dialog-pop linen-texture resolve-panel"
         style={{
           borderRadius: 14,
           padding: 'clamp(6px, 2vw, 10px)',
@@ -429,7 +440,7 @@ function PanelShell({ title, breadcrumb, children, sourceCardId, onMegaView, com
             <img
               src={`/assets/cards/${sourceCard.designId}.png`}
               alt={sourceCard.name}
-              className={compactSourceCard ? 'panel-source-art-compact' : 'panel-source-art'}
+              className={`resolve-source-art ${compactSourceCard ? 'panel-source-art-compact' : 'panel-source-art'}`}
               style={{ width: '100%', borderRadius: 10, display: 'block' }}
               draggable={false}
             />
@@ -437,7 +448,7 @@ function PanelShell({ title, breadcrumb, children, sourceCardId, onMegaView, com
           </div>
         )}
 
-        <div className="linen-texture" style={{
+        <div className="linen-texture resolve-body" style={{
           marginTop: sourceCard && !compactSourceCard ? 8 : 0,
           borderRadius: 10,
           padding: 'clamp(10px, 2.5vw, 14px)',
@@ -447,20 +458,22 @@ function PanelShell({ title, breadcrumb, children, sourceCardId, onMegaView, com
           minWidth: compactSourceCard ? 0 : undefined,
         }}>
           {breadcrumb && (
-            <div style={{
-              fontSize: 12,
-              color: '#6a5a48',
-              textAlign: 'center',
-              marginBottom: 6,
-              fontWeight: 600,
-            }}>
+            <div className="resolve-eyebrow">
+              <span className="resolve-eyebrow-rule" aria-hidden="true" />
               {breadcrumb}
+              <span className="resolve-eyebrow-rule" aria-hidden="true" />
             </div>
           )}
-          <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 17, marginBottom: 10, color: '#1a1714', letterSpacing: 0.2, textAlign: 'center' }}>
-            {title}
-          </div>
+          <h3 className="resolve-title">{title}</h3>
+          <div className="resolve-divider" aria-hidden="true"><span /></div>
           {children}
+          {onCancel && (
+            <div className="resolve-footer">
+              <button type="button" className="resolve-cancel" onClick={onCancel} title={cancelLabel ?? 'Cancel'}>
+                Cancel — take it back
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -547,7 +560,7 @@ function WareTypePicker({ prompt, onPick, exclude, blocked }: { prompt: string; 
               disabled={reason !== null}
               title={reason ?? wt}
               aria-label={reason ? `${wt} — ${reason}` : wt}
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+              className="ware-pick"
             >
               <WareToken type={wt} />
             </button>
@@ -599,9 +612,12 @@ function AuctionPanel({ pr, state, viewerPlayer, dispatch, onMegaView }: { pr: E
     return (
       <div>
         {pr.wares.length === 1 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-            <span className="ui-helper-text">First pick:</span>
-            <WareToken type={pr.wares[0]} />
+          <div className="auction-lot auction-lot-partial">
+            <span className="auction-lot-label">On the block</span>
+            <div className="auction-lot-wares">
+              <WareToken type={pr.wares[0]} />
+              <span className="auction-lot-open" aria-label="second ware still to pick" />
+            </div>
           </div>
         )}
         <WareTypePicker prompt={prompt} onPick={(wt) => resolve(dispatch, { type: 'SELECT_WARE_TYPE', wareType: wt })} blocked={(wt) => wareChoiceBlocked(state, pr, wt)} />
@@ -611,32 +627,77 @@ function AuctionPanel({ pr, state, viewerPlayer, dispatch, onMegaView }: { pr: E
 
   // Bidding phase
   const isMyBid = pr.nextBidder === viewerPlayer;
-  if (!isMyBid) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <span className="ui-helper-text">Step 2/2: waiting for opponent bid...</span>
-        <div style={getWareGridStyle(pr.wares.length)}>
-          {pr.wares.map((wt, i) => <WareToken key={i} type={wt} />)}
-        </div>
-        <span className="ui-helper-text">(Current: {pr.currentBid}g)</span>
-      </div>
-    );
-  }
+  const nextBid = pr.currentBid + 1;
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-        <span className="ui-helper-text">Auction:</span>
-        <div style={getWareGridStyle(pr.wares.length)}>
+    <div className="auction">
+      <div className="auction-lot">
+        <span className="auction-lot-label">On the block</span>
+        <div className="auction-lot-wares">
           {pr.wares.map((wt, i) => <WareToken key={i} type={wt} />)}
         </div>
-        <span className="ui-helper-text">Current bid: {pr.currentBid}g. Your turn.</span>
       </div>
-      <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-        <button className="primary" onClick={() => resolve(dispatch, { type: 'AUCTION_BID', amount: pr.currentBid + 1 })}>
-          Bid {pr.currentBid + 1}g
-        </button>
-        <button onClick={() => resolve(dispatch, { type: 'AUCTION_PASS' })}>Pass</button>
+      <AuctionBidBoard
+        pr={pr}
+        viewerPlayer={viewerPlayer}
+        myGold={state.players[viewerPlayer].gold}
+        onBid={() => resolve(dispatch, { type: 'AUCTION_BID', amount: nextBid })}
+        onPass={() => resolve(dispatch, { type: 'AUCTION_PASS' })}
+        canAfford={state.players[viewerPlayer].gold >= nextBid}
+        isMyBid={isMyBid}
+      />
+    </div>
+  );
+}
+
+/**
+ * The bidding half of an auction: the current bid as a big coin, who leads,
+ * your purse, and Bid / Pass — or who's thinking, while it isn't your call.
+ */
+function AuctionBidBoard({ pr, viewerPlayer, myGold, onBid, onPass, canAfford, isMyBid }: {
+  pr: Extract<PendingResolution, { type: 'AUCTION' }>;
+  viewerPlayer: 0 | 1;
+  myGold: number;
+  onBid: () => void;
+  onPass: () => void;
+  canAfford: boolean;
+  isMyBid: boolean;
+}) {
+  const nextBid = pr.currentBid + 1;
+  const leading = pr.currentBid > 0 ? (pr.currentBidder === viewerPlayer ? 'mine' : 'theirs') : 'none';
+  return (
+    <div className="auction-board">
+      <div className="auction-standing">
+        <div className="auction-current">
+          <span className="auction-caption">Current bid</span>
+          <span className={`ware-coin auction-coin${pr.currentBid === 0 ? ' auction-coin-empty' : ''}`} aria-label={`${pr.currentBid}g`}>
+            {pr.currentBid > 0 ? pr.currentBid : '–'}
+          </span>
+          <span className={`auction-leader auction-leader-${leading}`}>
+            {leading === 'mine' ? 'You lead' : leading === 'theirs' ? 'Opponent leads' : 'No bids yet'}
+          </span>
+        </div>
+        <div className="auction-purse">
+          <span className="auction-caption">Your gold</span>
+          <span className="auction-purse-amount">{myGold}g</span>
+        </div>
       </div>
+      {isMyBid ? (
+        <>
+          <div className="dialog-actions auction-actions">
+            <button className="primary" disabled={!canAfford} onClick={onBid}>
+              Bid {nextBid}g
+            </button>
+            <button onClick={onPass}>Pass</button>
+          </div>
+          <div className="auction-note">
+            {canAfford ? 'Your call — raise or pass. Passing ends the auction.' : `You can't cover ${nextBid}g — pass to end the auction.`}
+          </div>
+        </>
+      ) : (
+        <div className="auction-waiting" role="status">
+          Waiting for opponent bid<span className="auction-waiting-dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span>
+        </div>
+      )}
     </div>
   );
 }
@@ -645,26 +706,23 @@ function AuctionPanel({ pr, state, viewerPlayer, dispatch, onMegaView }: { pr: E
 function CardAuctionPanel({ pr, cards, state, viewerPlayer, dispatch, onMegaView }: { pr: Extract<PendingResolution, { type: 'AUCTION' }>; cards: DeckCardId[]; state: GameState; viewerPlayer: 0 | 1; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
   const isMyBid = pr.nextBidder === viewerPlayer;
   const nextBid = pr.currentBid + 1;
-  const canAfford = state.players[viewerPlayer].gold >= nextBid;
-  const leader = pr.currentBid > 0 ? (pr.currentBidder === viewerPlayer ? 'You lead' : 'Opponent leads') : 'No bids yet';
   return (
-    <div>
+    <div className="auction">
       <div className="ui-prompt-text">
         Auction for {cards.length} card{cards.length === 1 ? '' : 's'} — winner takes them all. If nobody bids, they are discarded.
       </div>
-      <SelectableCardArea cards={cards} onSelect={() => {}} onMegaView={onMegaView} />
-      <div className="ui-helper-text" style={{ textAlign: 'center', margin: '8px 0' }}>
-        {leader}{pr.currentBid > 0 ? ` at ${pr.currentBid}g` : ''}.{' '}
-        {isMyBid ? 'Your turn — raise or pass. Passing ends the auction.' : 'Waiting for opponent bid...'}
+      <div className="auction-lot auction-lot-cards">
+        <SelectableCardArea cards={cards} onSelect={() => {}} onMegaView={onMegaView} />
       </div>
-      {isMyBid && (
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-          <button className="primary" disabled={!canAfford} onClick={() => resolve(dispatch, { type: 'AUCTION_BID', amount: nextBid })}>
-            Bid {nextBid}g
-          </button>
-          <button onClick={() => resolve(dispatch, { type: 'AUCTION_PASS' })}>Pass</button>
-        </div>
-      )}
+      <AuctionBidBoard
+        pr={pr}
+        viewerPlayer={viewerPlayer}
+        myGold={state.players[viewerPlayer].gold}
+        onBid={() => resolve(dispatch, { type: 'AUCTION_BID', amount: nextBid })}
+        onPass={() => resolve(dispatch, { type: 'AUCTION_PASS' })}
+        canAfford={state.players[viewerPlayer].gold >= nextBid}
+        isMyBid={isMyBid}
+      />
     </div>
   );
 }
@@ -974,11 +1032,11 @@ function DraftPanel({ pr, viewerPlayer, dispatch, onMegaView }: { pr: Extract<Pe
         <div style={getWareGridStyle(pr.availableWares.length)}>
           {pr.availableWares.map((wt, i) => (
             isMyPick ? (
-              <button key={i} onClick={() => resolve(dispatch, { type: 'SELECT_WARE', wareIndex: i })} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
+              <button key={i} className="ware-pick" aria-label={wt} onClick={() => resolve(dispatch, { type: 'SELECT_WARE', wareIndex: i })}>
                 <WareToken type={wt} />
               </button>
             ) : (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.6 }}>
+              <div key={i} className="ware-pick ware-pick-waiting">
                 <WareToken type={wt} />
               </div>
             )
@@ -1181,7 +1239,7 @@ function UtilityEffectPanel({ state, pr, dispatch, onMegaView }: { state: GameSt
     // Second phase: pick which drawn card to keep
     return (
       <div>
-        <div className="ui-prompt-text">Scale step 2/2: keep 1 card (the other goes to opponent).</div>
+        <div className="ui-prompt-text">Keep 1 card — the other goes to your opponent.</div>
         <SelectableCardArea
           cards={pr.selectedCards}
           onSelect={(cardId) => resolve(dispatch, { type: 'SELECT_CARD', cardId })}

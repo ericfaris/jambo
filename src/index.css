@@ -58,6 +58,11 @@
   --card-ware: #C9A84C;
   --card-stand: #8B7355;
 
+  /* The diffused scrim behind every zoomed card ("mega view"): the card zoom,
+     Buy/Sell and draw dialogs, resolve panels, and the opponent spotlight */
+  --megaview-scrim: rgba(20,10,5,0.85);
+  --megaview-blur: blur(3px);
+
   /* Fonts */
   --font-heading: 'Judson', Georgia, serif;
   --font-body: 'Judson', Georgia, serif;
@@ -1565,7 +1570,10 @@ button.brown:hover:not(:disabled) {
 .opp-spotlight-backdrop {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse at center, rgba(20,10,5,0.72) 0%, rgba(20,10,5,0.4) 55%, rgba(20,10,5,0.15) 100%);
+  /* same diffused scrim as every other mega view */
+  background: var(--megaview-scrim);
+  -webkit-backdrop-filter: var(--megaview-blur);
+  backdrop-filter: var(--megaview-blur);
   animation: opp-spotlight-fade var(--motion-slow) ease-out both;
   transition: opacity var(--motion-slow) ease-in;
 }
@@ -2036,6 +2044,8 @@ button.brown:hover:not(:disabled) {
 }
 /* A slot waiting for its ware to fly in stays empty until it lands */
 [data-incoming] .ware-in-slot { visibility: hidden; }
+/* Ape / Lion: a pool card shows up when its flight from the owner lands */
+[data-draft-card][data-incoming] { visibility: hidden; }
 .market-slot-landed .ware-in-slot { animation: slot-landed 380ms var(--anim-ease-emphasis); }
 @keyframes slot-landed {
   0% { transform: scale(0.6); }
@@ -2045,6 +2055,7 @@ button.brown:hover:not(:disabled) {
 @media (prefers-reduced-motion: reduce) {
   .flight-layer { display: none; }
   [data-incoming] .ware-in-slot { visibility: visible; }
+  [data-draft-card][data-incoming] { visibility: visible; }
   .market-slot-landed .ware-in-slot { animation: none; }
 }
 
@@ -2609,51 +2620,52 @@ button.menu-abandon-link:hover:not(:disabled) { background: none; border: 0; col
 .market-summary-free-none { background: rgba(184,50,42,0.12); color: #9a2a20; border-color: rgba(184,50,42,0.35); }
 .market-summary-onDark .market-summary-free-none { background: rgba(224,80,64,0.15); color: #f0a08f; border-color: rgba(224,80,64,0.4); }
 
-/* Tactile buttons: a raised face on a darker lip; lifts on hover, presses on tap */
-.linen-texture .dialog-actions button {
+/* Tactile buttons (draw dialog + every resolve panel): a raised face on a
+   darker lip; lifts on hover, presses on tap */
+.linen-texture :is(.dialog-actions, .resolve-body) button:not(.ware-pick):not(.resolve-cancel):not(.panel-cancel-x) {
   position: relative;
   border-radius: 12px;
   font-size: 1.12rem;
   letter-spacing: 0.3px;
   transition: transform 120ms var(--anim-ease-standard), box-shadow 120ms var(--anim-ease-standard), filter 120ms ease, background 160ms ease;
 }
-.linen-texture .dialog-actions button:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.04); }
-.linen-texture .dialog-actions button:active:not(:disabled) { transform: translateY(2px); }
+.linen-texture :is(.dialog-actions, .resolve-body) button:not(.ware-pick):not(.resolve-cancel):not(.panel-cancel-x):hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.04); }
+.linen-texture :is(.dialog-actions, .resolve-body) button:not(.ware-pick):not(.resolve-cancel):not(.panel-cancel-x):active:not(:disabled) { transform: translateY(2px); }
 
 /* primary (Draw Card, Keep Card): emerald with a brass hairline */
-.linen-texture .dialog-actions button.primary,
-.linen-texture .dialog-actions button.primary:hover:not(:disabled) {
+.linen-texture :is(.dialog-actions, .resolve-body) button.primary:not(.ware-pick),
+.linen-texture :is(.dialog-actions, .resolve-body) button.primary:not(.ware-pick):hover:not(:disabled) {
   color: #fdf6e3;
   background: linear-gradient(180deg, #3f9a4a 0%, #2c7a37 55%, #236a2e 100%);
   border: 1px solid #174a1f;
   text-shadow: 0 1px 1px rgba(0,0,0,0.35);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), inset 0 0 0 1px rgba(212,168,80,0.35), 0 4px 0 #174a1f, 0 8px 16px rgba(23,74,31,0.35);
 }
-.linen-texture .dialog-actions button.primary:active:not(:disabled) {
+.linen-texture :is(.dialog-actions, .resolve-body) button.primary:not(.ware-pick):active:not(:disabled) {
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.2), inset 0 0 0 1px rgba(212,168,80,0.35), 0 1px 0 #174a1f, 0 3px 8px rgba(23,74,31,0.3);
 }
 /* danger (Discard): terracotta */
-.linen-texture .dialog-actions button.danger,
-.linen-texture .dialog-actions button.danger:hover:not(:disabled) {
+.linen-texture :is(.dialog-actions, .resolve-body) button.danger:not(.ware-pick),
+.linen-texture :is(.dialog-actions, .resolve-body) button.danger:not(.ware-pick):hover:not(:disabled) {
   color: #fdf1e8;
   background: linear-gradient(180deg, #c8513f 0%, #a83b2c 60%, #943224 100%);
   border: 1px solid #6a1f15;
   text-shadow: 0 1px 1px rgba(0,0,0,0.35);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.25), 0 4px 0 #6a1f15, 0 8px 16px rgba(106,31,21,0.3);
 }
-.linen-texture .dialog-actions button.danger:active:not(:disabled) { box-shadow: inset 0 1px 0 rgba(255,255,255,0.2), 0 1px 0 #6a1f15, 0 3px 8px rgba(106,31,21,0.25); }
+.linen-texture :is(.dialog-actions, .resolve-body) button.danger:not(.ware-pick):active:not(:disabled) { box-shadow: inset 0 1px 0 rgba(255,255,255,0.2), 0 1px 0 #6a1f15, 0 3px 8px rgba(106,31,21,0.25); }
 /* plain (Skip Draw Phase, Keep & Buy/Sell): raised parchment */
-.linen-texture .dialog-actions button:not(.primary):not(.danger):not(.brown),
-.linen-texture .dialog-actions button:not(.primary):not(.danger):not(.brown):hover:not(:disabled) {
+.linen-texture :is(.dialog-actions, .resolve-body) button:not(.ware-pick):not(.resolve-cancel):not(.panel-cancel-x):not(.primary):not(.danger):not(.brown),
+.linen-texture :is(.dialog-actions, .resolve-body) button:not(.ware-pick):not(.resolve-cancel):not(.panel-cancel-x):not(.primary):not(.danger):not(.brown):hover:not(:disabled) {
   color: #3a2614;
   background: linear-gradient(180deg, #fbf4e4 0%, #efe3c8 100%);
   border: 1px solid #8a6e4e;
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), 0 4px 0 #8a6e4e, 0 8px 14px rgba(74,52,30,0.22);
 }
-.linen-texture .dialog-actions button:not(.primary):not(.danger):not(.brown):active:not(:disabled) {
+.linen-texture :is(.dialog-actions, .resolve-body) button:not(.ware-pick):not(.resolve-cancel):not(.panel-cancel-x):not(.primary):not(.danger):not(.brown):active:not(:disabled) {
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.8), 0 1px 0 #8a6e4e, 0 3px 6px rgba(74,52,30,0.2);
 }
-.linen-texture .dialog-actions button:disabled { transform: none; box-shadow: none; filter: grayscale(0.4); }
+.linen-texture :is(.dialog-actions, .resolve-body) button:not(.ware-pick):not(.resolve-cancel):not(.panel-cancel-x):disabled { transform: none; box-shadow: none; filter: grayscale(0.4); }
 
 /* Draw Card's action pips: little gold coins; spent ones leave an empty socket */
 .draw-pips { display: flex; gap: 5px; }
@@ -2667,4 +2679,92 @@ button.menu-abandon-link:hover:not(:disabled) { background: none; border: 0; col
   .linen-texture .dialog-actions button { transition: none; }
   .linen-texture .dialog-actions button:hover:not(:disabled),
   .linen-texture .dialog-actions button:active:not(:disabled) { transform: none; }
+}
+
+/* Overlapped card picker: the card under the pointer comes to the front, so
+   its hover lift shows the whole card instead of tucking under a neighbour */
+.resolve-card-row > div:hover,
+.resolve-card-row > div:focus-within { z-index: 100 !important; }
+
+/* --- Resolve panels (2026-10-12 uplift): the draw dialog is the north star -- */
+.resolve-panel { box-shadow: 0 10px 36px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.6) !important; }
+.resolve-source-art { box-shadow: 0 6px 18px rgba(40,24,10,0.35), 0 0 0 1px rgba(90,64,40,0.35); }
+.resolve-body { display: flex; flex-direction: column; gap: 10px; }
+.resolve-eyebrow {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  font-family: var(--font-heading); font-size: 11.5px; font-weight: 700;
+  letter-spacing: 1.6px; text-transform: uppercase; color: #8a6a3e;
+}
+.resolve-eyebrow-rule { width: 26px; height: 1px; background: linear-gradient(90deg, transparent, #b8925a, transparent); }
+.resolve-title {
+  margin: 0; text-align: center; text-wrap: balance;
+  font-family: var(--font-heading); font-weight: 700; font-size: 22px; line-height: 1.15;
+  color: #2a1a0c; letter-spacing: 0.3px;
+}
+/* a brass rule with a diamond, under the title */
+.resolve-divider { position: relative; height: 10px; margin: -4px auto 2px; width: min(220px, 70%); }
+.resolve-divider::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: linear-gradient(90deg, transparent, #b8925a 20%, #b8925a 80%, transparent); }
+.resolve-divider span { position: absolute; left: 50%; top: 50%; width: 7px; height: 7px; background: #c9a25e; transform: translate(-50%, -50%) rotate(45deg); box-shadow: 0 0 0 2px #efe6d4; }
+.resolve-body .ui-prompt-text { margin: 0; text-align: center; font-size: 14.5px; line-height: 1.4; color: #4a3826; text-wrap: balance; }
+.resolve-body .ui-helper-text { text-align: center; color: #6b5843; }
+.resolve-footer { display: flex; justify-content: center; margin-top: 2px; }
+.linen-texture button.resolve-cancel:not(.primary):not(.danger):not(.brown) {
+  background: none; border: none; box-shadow: none; padding: 4px 10px;
+  font-family: var(--font-heading); font-size: 13.5px; font-weight: 700; letter-spacing: 0.3px;
+  color: #8a4a30; text-decoration: underline; text-decoration-color: rgba(138,74,48,0.35); text-underline-offset: 3px;
+}
+.linen-texture button.resolve-cancel:not(.primary):not(.danger):not(.brown):hover:not(:disabled) { background: none; color: #a8402a; text-decoration-color: currentColor; }
+
+/* Ware choices: tokens in recessed wells that rise to meet the pointer */
+.linen-texture button.ware-pick:not(.primary):not(.danger):not(.brown), .ware-pick {
+  display: inline-grid; place-items: center; padding: 6px;
+  border-radius: 50%; border: none;
+  background: radial-gradient(circle at 50% 40%, rgba(255,255,255,0.55), rgba(74,52,30,0.08) 70%);
+  box-shadow: inset 0 2px 4px rgba(58,38,18,0.28), 0 1px 0 rgba(255,255,255,0.7);
+  transition: transform 140ms var(--anim-ease-standard), box-shadow 140ms ease, filter 140ms ease;
+}
+.linen-texture button.ware-pick:not(.primary):not(.danger):not(.brown):hover:not(:disabled) {
+  background: radial-gradient(circle at 50% 40%, rgba(255,255,255,0.7), rgba(212,168,80,0.18) 70%);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 12px rgba(58,38,18,0.25), 0 0 0 2px var(--gold);
+}
+.linen-texture button.ware-pick:not(.primary):not(.danger):not(.brown):active:not(:disabled) { transform: translateY(0); }
+.linen-texture button.ware-pick:not(.primary):not(.danger):not(.brown):disabled { filter: grayscale(0.85); opacity: 0.45; }
+.ware-pick-waiting { opacity: 0.65; }
+
+/* --- Auctions: the lot on a plate, the bid as a coin ------------------------- */
+.auction { display: flex; flex-direction: column; gap: 12px; }
+.auction-lot {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 10px 12px; border-radius: 12px;
+  background: linear-gradient(180deg, rgba(74,52,30,0.10), rgba(74,52,30,0.04));
+  box-shadow: inset 0 1px 3px rgba(58,38,18,0.28), inset 0 -1px 0 rgba(255,255,255,0.55);
+}
+.auction-lot-cards { padding: 4px 6px; }
+.auction-lot-label, .auction-caption {
+  font-family: var(--font-heading); font-size: 11px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: #8a6a3e;
+}
+.auction-lot-wares { display: flex; gap: 10px; justify-content: center; align-items: center; }
+.auction-lot-open { width: 42px; height: 42px; border-radius: 50%; border: 2px dashed rgba(138,106,62,0.6); }
+.auction-board { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.auction-standing { display: flex; align-items: center; justify-content: center; gap: 22px; flex-wrap: wrap; }
+.auction-current, .auction-purse { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.auction-coin { width: 54px; height: 54px; font-size: 24px; box-shadow: inset 0 0 0 3px #e8ac52, inset 0 0 0 4px rgba(42,26,10,0.7), 0 4px 10px rgba(58,38,18,0.35); }
+.auction-coin-empty { filter: grayscale(0.7); opacity: 0.6; }
+.auction-leader { font-size: 12.5px; font-weight: 700; padding: 2px 10px; border-radius: 999px; border: 1px solid rgba(138,106,62,0.4); color: #6b5843; background: rgba(255,255,255,0.4); }
+.auction-leader-mine { color: #2e6a24; border-color: rgba(46,106,36,0.45); background: rgba(46,139,46,0.12); }
+.auction-leader-theirs { color: #9a3424; border-color: rgba(154,52,36,0.4); background: rgba(184,50,42,0.1); }
+.auction-purse-amount { font-family: var(--font-heading); font-size: 22px; font-weight: 700; color: #7a5a1e; font-variant-numeric: tabular-nums; }
+.auction-actions { display: flex; gap: 12px; justify-content: center; width: 100%; padding: 0; }
+.auction-actions button { flex: 1; max-width: 200px; padding: 12px; }
+.auction-note { font-size: 12.5px; color: #6b5843; text-align: center; }
+.auction-waiting { font-family: var(--font-heading); font-size: 15px; font-weight: 700; color: #6b5843; }
+.auction-waiting-dots span { animation: auction-dot 1.2s ease-in-out infinite; opacity: 0.2; }
+.auction-waiting-dots span:nth-child(2) { animation-delay: 0.2s; }
+.auction-waiting-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes auction-dot { 0%, 100% { opacity: 0.2; } 40% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .auction-waiting-dots span { animation: none; opacity: 1; }
+  .linen-texture button.ware-pick:not(.primary):not(.danger):not(.brown) { transition: none; }
+  .linen-texture button.ware-pick:not(.primary):not(.danger):not(.brown):hover:not(:disabled) { transform: none; }
 }

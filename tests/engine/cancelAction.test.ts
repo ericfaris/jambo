@@ -18,6 +18,7 @@ import {
 import type { DeckCardId, GameAction, GameState, UtilityDesignId } from '../../src/engine/types.ts';
 import { validateAction, getValidActions } from '../../src/engine/validation/actionValidator.ts';
 import { canCancelAction } from '../../src/engine/cancelAction.ts';
+import { getResponder } from '../../src/engine/responder.ts';
 import { extractPublicState } from '../../src/multiplayer/stateSplitter.ts';
 import { checkInvariants } from '../../src/engine/validation/invariants.ts';
 
@@ -140,51 +141,99 @@ describe('CANCEL_ACTION — people cards go back to the same hand position', () 
   });
 });
 
-describe('CANCEL_ACTION — not offered when it would leak information or undo an opponent decision', () => {
-  function expectNotCancellable(s: GameState) {
-    expect(canCancelAction(s)).toBe(false);
-    expect(validateAction(s, { type: 'CANCEL_ACTION' }).valid).toBe(false);
-    expect(extractPublicState(s).canCancel).toBe(false);
-    expect(() => act(s, { type: 'CANCEL_ACTION' })).toThrow(/no longer be cancelled/);
-  }
+function expectNotCancellable(s: GameState) {
+  expect(canCancelAction(s)).toBe(false);
+  expect(validateAction(s, { type: 'CANCEL_ACTION' }).valid).toBe(false);
+  expect(extractPublicState(s).canCancel).toBe(false);
+  expect(() => act(s, { type: 'CANCEL_ACTION' })).toThrow(/no longer be cancelled/);
+}
 
-  it('Psychic (top 6 deck cards revealed)', () => {
-    expectNotCancellable(act(richState(['psychic_1']), { type: 'PLAY_CARD', cardId: 'psychic_1' }));
+/** Cancel from a later screen restores `before` exactly (2026-10-12: cancel reaches every screen). */
+function expectRestores(before: GameState, s: GameState) {
+  expect(canCancelAction(s)).toBe(true);
+  expect(extractPublicState(s).canCancel).toBe(true);
+  const cancelled = act(s, { type: 'CANCEL_ACTION' });
+  expect(comparable(cancelled)).toEqual(comparable(before));
+  expect(cancelled.log.at(-1)?.action).toBe('CANCEL_ACTION');
+  expect(checkInvariants(cancelled)).toEqual([]);
+}
+
+describe('CANCEL_ACTION — every resolution screen, until the opponent acts', () => {
+  it('Psychic: the 6 peeked cards go back on the deck in order', () => {
+    const before = richState(['psychic_1']);
+    expectRestores(before, act(before, { type: 'PLAY_CARD', cardId: 'psychic_1' }));
   });
 
-  it('Arabian Merchant (top 3 deck cards revealed)', () => {
-    const s = act(richState(['arabian_merchant_1']), { type: 'PLAY_CARD', cardId: 'arabian_merchant_1' });
+  it('Arabian Merchant: before the opponent bids; never once they have', () => {
+    const before = richState(['arabian_merchant_1']);
+    const s = act(before, { type: 'PLAY_CARD', cardId: 'arabian_merchant_1' });
     expect(s.pendingResolution?.type).toBe('AUCTION');
-    expectNotCancellable(s);
+    if (getResponder(s) === 0) {
+      expectRestores(before, s);
+      const bid = resolve(s, { type: 'AUCTION_BID', amount: 1 });
+      if (bid.pendingResolution) expectNotCancellable(bid); // now it's the opponent's call
+    } else {
+      expectNotCancellable(s);
+    }
   });
 
-  it('animals — Parrot and Hyena', () => {
+  it('animals the opponent could not Guard — Parrot and Hyena (hand already shown)', () => {
     for (const cardId of ['parrot_1', 'hyena_1'] as DeckCardId[]) {
       let before = richState([cardId]);
       before = claim(before, ['ware_3k_2']);
       before = withHand(before, 1, ['ware_3k_2']); // opponent has no Guard
       const s = act(before, { type: 'PLAY_CARD', cardId });
       expect(s.pendingResolution).not.toBeNull();
-      expectNotCancellable(s);
+      expectRestores(before, s);
     }
   });
 
-  it('after the first choice has been made (Boat: card already discarded)', () => {
-    const started = act(richState([], ['boat_1', 'boat']), { type: 'ACTIVATE_UTILITY', utilityIndex: 0 });
-    const afterFirst = resolve(started, { type: 'SELECT_CARD', cardId: 'guard_1' });
-    expect(afterFirst.pendingResolution).not.toBeNull();
-    expectNotCancellable(afterFirst);
+  it('an animal waiting on the opponent’s Guard decision, or after it, is not cancellable', () => {
+    let before = richState(['parrot_1']);
+    before = claim(before, ['guard_2']);
+    before = withHand(before, 1, ['guard_2']);
+    const s = act(before, { type: 'PLAY_CARD', cardId: 'parrot_1' });
+    expect(s.pendingGuardReaction).toBeTruthy();
+    expect(canCancelAction(s)).toBe(false);
+    const declined = act(s, { type: 'GUARD_REACTION', play: false });
+    expect(declined.pendingResolution).not.toBeNull();
+    expectNotCancellable(declined); // the opponent has acted
   });
 
-  it('Scale after it has drawn its 2 cards', () => {
-    const started = act(richState([], ['scale_1', 'scale']), { type: 'ACTIVATE_UTILITY', utilityIndex: 0 });
-    const drawn = resolve(started, { type: 'SELECT_CARD', cardId: '' });
-    expect(drawn.pendingResolution?.type).toBe('UTILITY_EFFECT');
-    expectNotCancellable(drawn);
+  it('after a first choice of your own (Boat: card already discarded) — still restores everything', () => {
+    const before = richState([], ['boat_1', 'boat']);
+    const started = act(before, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 });
+    const afterFirst = resolve(started, { type: 'SELECT_CARD', cardId: 'guard_1' });
+    expect(afterFirst.pendingResolution).not.toBeNull();
+    expectRestores(before, afterFirst);
+  });
+
+  it('Scale goes straight to "keep 1" (no draw button) and cancel puts both cards back', () => {
+    const before = richState([], ['scale_1', 'scale']);
+    const started = act(before, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 });
+    expect(started.pendingResolution?.type).toBe('UTILITY_EFFECT');
+    if (started.pendingResolution?.type === 'UTILITY_EFFECT') expect(started.pendingResolution.selectedCards).toHaveLength(2);
+    expect(started.deck.length).toBe(before.deck.length - 2);
+    expectRestores(before, started);
+  });
+
+  it('once the effect has finished there is nothing to cancel', () => {
+    const before = richState([], ['scale_1', 'scale']);
+    const started = act(before, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 });
+    const pr = started.pendingResolution;
+    const keep = pr?.type === 'UTILITY_EFFECT' ? pr.selectedCards![0] : '';
+    const done = resolve(started, { type: 'SELECT_CARD', cardId: keep });
+    expect(done.pendingResolution).toBeNull();
+    expect(done.cancellableAction ?? null).toBeNull();
   });
 
   it('with nothing pending', () => {
     expectNotCancellable(richState([]));
+  });
+
+  it('the snapshot never reaches the public (Cast) state', () => {
+    const s = act(richState(['psychic_1']), { type: 'PLAY_CARD', cardId: 'psychic_1' });
+    expect(JSON.stringify(extractPublicState(s))).not.toContain('restore');
   });
 });
 
