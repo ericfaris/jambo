@@ -1847,6 +1847,14 @@ button.brown:hover:not(:disabled) {
   transition: filter var(--motion-base) ease;
 }
 .hand-card-unplayable:hover > .hand-card-inner { filter: saturate(0.7) brightness(0.8); }
+/* A utility that can't be used right now fades like an unplayable hand card
+   (computeUtilityHints); its tooltip says why. Used ones turn sideways instead. */
+.utility-unusable .utility-card {
+  filter: saturate(0.45) brightness(0.62);
+  transition: filter var(--motion-base) ease;
+  cursor: not-allowed;
+}
+.utility-unusable:hover .utility-card { filter: saturate(0.7) brightness(0.8); }
 .hand-sell-ready {
   position: absolute;
   /* top-left: in an overlapping hand the next card covers the right edge */

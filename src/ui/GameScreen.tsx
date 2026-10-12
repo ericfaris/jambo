@@ -25,6 +25,7 @@ import { FinalTurnBanner } from './FinalTurnBanner.tsx';
 import { FlightLayer } from './FlightLayer.tsx';
 import { TurnSweep } from './TurnSweep.tsx';
 import { computeHandHints, endTurnBonus } from './handHints.ts';
+import { computeUtilityHints } from './utilityHints.ts';
 import { EndgameOverlay } from './EndgameOverlay.tsx';
 import { FirstPlayerReveal } from './FirstPlayerReveal.tsx';
 import { buildGameStory } from './gameStory.ts';
@@ -476,6 +477,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   }, [newGame]);
   const handleRematchRevealDone = useCallback(() => setRematchReveal(null), []);
   const handHints = useMemo(() => computeHandHints(state, viewerPlayer), [state, viewerPlayer]);
+  const utilityHints = useMemo(() => computeUtilityHints(state, viewerPlayer), [state, viewerPlayer]);
   const turnBonus = endTurnBonus(state.actionsLeft);
   const supplyAlert = supplyWareFromError(cardError?.message);
   const logLabels: readonly [string, string] = soloLabels ?? HOTSEAT_LABELS;
@@ -723,6 +725,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
                     dispatch({ type: 'ACTIVATE_UTILITY', utilityIndex: i });
                   }}
                   disabled={playActionsDisabled}
+                  hints={utilityHints}
                   onMegaView={setMegaCardId}
                   cardError={cardError}
                   cardSize="default"
@@ -861,6 +864,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
                 dispatch({ type: 'ACTIVATE_UTILITY', utilityIndex: i });
               }}
               disabled={playActionsDisabled}
+              hints={utilityHints}
               onMegaView={setMegaCardId}
               cardError={cardError}
               label={localMultiplayer ? `Player ${viewerPlayer + 1} Utilities` : 'Your Utilities'}

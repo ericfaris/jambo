@@ -16,6 +16,7 @@ import { ActionPips, AmbientLayer, GoldCount } from './life.tsx';
 import { HandDisplay } from './HandDisplay.tsx';
 import { InteractionPanel } from './InteractionPanel.tsx';
 import { endTurnBonus } from './handHints.ts';
+import { computeUtilityHints } from './utilityHints.ts';
 import { ResolveMegaView } from './ResolveMegaView.tsx';
 import { MegaView } from './MegaView.tsx';
 import { CardPlayDialog, DrawModal as SharedDrawModal } from './ActionButtons.tsx';
@@ -256,6 +257,8 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
     pendingWareCardReaction: pub.pendingWareCardReaction,
     log: pub.log,
   };
+  // Fade the utilities that cannot be used right now (same verdict the engine gives)
+  const utilityHints = computeUtilityHints(validationState, slot);
 
   const getFriendlyErrorMessage = friendlyPlayError;
 
@@ -384,6 +387,7 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
               dispatch({ type: 'ACTIVATE_UTILITY', utilityIndex: i });
             }}
             disabled={actionsDisabled || !inPlayPhase || pub.actionsLeft <= 0}
+            hints={utilityHints}
             cardError={cardError}
             cardSize="default"
             cardScale={utilFit.scale}

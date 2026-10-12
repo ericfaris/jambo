@@ -3,6 +3,7 @@ import type { UtilityState } from '../engine/types.ts';
 import { CardFace } from './CardFace.tsx';
 import { getCard } from '../engine/cards/CardDatabase.ts';
 import type { DeckCardId } from '../engine/types.ts';
+import type { UtilityHint } from './utilityHints.ts';
 
 interface UtilityAreaProps {
   utilities: UtilityState[];
@@ -25,6 +26,8 @@ interface UtilityAreaProps {
   gapPx?: number;
   /** Tapping a card's caption bar zooms it (the body still activates). */
   onMegaView?: (cardId: DeckCardId) => void;
+  /** Per-utility usability (computeUtilityHints): fades and disables what can't be used now. */
+  hints?: Map<DeckCardId, UtilityHint> | null;
 }
 
 function UtilityAreaComponent({
@@ -44,6 +47,7 @@ function UtilityAreaComponent({
   gapPx,
   onMegaView,
   untappedCardId = null,
+  hints = null,
 }: UtilityAreaProps) {
   const [isMobile, setIsMobile] = useState(false);
 
@@ -55,7 +59,8 @@ function UtilityAreaComponent({
   }, []);
 
   const overlapAmount = overlapPx;
-  const hasUnusedUtility = utilities.some((utility) => !utility.usedThisTurn);
+  const isUnusable = (u: UtilityState) => hints?.get(u.cardId)?.usable === false;
+  const hasUnusedUtility = utilities.some((utility) => !utility.usedThisTurn && !isUnusable(utility));
   const showInteractionHint = !!onActivate && !disabled && hasUnusedUtility;
 
   return (
@@ -87,10 +92,16 @@ function UtilityAreaComponent({
             No utilities
           </div>
         )}
-        {utilities.map((u, i) => (
+        {utilities.map((u, i) => {
+          const unusable = !u.usedThisTurn && isUnusable(u);
+          const activatable = !!onActivate && !disabled && !u.usedThisTurn && !unusable;
+          return (
           <div
             key={u.cardId}
-            className={onActivate && !disabled && !u.usedThisTurn ? 'utility-ready' : undefined}
+            className={activatable ? 'utility-ready' : unusable ? 'utility-unusable' : undefined}
+            title={unusable ? hints?.get(u.cardId)?.reason : undefined}
+            aria-disabled={unusable || undefined}
+            data-usable={hints?.has(u.cardId) ? String(!unusable) : undefined}
             style={{
               position: 'relative',
               flexShrink: 0,
@@ -107,7 +118,7 @@ function UtilityAreaComponent({
                 medium={cardSize === 'medium'}
                 large={cardSize === 'large'}
                 scale={cardScale}
-                onClick={!disabled && onActivate && !u.usedThisTurn ? () => onActivate(i) : undefined}
+                onClick={activatable && onActivate ? () => onActivate(i) : undefined}
                 onMegaView={onMegaView}
               />
             </div>
@@ -137,7 +148,8 @@ function UtilityAreaComponent({
               </div>
             )}
           </div>
-        ))}
+          );
+        })}
         {maxSlots && utilities.length < maxSlots && Array.from({ length: maxSlots - utilities.length }, (_, i) => {
           const w = Math.round((cardSize === 'small' ? 96 : cardSize === 'medium' ? 120 : cardSize === 'large' ? 180 : 140) * cardScale);
           const h = Math.round((cardSize === 'small' ? 128 : cardSize === 'medium' ? 160 : cardSize === 'large' ? 240 : 187) * cardScale);
