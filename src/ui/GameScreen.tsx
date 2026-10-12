@@ -32,6 +32,7 @@ import { createStartingState } from '../persistence/replayLog.ts';
 import { traderFor } from '../ai/traders.ts';
 import { traderChatter } from '../ai/traderChatter.ts';
 import { TraderPortrait } from './TraderPortrait.tsx';
+import { PlayerAvatar } from './PlayerAvatar.tsx';
 import { useTrader, getInitialTraderVoices, TRADER_VOICES_STORAGE_KEY } from './useTrader.ts';
 import { ResolveMegaView } from './ResolveMegaView.tsx';
 import { isHandInteraction } from './HandReferenceStrip.tsx';
@@ -742,6 +743,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
                   </span>
                 )}
               </span>
+              {!localMultiplayer && <PlayerAvatar avatarUrl={avatarUrl} label={avatarLabel} size={26} active={isMyTurnNow} />}
               <div className={`player-turn-status${isMyTurnNow ? ' player-turn-status-active' : ''}`}>
                 <span>{localMultiplayer ? `Player ${viewerPlayer + 1}` : 'You'}{isMyTurnNow ? ' · your turn' : ''}</span>
                 {(state.turnModifiers.buyDiscount > 0 || state.turnModifiers.sellBonus > 0) ? (
@@ -972,7 +974,9 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
               showHelperText={false}
             />
             </div>
-            <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, paddingTop: 2 }}>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+            {!localMultiplayer && <PlayerAvatar avatarUrl={avatarUrl} label={avatarLabel} size={72} active={state.currentPlayer === viewerPlayer} />}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, paddingTop: 2 }}>
               <span style={{
                 fontFamily: 'var(--font-heading)',
                 fontWeight: 700,
@@ -1007,6 +1011,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
                   {state.turnModifiers.sellBonus > 0 && `Sell +${state.turnModifiers.sellBonus}g`}
                 </span>
               )}
+            </div>
             </div>
           </div>
 

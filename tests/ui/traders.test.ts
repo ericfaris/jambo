@@ -188,3 +188,20 @@ describe('trader chatter', () => {
     expect(one).not.toBe(two);
   });
 });
+
+describe('the player\'s own avatar', () => {
+  it('shows the Google photo in the same round frame as the trader', async () => {
+    const { PlayerAvatar } = await import('../../src/ui/PlayerAvatar.tsx');
+    const html = renderToStaticMarkup(createElement(PlayerAvatar, { avatarUrl: 'https://lh3.googleusercontent.com/a/x', label: 'E', active: true }));
+    expect(html).toContain('trader-portrait');
+    expect(html).toContain('player-avatar-active');
+    expect(html).toContain('src="https://lh3.googleusercontent.com/a/x"');
+    expect(html).toContain('referrerPolicy="no-referrer"');
+  });
+  it('falls back to the initial without a photo', async () => {
+    const { PlayerAvatar } = await import('../../src/ui/PlayerAvatar.tsx');
+    const html = renderToStaticMarkup(createElement(PlayerAvatar, { avatarUrl: null, label: 'E' }));
+    expect(html).not.toContain('<img');
+    expect(html).toContain('>E</span>');
+  });
+});

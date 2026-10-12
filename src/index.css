@@ -2272,6 +2272,10 @@ button.brown:hover:not(:disabled) {
   transition: opacity 280ms ease;
 }
 .trader-portrait-speaking { animation: trader-speaking 0.9s ease-in-out infinite alternate; }
+/* The player's own avatar, framed like the trader's */
+.player-avatar { display: inline-flex; align-items: center; justify-content: center; }
+.player-avatar-active { box-shadow: 0 0 0 2px var(--gold), 0 4px 12px rgba(0,0,0,0.45); }
+.player-avatar-initial { font-family: var(--font-heading); font-weight: 700; color: var(--gold); line-height: 1; }
 .trader-portrait-speaking[data-mood='pleased'],
 .trader-portrait-speaking[data-mood='annoyed'] { animation: trader-react 520ms var(--anim-ease-emphasis, ease-out), trader-speaking 0.9s ease-in-out infinite alternate; }
 @keyframes trader-speaking {
