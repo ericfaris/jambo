@@ -743,7 +743,6 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
                   </span>
                 )}
               </span>
-              {!localMultiplayer && <PlayerAvatar avatarUrl={avatarUrl} label={avatarLabel} size={26} active={isMyTurnNow} />}
               <div className={`player-turn-status${isMyTurnNow ? ' player-turn-status-active' : ''}`}>
                 <span>{localMultiplayer ? `Player ${viewerPlayer + 1}` : 'You'}{isMyTurnNow ? ' · your turn' : ''}</span>
                 {(state.turnModifiers.buyDiscount > 0 || state.turnModifiers.sellBonus > 0) ? (

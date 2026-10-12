@@ -1023,9 +1023,10 @@ button.brown:hover:not(:disabled) {
 
 .phone-opp-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 10px;
-  height: 18px;
+  /* sized by its content (the portrait), so nothing spills onto the gold track below */
+  min-height: 26px;
 }
 
 .phone-opp-name {
