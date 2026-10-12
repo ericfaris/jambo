@@ -35,6 +35,7 @@ import { handleAuthApi } from './auth.ts';
 import { handleStatsApi } from './statsApi.ts';
 import { resolveCastPublicRoom, toCastPublicRoomPayload, validateCastRoomAccess } from './castApi.ts';
 import { recordAiDecision, recordAiGameSummary } from './aiTelemetryStore.ts';
+import { contentTypeFor } from './mimeTypes.ts';
 
 loadLocalEnv();
 
@@ -761,28 +762,6 @@ const PORT = parseInt(process.env['PORT'] ?? '3001', 10);
 
 const STATIC_DIR = resolve(process.env['STATIC_DIR'] ?? join(import.meta.dirname ?? '.', '../../dist'));
 
-const MIME_TYPES: Record<string, string> = {
-  '.html': 'text/html; charset=utf-8',
-  '.js': 'application/javascript; charset=utf-8',
-  '.mjs': 'application/javascript; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.gif': 'image/gif',
-  '.svg': 'image/svg+xml',
-  '.ico': 'image/x-icon',
-  '.webp': 'image/webp',
-  '.woff': 'font/woff',
-  '.woff2': 'font/woff2',
-  '.ttf': 'font/ttf',
-  '.otf': 'font/otf',
-  '.mp3': 'audio/mpeg',
-  '.ogg': 'audio/ogg',
-  '.wav': 'audio/wav',
-  '.webm': 'audio/webm',
-};
 
 function serveStaticFile(res: import('node:http').ServerResponse, filePath: string): boolean {
   try {
@@ -790,7 +769,7 @@ function serveStaticFile(res: import('node:http').ServerResponse, filePath: stri
       return false;
     }
     const ext = extname(filePath).toLowerCase();
-    const contentType = MIME_TYPES[ext] ?? 'application/octet-stream';
+    const contentType = contentTypeFor(ext);
     const content = readFileSync(filePath);
 
     // Cache hashed assets (contain content hash in filename) for 1 year

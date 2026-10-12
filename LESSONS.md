@@ -502,3 +502,8 @@ overwrites tracked files.)
   calls `validateActivateUtility` per utility, like `computeHandHints` does
   for the hand, and a 40-game randomized test checks they agree. It only runs
   in your own play phase so the row doesn't flicker during the draw phase.
+- **The server's MIME table is hand-written** (`src/multiplayer/mimeTypes.ts`).
+  A new file type in `public/` (`.webmanifest`) went out as
+  `application/octet-stream` until a test that walks `public/` caught it.
+  Anything under `/assets/` is also cached `immutable` for a year, hashed or
+  not, so replace hero art under a new filename.
