@@ -2,7 +2,7 @@
 // Active Select Resolver - Throne (swap), Parrot (steal)
 // ============================================================================
 
-import { hasUsefulThroneSwap, throneStealOptions } from '../../market/throneSwap.ts';
+import { hasUsefulThroneSwap, throneGiveOptions } from '../../market/throneSwap.ts';
 import type {
   GameState,
   PendingWareTheftSwap,
@@ -36,9 +36,11 @@ function resolveThrone(
   const activePlayer = state.currentPlayer;
   const opponent: 0 | 1 = activePlayer === 0 ? 1 : 0;
 
-  // Throne exchanges one ware each way, in place: the stolen ware takes the
+  // Throne exchanges one ware each way, in place: the taken ware takes the
   // given ware's slot and vice versa, so no new market space is filled.
-  if (pending.step === 'STEAL') {
+  // A save from before the give-first order may hold a STEAL step with no
+  // given ware yet — start it over at the give step.
+  if (pending.step === 'GIVE' || pending.givenIndex === undefined || !pending.givenWare) {
     // Guard: either side has nothing to exchange — auto-resolve
     if (!state.players[opponent].market.some(w => w !== null)) {
       return {
@@ -63,34 +65,11 @@ function resolveThrone(
         log: [...state.log, { turn: state.turn, player: activePlayer, action: 'THRONE_SWAP', details: 'No exchange would change anything' }],
       };
     }
-
-    // Step 1: Active player picks the opponent's ware to take
-    if (response.type !== 'SELECT_WARE') {
-      throw new Error('Expected SELECT_WARE for Throne steal step');
-    }
-    const { wareIndex } = response;
-    const ware = state.players[opponent].market[wareIndex];
-    if (!ware) {
-      throw new Error(`Opponent's slot ${wareIndex} is empty`);
-    }
-    if (!throneStealOptions(state, activePlayer).includes(wareIndex)) {
-      throw new Error(`Throne: you have no different ware to give for ${ware}`);
+    if (pending.step !== 'GIVE') {
+      return { ...state, pendingResolution: { type: 'WARE_THEFT_SWAP', sourceCard: pending.sourceCard, step: 'GIVE' } };
     }
 
-    return {
-      ...state,
-      pendingResolution: { ...pending, step: 'GIVE', stolenWare: ware, stolenIndex: wareIndex },
-    };
-  }
-
-  if (pending.step === 'GIVE') {
-    const stolenIndex = pending.stolenIndex;
-    const stolenWare = pending.stolenWare;
-    if (stolenIndex === undefined || !stolenWare) {
-      throw new Error('Throne give step is missing the selected opponent ware');
-    }
-
-    // Step 2: Active player picks their own ware to give in exchange
+    // Step 1: Active player picks their own ware to give
     if (response.type !== 'SELECT_WARE') {
       throw new Error('Expected SELECT_WARE for Throne give step');
     }
@@ -99,14 +78,37 @@ function resolveThrone(
     if (!ware) {
       throw new Error(`Your slot ${wareIndex} is empty`);
     }
-    if (ware === stolenWare) {
-      throw new Error(`Throne: give a ware other than ${stolenWare} — a same-type swap changes nothing`);
+    if (!throneGiveOptions(state, activePlayer).includes(wareIndex)) {
+      throw new Error(`Throne: opponent has nothing different to give for ${ware}`);
     }
 
-    let newState = removeWareFromMarket(state, activePlayer, wareIndex).state;
-    newState = removeWareFromMarket(newState, opponent, stolenIndex).state;
-    newState = setWareAtSlot(newState, activePlayer, wareIndex, stolenWare);
-    newState = setWareAtSlot(newState, opponent, stolenIndex, ware);
+    return {
+      ...state,
+      pendingResolution: { ...pending, step: 'STEAL', givenWare: ware, givenIndex: wareIndex },
+    };
+  }
+
+  {
+    const givenIndex = pending.givenIndex;
+    const givenWare = pending.givenWare;
+
+    // Step 2: Active player picks the opponent's ware to take in exchange
+    if (response.type !== 'SELECT_WARE') {
+      throw new Error('Expected SELECT_WARE for Throne take step');
+    }
+    const { wareIndex } = response;
+    const ware = state.players[opponent].market[wareIndex];
+    if (!ware) {
+      throw new Error(`Opponent's slot ${wareIndex} is empty`);
+    }
+    if (ware === givenWare) {
+      throw new Error(`Throne: take a ware other than ${givenWare} — a same-type swap changes nothing`);
+    }
+
+    let newState = removeWareFromMarket(state, activePlayer, givenIndex).state;
+    newState = removeWareFromMarket(newState, opponent, wareIndex).state;
+    newState = setWareAtSlot(newState, activePlayer, givenIndex, ware);
+    newState = setWareAtSlot(newState, opponent, wareIndex, givenWare);
 
     // Mark Throne utility as used this turn
     const newUtilities = state.players[activePlayer].utilities.map(u =>
@@ -123,12 +125,10 @@ function resolveThrone(
         turn: state.turn,
         player: activePlayer,
         action: 'THRONE_SWAP',
-        details: `Stole ${stolenWare}, gave ${ware}`,
+        details: `Stole ${ware}, gave ${givenWare}`,
       }],
     };
   }
-
-  throw new Error(`Unknown Throne step: ${pending.step}`);
 }
 
 function resolveParrot(

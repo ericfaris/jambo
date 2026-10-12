@@ -56,7 +56,7 @@ export function initializeResolution(
         if (!hasUsefulThroneSwap(state, state.currentPlayer)) {
           throw new Error('Cannot activate Throne: every swap would trade a ware for the same type');
         }
-        return { type: 'WARE_THEFT_SWAP', sourceCard: cardId, step: 'STEAL' };
+        return { type: 'WARE_THEFT_SWAP', sourceCard: cardId, step: 'GIVE' };
       }
       // Parrot (steal single ware)
       if (isDesign(cardId, 'parrot')) {

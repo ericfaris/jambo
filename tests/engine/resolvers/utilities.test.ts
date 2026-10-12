@@ -77,7 +77,7 @@ describe('Drums (Return ware, draw 1)', () => {
   });
 });
 
-describe('Throne (Steal ware → Give ware)', () => {
+describe('Throne (Give ware → Take ware)', () => {
   function setupThrone() {
     let s = toPlayPhase(createTestState());
     s = withHand(s, 0, []);
@@ -89,18 +89,20 @@ describe('Throne (Steal ware → Give ware)', () => {
     return s;
   }
 
-  it('steal opponent ware → give own ware (2-step)', () => {
+  it('give own ware → take opponent ware (2-step)', () => {
     const s = setupThrone();
     const s2 = act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 });
     expect(s2.pendingResolution!.type).toBe('WARE_THEFT_SWAP');
-    expect((s2.pendingResolution as any).step).toBe('STEAL');
+    expect((s2.pendingResolution as any).step).toBe('GIVE');
 
-    const s3 = resolve(s2, { type: 'SELECT_WARE', wareIndex: 0 });
-    expect((s3.pendingResolution as any).step).toBe('GIVE');
-    expect((s3.pendingResolution as any).stolenWare).toBe('silk');
+    const trinketIdx = market(s2, 0).indexOf('trinkets');
+    const s3 = resolve(s2, { type: 'SELECT_WARE', wareIndex: trinketIdx });
+    expect((s3.pendingResolution as any).step).toBe('STEAL');
+    expect((s3.pendingResolution as any).givenWare).toBe('trinkets');
+    // Nothing moves until both wares are chosen
+    expect(market(s3, 0)[trinketIdx]).toBe('trinkets');
 
-    const trinketIdx = market(s3, 0).indexOf('trinkets');
-    const s4 = resolve(s3, { type: 'SELECT_WARE', wareIndex: trinketIdx });
+    const s4 = resolve(s3, { type: 'SELECT_WARE', wareIndex: 0 });
     expect(s4.pendingResolution).toBeNull();
     // Exchanged in place: each ware takes the other's slot
     expect(market(s4, 0)[trinketIdx]).toBe('silk');
@@ -115,8 +117,8 @@ describe('Throne (Steal ware → Give ware)', () => {
     s = withMarket(s, 0, ['trinkets', 'hides', 'tea', 'tea', 'fruit', 'salt']);
     s = withMarket(s, 1, ['silk', 'silk', 'silk', 'salt', 'salt', 'salt']);
     let s2 = act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 });
-    s2 = resolve(s2, { type: 'SELECT_WARE', wareIndex: 1 });
-    s2 = resolve(s2, { type: 'SELECT_WARE', wareIndex: 0 });
+    s2 = resolve(s2, { type: 'SELECT_WARE', wareIndex: 0 }); // give my trinkets
+    s2 = resolve(s2, { type: 'SELECT_WARE', wareIndex: 1 }); // take their silk
     expect(market(s2, 0)[0]).toBe('silk');
     expect(market(s2, 1)[1]).toBe('trinkets');
     expect(gold(s2, 0)).toBe(20);

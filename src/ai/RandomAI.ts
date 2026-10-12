@@ -158,8 +158,8 @@ export function getRandomInteractionResponse(state: GameState, rng: RngFn): Inte
     case 'WARE_THEFT_SWAP': {
       // Only exchanges that change something (never tea for tea)
       const options = pr.step === 'STEAL'
-        ? throneStealOptions(state, cp)
-        : throneGiveOptions(state, cp, pr.stolenWare);
+        ? throneStealOptions(state, cp, pr.givenWare)
+        : throneGiveOptions(state, cp);
       // Resolver auto-resolves when no useful swap exists; send dummy to trigger guard
       if (options.length === 0) return { type: 'SELECT_WARE', wareIndex: 0 };
       return { type: 'SELECT_WARE', wareIndex: pick(options, rng) };
@@ -476,8 +476,8 @@ export function getFallbackInteractionResponses(state: GameState): InteractionRe
 
     case 'WARE_THEFT_SWAP': {
       const indices = pr.step === 'STEAL'
-        ? throneStealOptions(state, cp)
-        : throneGiveOptions(state, cp, pr.stolenWare);
+        ? throneStealOptions(state, cp, pr.givenWare)
+        : throneGiveOptions(state, cp);
       return indices.length > 0
         ? indices.map(wareIndex => ({ type: 'SELECT_WARE', wareIndex }))
         : [{ type: 'SELECT_WARE', wareIndex: 0 }];

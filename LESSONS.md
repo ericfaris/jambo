@@ -466,3 +466,19 @@ overwrites tracked files.)
 - **Scroll boxes clip hover lifts.** A card picker inside `overflow:auto`
   needs padding of roughly lift + shadow (14px top, 42px bottom), and a
   negative bottom margin so that padding doesn't become a gap.
+
+## 2026-10-12 — Unified settings; Throne gives first
+- **Settings live in one place: `src/ui/preferences.ts`.** Main menu,
+  solo/hotseat and Cast player menus all render `SettingsPanel` over
+  `usePreferences()`. Add a new setting there (default, storage key, reader,
+  `<html>` attribute if CSS needs it), never as local state in a screen —
+  the old split is why the main menu's Settings showed only the version.
+  Keep the existing `jambo.*` keys so upgrades don't lose players' choices.
+- **The global `button:hover` rule bleeds into custom controls.** Switches
+  and segments need `.settings-panel button.x:hover:not(:disabled)` overrides.
+- **Reordering a resolution's steps needs a save-compat path.** Throne now
+  picks your ware first (`GIVE` → `STEAL`, `givenWare/givenIndex`). An
+  autosave holding an old `STEAL` step with no given ware restarts at `GIVE`
+  instead of throwing.
+- **`pkill -f <pattern>` from the Bash tool can kill its own shell** when the
+  pattern appears in the command line; stop background servers by task, not pkill.

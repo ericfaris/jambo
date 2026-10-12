@@ -39,7 +39,7 @@ export function getDrawDisabledReason(input: DrawDisabledReasonInput): string | 
 export function formatResolutionBreadcrumb(pr: PendingResolution): string {
   switch (pr.type) {
     case 'WARE_THEFT_SWAP':
-      return `Throne > ${pr.step === 'STEAL' ? 'Take Ware' : 'Give Ware'}`;
+      return `Throne > ${pr.step === 'GIVE' ? 'Give Ware' : 'Take Ware'}`;
     case 'HAND_SWAP':
       return `Hyena > ${pr.step === 'TAKE' ? 'Take Card' : 'Give Card'}`;
     case 'OPPONENT_DISCARD':

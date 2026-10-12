@@ -31,10 +31,13 @@ const swapCount = (s: GameState) => getValidActions(s).filter((a) => a.type === 
 describe('Throne never trades a ware for the same type', () => {
   it('lists only exchanges that change something', () => {
     const s = setup(['tea', 'tea', 'silk'], ['tea', 'fruit']);
-    // Opponent's tea can be taken for your silk; their fruit for anything
-    expect(throneStealOptions(s, 0)).toEqual([0, 1]);
-    expect(throneGiveOptions(s, 0, 'tea')).toEqual([2]);
-    expect(throneGiveOptions(s, 0, 'fruit')).toEqual([0, 1, 2]);
+    // Every ware of yours has something different to trade for (their fruit, or their tea for your silk)
+    expect(throneGiveOptions(s, 0)).toEqual([0, 1, 2]);
+    // Giving tea: only their fruit is worth taking; giving silk: anything
+    expect(throneStealOptions(s, 0, 'tea')).toEqual([1]);
+    expect(throneStealOptions(s, 0, 'silk')).toEqual([0, 1]);
+    // Their market is all tea: your tea has nothing to trade for
+    expect(throneGiveOptions(setup(['tea', 'silk'], ['tea', 'tea']), 0)).toEqual([1]);
   });
 
   it('cannot be activated when every swap is like-for-like', () => {
@@ -50,25 +53,35 @@ describe('Throne never trades a ware for the same type', () => {
     expect(validateAction(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 }).valid).toBe(true);
   });
 
-  it('rejects taking a ware you could only pay back in kind', () => {
-    const s = setup(['tea'], ['tea', 'silk']);
-    const s2 = act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 });
-    expect(() => resolve(s2, { type: 'SELECT_WARE', wareIndex: 0 })).toThrow(/no different ware/);
-    const s3 = resolve(s2, { type: 'SELECT_WARE', wareIndex: 1 });
-    expect(market(resolve(s3, { type: 'SELECT_WARE', wareIndex: 0 }), 0)[0]).toBe('silk');
-  });
-
-  it('rejects giving back the type you just took', () => {
+  it('rejects giving a ware the opponent can only match in kind', () => {
     const s = setup(['tea', 'silk'], ['tea']);
-    const s2 = resolve(act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 }), { type: 'SELECT_WARE', wareIndex: 0 });
-    expect(() => resolve(s2, { type: 'SELECT_WARE', wareIndex: 0 })).toThrow(/same-type swap/);
-    const done = resolve(s2, { type: 'SELECT_WARE', wareIndex: 1 });
+    const s2 = act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 });
+    expect(() => resolve(s2, { type: 'SELECT_WARE', wareIndex: 0 })).toThrow(/nothing different/);
+    const s3 = resolve(s2, { type: 'SELECT_WARE', wareIndex: 1 });
+    const done = resolve(s3, { type: 'SELECT_WARE', wareIndex: 0 });
     expect(market(done, 0).slice(0, 2)).toEqual(['tea', 'tea']);
     expect(market(done, 1)[0]).toBe('silk');
   });
 
+  it('rejects taking back the type you just gave', () => {
+    const s = setup(['tea'], ['tea', 'silk']);
+    const s2 = resolve(act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 }), { type: 'SELECT_WARE', wareIndex: 0 });
+    expect(() => resolve(s2, { type: 'SELECT_WARE', wareIndex: 0 })).toThrow(/same-type swap/);
+    const done = resolve(s2, { type: 'SELECT_WARE', wareIndex: 1 });
+    expect(market(done, 0)[0]).toBe('silk');
+    expect(market(done, 1)).toContain('tea');
+  });
+
+  it('a save from the old take-first order restarts at the give step', () => {
+    const s = setup(['tea', 'silk'], ['fruit']);
+    const old: GameState = { ...s, pendingResolution: { type: 'WARE_THEFT_SWAP', sourceCard: 'throne_1', step: 'STEAL' } };
+    const next = resolve(old, { type: 'SELECT_WARE', wareIndex: 0 });
+    expect(next.pendingResolution).toEqual({ type: 'WARE_THEFT_SWAP', sourceCard: 'throne_1', step: 'GIVE' });
+    expect(market(next, 0)).toEqual(market(s, 0));
+  });
+
   it('auto-resolves (no stall) if a like-for-like-only swap is ever pending', () => {
-    const s: GameState = { ...setup(['tea'], ['tea']), pendingResolution: { type: 'WARE_THEFT_SWAP', sourceCard: 'throne_1', step: 'STEAL' } };
+    const s: GameState = { ...setup(['tea'], ['tea']), pendingResolution: { type: 'WARE_THEFT_SWAP', sourceCard: 'throne_1', step: 'GIVE' } };
     const next = resolve(s, { type: 'SELECT_WARE', wareIndex: 0 });
     expect(next.pendingResolution).toBeNull();
     expect(market(next, 0)[0]).toBe('tea');
@@ -93,35 +106,55 @@ describe('Throne never trades a ware for the same type', () => {
 });
 
 describe('AI picks only real Throne swaps', () => {
-  it('Random AI responses never steal X and give X', () => {
+  it('Random AI responses never give X and take X', () => {
     const s = setup(['tea', 'tea', 'silk', 'tea'], ['tea', 'tea', 'fruit']);
     const pending = act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 });
     for (let seed = 0; seed < 50; seed++) {
       const rng = () => ((seed * 9301 + 49297) % 233280) / 233280;
-      const steal = getRandomInteractionResponse(pending, rng)!;
-      const afterSteal = resolve(pending, steal);
-      const stolen = market(pending, 1)[(steal as { wareIndex: number }).wareIndex];
-      const give = getRandomInteractionResponse(afterSteal, rng)!;
-      expect(market(afterSteal, 0)[(give as { wareIndex: number }).wareIndex]).not.toBe(stolen);
+      const give = getRandomInteractionResponse(pending, rng)!;
+      const afterGive = resolve(pending, give);
+      const given = market(pending, 0)[(give as { wareIndex: number }).wareIndex];
+      const take = getRandomInteractionResponse(afterGive, rng)!;
+      expect(market(afterGive, 1)[(take as { wareIndex: number }).wareIndex]).not.toBe(given);
     }
   });
 
-  it.each(['easy', 'medium', 'hard', 'expert'] as AIDifficulty[])('%s AI never gives the stolen type back', (difficulty) => {
+  it.each(['easy', 'medium', 'hard', 'expert'] as AIDifficulty[])('%s AI never takes back the type it gave', (difficulty) => {
+    const s = setup(['tea', 'tea', 'silk'], ['tea', 'tea', 'silk']);
+    let state = resolve(act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 }), { type: 'SELECT_WARE', wareIndex: 2 });
+    const take = getAiActionByDifficulty(state, difficulty);
+    expect(take).not.toBeNull();
+    expect(validateAction(state, take!).valid).toBe(true);
+    state = act(state, take!);
+    expect(market(state, 0)[2]).toBe('tea');
+  });
+
+  it.each(['easy', 'medium', 'hard', 'expert'] as AIDifficulty[])('%s AI only offers a ware the opponent can trade for', (difficulty) => {
     const s = setup(['tea', 'tea', 'silk'], ['tea', 'tea', 'tea']);
-    let state = resolve(act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 }), { type: 'SELECT_WARE', wareIndex: 0 });
+    const state = act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 });
     const give = getAiActionByDifficulty(state, difficulty);
-    expect(give).not.toBeNull();
+    expect(give).toEqual(expect.objectContaining({ type: 'RESOLVE_INTERACTION' }));
     expect(validateAction(state, give!).valid).toBe(true);
-    state = act(state, give!);
-    expect(market(state, 1)[0]).toBe('silk');
+    const next = act(state, give!);
+    expect((next.pendingResolution as { givenWare?: string }).givenWare).toBe('silk');
   });
 });
 
 describe('Throne panel', () => {
-  it('greys out like-for-like choices instead of offering them', () => {
+  it('asks for your own ware first', () => {
     const s = setup(['tea', 'silk'], ['tea']);
+    const s2 = act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 });
+    const html = renderToStaticMarkup(createElement(InteractionPanel, { state: s2, dispatch: () => {} }));
+    expect(html).toContain('Step 1/2: pick 1 of your wares to give');
+    expect(html).toContain('aria-disabled="true"'); // your tea: they only have tea
+    expect(html).toContain('1 available');
+  });
+
+  it("then greys out the opponent's like-for-like wares", () => {
+    const s = setup(['tea'], ['tea', 'silk']);
     const s2 = resolve(act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 }), { type: 'SELECT_WARE', wareIndex: 0 });
     const html = renderToStaticMarkup(createElement(InteractionPanel, { state: s2, dispatch: () => {} }));
+    expect(html).toContain("Step 2/2: pick 1 of your opponent");
     expect(html).toContain('aria-disabled="true"');
     expect(html).toContain('Same as the tea');
     expect(html).toContain('1 available');
@@ -133,6 +166,7 @@ describe('Throne panel', () => {
   });
 
   it('breadcrumb names the right card', () => {
-    expect(formatResolutionBreadcrumb({ type: 'WARE_THEFT_SWAP', sourceCard: 'throne_1', step: 'STEAL' })).toBe('Throne > Take Ware');
+    expect(formatResolutionBreadcrumb({ type: 'WARE_THEFT_SWAP', sourceCard: 'throne_1', step: 'GIVE' })).toBe('Throne > Give Ware');
+    expect(formatResolutionBreadcrumb({ type: 'WARE_THEFT_SWAP', sourceCard: 'throne_1', step: 'STEAL', givenWare: 'tea', givenIndex: 0 })).toBe('Throne > Take Ware');
   });
 });

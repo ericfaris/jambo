@@ -8,15 +8,20 @@ import type { GameState } from '../types.ts';
  * AI and UI all use them (reported 2026-10-10: the AI "stole tea, gave tea").
  */
 
-/** Opponent slots worth taking: you hold at least one ware of a different type to give back. */
-export function throneStealOptions(state: GameState, active: 0 | 1): number[] {
+/*
+ * Order (2026-10-12): you pick your own ware to give first, then the
+ * opponent's ware to take for it.
+ */
+
+/** Your slots worth giving: the opponent holds at least one ware of a different type to take. */
+export function throneGiveOptions(state: GameState, active: 0 | 1): number[] {
   const opponent: 0 | 1 = active === 0 ? 1 : 0;
-  const mine = new Set(state.players[active].market.filter((w) => w !== null));
+  const theirs = new Set(state.players[opponent].market.filter((w) => w !== null));
   const options: number[] = [];
-  state.players[opponent].market.forEach((ware, index) => {
+  state.players[active].market.forEach((ware, index) => {
     if (ware === null) return;
-    for (const own of mine) {
-      if (own !== ware) {
+    for (const other of theirs) {
+      if (other !== ware) {
         options.push(index);
         return;
       }
@@ -25,16 +30,17 @@ export function throneStealOptions(state: GameState, active: 0 | 1): number[] {
   return options;
 }
 
-/** Your slots you can give for the taken ware: any ware of a different type. */
-export function throneGiveOptions(state: GameState, active: 0 | 1, stolenWare: string | undefined): number[] {
+/** Opponent slots you can take for the given ware: any ware of a different type. */
+export function throneStealOptions(state: GameState, active: 0 | 1, givenWare: string | undefined): number[] {
+  const opponent: 0 | 1 = active === 0 ? 1 : 0;
   const options: number[] = [];
-  state.players[active].market.forEach((ware, index) => {
-    if (ware !== null && ware !== stolenWare) options.push(index);
+  state.players[opponent].market.forEach((ware, index) => {
+    if (ware !== null && ware !== givenWare) options.push(index);
   });
   return options;
 }
 
 /** True when at least one swap would actually change the markets. */
 export function hasUsefulThroneSwap(state: GameState, active: 0 | 1): boolean {
-  return throneStealOptions(state, active).length > 0;
+  return throneGiveOptions(state, active).length > 0;
 }

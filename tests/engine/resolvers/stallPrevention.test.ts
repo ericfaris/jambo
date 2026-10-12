@@ -780,7 +780,7 @@ describe('Parrot: blocks when own market has no empty slots', () => {
 });
 
 describe('Throne (WARE_THEFT_SWAP): resolver guard auto-resolves when there is nothing to exchange', () => {
-  it('STEAL step auto-resolves when the active player has no wares left to give', () => {
+  it('GIVE step auto-resolves when the active player has no wares left to give', () => {
     let s = toPlayPhase(createTestState());
     s = withHand(s, 0, []);
     s = withGold(s, 0, 20);

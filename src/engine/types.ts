@@ -130,9 +130,9 @@ export interface PendingDraft {
 export interface PendingWareTheftSwap {
   type: 'WARE_THEFT_SWAP';
   sourceCard: DeckCardId;
-  step: 'STEAL' | 'GIVE';
-  stolenWare?: WareType;       // Set after steal step
-  stolenIndex?: number;        // Opponent's slot of the stolen ware (exchanged in place)
+  step: 'GIVE' | 'STEAL';      // Pick your own ware first, then the opponent's
+  givenWare?: WareType;        // Set after the give step
+  givenIndex?: number;         // Your slot of the given ware (exchanged in place)
 }
 
 export interface PendingWareTheftSingle {
