@@ -16,6 +16,8 @@ interface HandDisplayProps {
   useWoodBackground?: boolean;
   transparentBackground?: boolean;
   showBorder?: boolean;
+  /** Lay the hand on a stitched leather mat (desktop board) instead of the plain box. */
+  mat?: boolean;
   showHelperText?: boolean;
   cardScale?: number;
   paddingBottom?: number;
@@ -41,7 +43,7 @@ export const MAX_READABLE_OVERLAP_RATIO = 0.5;
 /** Hand size at which the fan stops squeezing and scrolls sideways. */
 export const SCROLL_HAND_SIZE = 12;
 
-function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaView, useWoodBackground = true, transparentBackground = false, showBorder = true, showHelperText = true, cardScale = 1, paddingBottom = 14, paddingX = 14, paddingLeft, paddingRight, paddingTop = 14, layoutMode = 'fan', fixedOverlapPx, rows = 1, gapPx = 8, hints = null, priceModifiers = null }: HandDisplayProps) {
+function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaView, useWoodBackground = true, transparentBackground = false, showBorder = true, mat = false, showHelperText = true, cardScale = 1, paddingBottom = 14, paddingX = 14, paddingLeft, paddingRight, paddingTop = 14, layoutMode = 'fan', fixedOverlapPx, rows = 1, gapPx = 8, hints = null, priceModifiers = null }: HandDisplayProps) {
   const [isMobile, setIsMobile] = useState(false);
   // The opening hand deals in one card after another; later draws arrive alone
   const dealtRef = useRef(false);
@@ -199,11 +201,13 @@ function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaVie
 
   return (
     <div
-      className={!disabled && onPlayCard ? 'hand-live' : undefined}
+      className={[!disabled && onPlayCard ? 'hand-live' : '', mat ? 'hand-mat' : ''].filter(Boolean).join(' ') || undefined}
       style={{
         position: 'relative',
         padding: `${paddingTop}px ${resolvedPaddingRight}px ${paddingBottom}px ${resolvedPaddingLeft}px`,
-        ...(useWoodBackground
+        ...(mat
+          ? {}
+          : useWoodBackground
           ? {
               backgroundImage: 'linear-gradient(rgba(20,10,5,0.54), rgba(20,10,5,0.54)), url(/assets/panels/wood_1.png)',
               backgroundSize: 'cover',
@@ -213,7 +217,7 @@ function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaVie
           : {
               background: transparentBackground ? 'transparent' : 'rgba(20,10,5,0.2)',
             }),
-        border: showBorder ? '1px dashed var(--border)' : 'none',
+        border: mat ? undefined : showBorder ? '1px dashed var(--border)' : 'none',
         borderRadius: 10,
         minHeight: isFitRows ? undefined : Math.min(200, Math.round(187 * cardScale) + paddingTop + paddingBottom),
         overflowX: isFitRows ? 'visible' : isGrid3 ? 'hidden' : (isMobile || isTwoRowAlternate || scrollsSideways ? 'auto' : 'hidden'),

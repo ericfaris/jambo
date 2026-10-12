@@ -25,22 +25,17 @@ export function SeatInfo({ seat, label, subtitle, portrait, gold, goldDelta = 0,
   children?: ReactNode;
 }) {
   return (
-    <div className="seat-info" style={{ marginLeft: 'auto', display: 'flex', gap: 14, alignItems: 'flex-start', paddingRight: rightInset }}>
+    <div className="seat-info" style={{ marginLeft: 'auto', flexShrink: 0, display: 'flex', gap: 14, alignItems: 'flex-start', paddingRight: rightInset }}>
       {portrait}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, paddingTop: 2 }}>
-        <span style={{
-          fontFamily: 'var(--font-heading)',
-          fontWeight: 700,
-          fontSize: 18,
-          color: isActive ? 'var(--gold)' : 'var(--text)',
-          textShadow: '0 2px 12px rgba(0,0,0,0.6)',
-        }}>
+        <span className={`seat-name${isActive ? ' seat-name-active' : ''}`}>
           {label}
         </span>
-        {subtitle && <span style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: -4 }}>{subtitle}</span>}
-        <div style={{ display: 'flex', gap: 14, alignItems: 'baseline' }}>
-          <span key={`seat-gold-${goldDelta}`} data-gold-anchor={seat} className={goldDelta !== 0 ? 'gold-pop gold-pop-strong' : undefined} style={{ color: 'var(--gold)', fontWeight: 700, fontSize: 20, fontFamily: 'var(--font-heading)', position: 'relative' }} aria-label={`${gold} gold`}>
-            <GoldCount value={gold} />
+        {subtitle && <span className="seat-subtitle">{subtitle}</span>}
+        <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+          <span key={`seat-gold-${goldDelta}`} data-gold-anchor={seat} className={`seat-gold${goldDelta !== 0 ? ' gold-pop gold-pop-strong' : ''}`} aria-label={`${gold} gold`}>
+            <span className="seat-coin" aria-hidden="true" />
+            <span className="seat-gold-num"><GoldCount value={gold} /></span>
             {goldDelta !== 0 && (
               <span className="gold-delta-text gold-delta-text-strong" style={{
                 position: 'absolute',
@@ -54,7 +49,7 @@ export function SeatInfo({ seat, label, subtitle, portrait, gold, goldDelta = 0,
               </span>
             )}
           </span>
-          <span style={{ color: 'var(--text-muted)', fontSize: 15 }}>
+          <span className="seat-cards">
             {handCount} {handCount === 1 ? 'card' : 'cards'}
           </span>
         </div>

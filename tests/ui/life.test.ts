@@ -110,7 +110,7 @@ describe('living table components', () => {
   it('market wares settle into their slots; empty slots are wells', () => {
     const html = renderToStaticMarkup(createElement(MarketDisplay, { market: ['tea', null, 'silk', null, null, null] }));
     expect(html.match(/ware-in-slot/g)).toHaveLength(2);
-    expect(html.match(/class="market-slot/g)).toHaveLength(6);
+    expect(html.match(/class="market-slot[ "]/g)).toHaveLength(6);
     // interactive/dashed variants (dialogs, TV) keep their flat look
     const dashed = renderToStaticMarkup(createElement(MarketDisplay, { market: ['tea', null], dashedBorder: true }));
     expect(dashed).not.toContain('market-slot"');
@@ -119,7 +119,7 @@ describe('living table components', () => {
   it("desktop opponent panel reserves 3 utility spaces so the board can't jump", () => {
     const player = createTestState().players[1];
     const html = renderToStaticMarkup(createElement(OpponentArea, { player: { ...player, utilities: [] } }));
-    expect(html.match(/empty-card-slot/g)?.length).toBe(3);
+    expect(html.match(/class="empty-card-slot"/g)?.length).toBe(3);
     expect(html).toContain('opp-hand-fan');
   });
 

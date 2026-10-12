@@ -1967,7 +1967,6 @@ button.brown:hover:not(:disabled) {
 .ware-supply-title { margin: 0; font-size: 12px; }
 .ware-supply-grid { display: grid; grid-template-columns: repeat(3, 34px); gap: 6px; }
 /* An empty card space (utility slot, empty discard pile): dashed outline on a faint fill */
-.empty-card-slot { border-radius: 8px; border: 2px dashed var(--border); background: rgba(255,255,255,0.06); flex-shrink: 0; }
 
 /* Center row: supply (left) and End Turn (right) share one width, so the row reads balanced */
 .center-side-slot { width: 168px; }
@@ -2459,6 +2458,348 @@ button.brown:hover:not(:disabled) {
 @media (prefers-reduced-motion: reduce) {
   .turn-plaque-mine { animation: none; }
   .turn-plaque-coin { transition: none; }
+}
+
+/* --- Player tableau: each seat as fitted wood-and-brass market furniture --
+   Same metalwork as the turn plaque: a dark lacquered panel lit from above, a
+   double brass rim, brass corner brackets, gold-gradient type, carved wells. */
+.tableau {
+  position: relative;
+  border-radius: 14px;
+  border: 1px solid rgba(217,173,91,0.3);
+  background:
+    radial-gradient(90% 80% at 50% -12%, rgba(217,173,91,0.11), transparent 62%),
+    linear-gradient(180deg, rgba(42,27,16,0.9) 0%, rgba(20,12,7,0.92) 100%);
+  backdrop-filter: blur(3px);
+  box-shadow:
+    inset 0 0 0 3px rgba(20,12,7,0.9),
+    inset 0 0 0 4px rgba(217,173,91,0.16),
+    inset 0 1px 0 4px rgba(255,226,160,0.05),
+    0 12px 30px rgba(0,0,0,0.5),
+    0 2px 0 rgba(0,0,0,0.55);
+}
+.tableau.turn-emphasis-active {
+  border-color: rgba(217,173,91,0.72);
+  box-shadow:
+    inset 0 0 0 3px rgba(20,12,7,0.9),
+    inset 0 0 0 4px rgba(217,173,91,0.42),
+    0 0 0 1px rgba(217,173,91,0.18),
+    0 12px 30px rgba(0,0,0,0.5);
+}
+/* a band of lamplight crosses the panel once when the turn comes to it */
+.tableau::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 42%, rgba(255,226,160,0.10) 49%, rgba(255,240,200,0.16) 50%, rgba(255,226,160,0.10) 51%, transparent 58%) no-repeat;
+  background-size: 260% 100%;
+  background-position: 160% 0;
+  mix-blend-mode: screen;
+}
+.tableau.turn-emphasis-active::before {
+  animation: tableauSheen 1.4s 0.2s var(--anim-ease-standard) both;
+}
+@keyframes tableauSheen {
+  from { background-position: 160% 0; }
+  to { background-position: -60% 0; }
+}
+/* brass corner brackets, each with a stud */
+.tableau-corner {
+  position: absolute;
+  z-index: 3;
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, #f3d58a, #b88a38 60%, rgba(110,75,23,0)) top left / 100% 2px no-repeat,
+    linear-gradient(180deg, #f3d58a, #b88a38 60%, rgba(110,75,23,0)) top left / 2px 100% no-repeat;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.75));
+  opacity: 0.8;
+  transition: opacity 0.4s ease;
+}
+.tableau-corner::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff1c9 0%, #d9ad5b 45%, #6e4b17 100%);
+}
+.tableau-corner-tl { top: 6px; left: 6px; }
+.tableau-corner-tr { top: 6px; right: 6px; transform: scaleX(-1); }
+.tableau-corner-bl { bottom: 6px; left: 6px; transform: scaleY(-1); }
+.tableau-corner-br { bottom: 6px; right: 6px; transform: scale(-1); }
+.turn-emphasis-active > .tableau-corner { opacity: 1; }
+
+/* Section labels: plaque eyebrows — a brass rule, gold-gradient caps, a count chip */
+.tableau .panel-section-title,
+.player-board .panel-section-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+  letter-spacing: 0.16em;
+  white-space: nowrap;
+  background: linear-gradient(180deg, #fff0c4 0%, #e8bd62 52%, #a8742a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.7));
+}
+.tableau .panel-section-title::before,
+.player-board .panel-section-title::before {
+  content: '';
+  flex-shrink: 0;
+  width: 14px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #d9ad5b);
+}
+.tableau-count {
+  display: inline-flex;
+  align-items: center;
+  height: 17px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-family: var(--font-heading);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: #ecd6a4;
+  -webkit-text-fill-color: #ecd6a4;
+  background: linear-gradient(180deg, #2a1b10, #140c07);
+  box-shadow: inset 0 0 0 1px rgba(217,173,91,0.42), inset 0 1px 2px rgba(0,0,0,0.6);
+  text-transform: none;
+}
+
+/* Market: carved wells on wooden stand shelves */
+.market-slot {
+  border: 1px solid rgba(10,6,3,0.9);
+  background: radial-gradient(circle at 50% 40%, #3a281a 0%, #20150c 80%);
+  box-shadow:
+    inset 0 3px 6px rgba(0,0,0,0.7),
+    inset 0 -1px 0 rgba(255,226,160,0.07),
+    0 1px 0 rgba(255,226,160,0.08);
+  transition: border-color var(--motion-fast) ease, box-shadow var(--motion-fast) ease;
+}
+/* a filled well catches the ware's colour, like light off the goods */
+.market-slot-filled {
+  background:
+    radial-gradient(circle at 50% 64%, color-mix(in srgb, var(--ware-c, transparent) 34%, transparent) 0%, transparent 64%),
+    radial-gradient(circle at 50% 40%, #3a281a 0%, #20150c 80%);
+}
+.market-slot-selected {
+  border-color: var(--gold);
+  box-shadow:
+    inset 0 3px 6px rgba(0,0,0,0.6),
+    0 0 0 1px var(--gold),
+    0 0 12px rgba(212,168,80,0.5);
+}
+/* the large stand's paid 6th space: a worn brass coin set in the well */
+.market-slot-fee {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  line-height: 1;
+  color: #2e1e09;
+  background:
+    radial-gradient(circle at 35% 28%, rgba(255,246,214,0.55) 0%, rgba(255,246,214,0) 36%),
+    radial-gradient(circle, #c99a45 0%, #94672a 68%, #5a3c12 100%);
+  box-shadow: inset 0 0 0 1px rgba(60,38,10,0.85), inset 0 0 0 2.5px rgba(255,224,150,0.22), 0 1px 2px rgba(0,0,0,0.6);
+  opacity: 0.62;
+}
+.market-stands {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 14px;
+  padding: 10px 6px 6px 0;
+}
+.market-stand {
+  display: flex;
+  flex-direction: column;
+}
+.market-stand-slots {
+  display: flex;
+  gap: 6px;
+  padding: 0 5px 5px;
+}
+.market-stand-shelf {
+  display: block;
+  height: 7px;
+  margin: 0 -1px;
+  border-radius: 2px 2px 4px 4px;
+  background: linear-gradient(180deg, #9a6a3c 0%, #6a4322 42%, #3d2512 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,214,150,0.38),
+    inset 0 -1px 0 rgba(0,0,0,0.4),
+    0 4px 6px rgba(0,0,0,0.55);
+}
+.market-stand-small .market-stand-shelf {
+  background: linear-gradient(180deg, #8a5d33 0%, #5c3a1e 42%, #34200f 100%);
+}
+
+/* Utility sockets: recessed felt with a stitched edge and an embossed mark */
+.empty-card-slot {
+  position: relative;
+  border-radius: 10px;
+  border: 1px solid rgba(10,6,3,0.85);
+  background:
+    radial-gradient(120% 80% at 50% 28%, rgba(90,62,38,0.32), transparent 70%),
+    linear-gradient(180deg, #1d130b, #110a05);
+  box-shadow:
+    inset 0 3px 9px rgba(0,0,0,0.72),
+    inset 0 -1px 0 rgba(255,226,160,0.06),
+    0 1px 0 rgba(255,226,160,0.07);
+  flex-shrink: 0;
+}
+.empty-card-slot::before {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border-radius: 6px;
+  border: 1px dashed rgba(217,173,91,0.17);
+}
+.empty-card-slot-mark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 18%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%) rotate(45deg);
+  border-radius: 3px;
+  border: 1px solid rgba(217,173,91,0.22);
+  box-shadow: inset 0 0 0 3px rgba(17,10,5,0.9), inset 0 0 0 4px rgba(217,173,91,0.1);
+}
+.utility-used-pill {
+  background: linear-gradient(180deg, #2a1b10, #140c07);
+  border-color: rgba(217,173,91,0.4);
+  color: #c9a467;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+
+/* Seat: name, gold readout with a coin, brass race track */
+.seat-name {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 18px;
+  line-height: 1.15;
+  white-space: nowrap;
+  color: var(--text);
+  text-shadow: 0 2px 12px rgba(0,0,0,0.6);
+}
+.seat-name-active {
+  background: linear-gradient(180deg, #fff0c4 0%, #e8bd62 50%, #a8742a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,0.65));
+}
+.seat-subtitle {
+  font-size: 12px;
+  font-style: italic;
+  color: var(--text-muted);
+  margin-top: -4px;
+}
+.seat-gold {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 25px;
+  line-height: 1;
+}
+.seat-gold-num .gold-count,
+.player-gold .gold-count {
+  background: linear-gradient(180deg, #fff0c4 0%, #e8bd62 48%, #a8742a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  font-variant-numeric: tabular-nums;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,0.65));
+}
+/* gradient text can't carry a text-shadow glint — glint with a filter instead */
+.seat-gold-num .gold-count-rising,
+.player-gold .gold-count-rising {
+  animation: goldGlintLit 900ms var(--anim-ease-standard);
+}
+@keyframes goldGlintLit {
+  0%, 100% { filter: drop-shadow(0 2px 3px rgba(0,0,0,0.65)); }
+  30% { filter: brightness(1.3) drop-shadow(0 0 7px rgba(255,214,120,0.95)); }
+}
+.seat-coin {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 28%, rgba(255,250,225,0.95) 0%, rgba(255,250,225,0) 32%),
+    radial-gradient(circle at 50% 50%, #f2cb6e 0%, #d39f3f 58%, #8f6020 100%);
+  box-shadow:
+    inset 0 0 0 1.5px rgba(120,78,22,0.75),
+    inset 0 0 0 4px rgba(255,224,150,0.3),
+    inset 0 0 0 5px rgba(120,78,22,0.35),
+    0 1px 3px rgba(0,0,0,0.6),
+    0 0 8px rgba(240,190,90,0.35);
+}
+.seat-cards {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+/* Hand: a stitched leather mat */
+.hand-mat {
+  background:
+    radial-gradient(70% 100% at 50% 35%, rgba(120,66,32,0.2), transparent 72%),
+    linear-gradient(180deg, rgba(38,21,11,0.6), rgba(18,10,5,0.66));
+  box-shadow:
+    inset 0 2px 12px rgba(0,0,0,0.6),
+    inset 0 0 0 1px rgba(10,6,3,0.85),
+    0 1px 0 rgba(255,226,160,0.07);
+  outline: 1px dashed rgba(217,173,91,0.2);
+  outline-offset: -6px;
+}
+
+/* Phone boards share the rim and the count chips */
+.phone-opp-wrap {
+  border-color: rgba(217,173,91,0.28);
+  background:
+    radial-gradient(90% 80% at 50% -12%, rgba(217,173,91,0.09), transparent 62%),
+    linear-gradient(180deg, rgba(42,27,16,0.9) 0%, rgba(20,12,7,0.92) 100%);
+  box-shadow: inset 0 0 0 2px rgba(20,12,7,0.85), inset 0 0 0 3px rgba(217,173,91,0.14), 0 8px 22px rgba(0,0,0,0.45);
+}
+.phone-opp-wrap.turn-emphasis-active {
+  border-color: rgba(217,173,91,0.7);
+  box-shadow: inset 0 0 0 2px rgba(20,12,7,0.85), inset 0 0 0 3px rgba(217,173,91,0.38), 0 0 0 1px rgba(217,173,91,0.16), 0 8px 22px rgba(0,0,0,0.45);
+}
+.player-board {
+  border: 1px solid rgba(217,173,91,0.28);
+  box-shadow: inset 0 0 0 2px rgba(20,12,7,0.85), inset 0 0 0 3px rgba(217,173,91,0.14), 0 8px 22px rgba(0,0,0,0.45);
+}
+.player-board.turn-emphasis-active {
+  border-color: rgba(217,173,91,0.7);
+  box-shadow: inset 0 0 0 2px rgba(20,12,7,0.85), inset 0 0 0 3px rgba(217,173,91,0.38), 0 0 0 1px rgba(217,173,91,0.16), 0 8px 22px rgba(0,0,0,0.45);
+}
+.player-board-section-head { align-items: center; }
+.player-board .panel-section-title { font-size: 12px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tableau.turn-emphasis-active::before,
+  .seat-gold-num .gold-count-rising,
+  .player-gold .gold-count-rising { animation: none; }
 }
 
 /* --- Abandon game (asks in place before acting) ------------------------- */

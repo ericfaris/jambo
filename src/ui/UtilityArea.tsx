@@ -1,4 +1,5 @@
 import { memo, useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import type { UtilityState } from '../engine/types.ts';
 import { CardFace } from './CardFace.tsx';
 import { getCard } from '../engine/cards/CardDatabase.ts';
@@ -28,6 +29,8 @@ interface UtilityAreaProps {
   onMegaView?: (cardId: DeckCardId) => void;
   /** Per-utility usability (computeUtilityHints): fades and disables what can't be used now. */
   hints?: Map<DeckCardId, UtilityHint> | null;
+  /** A small count chip beside the label, e.g. "2/3". */
+  labelAside?: ReactNode;
 }
 
 function UtilityAreaComponent({
@@ -48,6 +51,7 @@ function UtilityAreaComponent({
   onMegaView,
   untappedCardId = null,
   hints = null,
+  labelAside,
 }: UtilityAreaProps) {
   const [isMobile, setIsMobile] = useState(false);
 
@@ -68,6 +72,7 @@ function UtilityAreaComponent({
       {label && (
         <div className="panel-section-title">
           {label}
+          {labelAside != null && <span className="tableau-count">{labelAside}</span>}
         </div>
       )}
       {showHelperText && showInteractionHint && (
@@ -154,7 +159,9 @@ function UtilityAreaComponent({
           const w = Math.round((cardSize === 'small' ? 96 : cardSize === 'medium' ? 120 : cardSize === 'large' ? 180 : 140) * cardScale);
           const h = Math.round((cardSize === 'small' ? 128 : cardSize === 'medium' ? 160 : cardSize === 'large' ? 240 : 187) * cardScale);
           return (
-            <div key={`empty-${i}`} className="empty-card-slot" style={{ width: w, height: h }} />
+            <div key={`empty-${i}`} className="empty-card-slot" style={{ width: w, height: h }}>
+              <span className="empty-card-slot-mark" aria-hidden="true" />
+            </div>
           );
         })}
       </div>

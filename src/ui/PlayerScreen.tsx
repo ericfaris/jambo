@@ -371,7 +371,7 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
         {/* Own utilities */}
         <div className="player-board-section-head">
           <div className="panel-section-title">Your Utilities</div>
-          {utilCount > 0 && <span className="ui-helper-text">{utilCount}/3</span>}
+          {utilCount > 0 && <span className="tableau-count">{utilCount}/3</span>}
         </div>
         <div style={{ flexShrink: 0, height: utilCount > 0 ? utilFit.cardHeight : utilRowH }}>
           <UtilityArea
@@ -402,7 +402,7 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
 
         {/* Hand */}
         <div className="player-board-section-head">
-          <div className="panel-section-title">Your Hand · {priv.hand.length}</div>
+          <div className="panel-section-title">Your Hand<span className="tableau-count">{priv.hand.length}</span></div>
           {pub.phase === 'PLAY' && pub.currentPlayer === slot && (
             <span className="ui-helper-text">{pub.actionsLeft} action{pub.actionsLeft === 1 ? '' : 's'} left</span>
           )}

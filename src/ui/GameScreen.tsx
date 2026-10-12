@@ -35,6 +35,7 @@ import { traderChatter } from '../ai/traderChatter.ts';
 import { TraderPortrait } from './TraderPortrait.tsx';
 import { PlayerAvatar } from './PlayerAvatar.tsx';
 import { SeatInfo } from './SeatInfo.tsx';
+import { TableauCorners } from './Tableau.tsx';
 import { useTrader } from './useTrader.ts';
 import { ResolveMegaView } from './ResolveMegaView.tsx';
 import { isHandInteraction } from './HandReferenceStrip.tsx';
@@ -693,7 +694,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
             <div ref={phoneBoardRef} className={`player-board turn-emphasis ${isMyTurnNow ? 'turn-emphasis-active' : 'turn-emphasis-inactive'}`} data-center-target="bottom">
               <div className="player-board-section-head">
                 <div className="panel-section-title">{localMultiplayer ? `Player ${viewerPlayer + 1} Market` : 'Your Market'}</div>
-                <span className="ui-helper-text">{viewer.market.filter(Boolean).length}/{viewer.market.length}</span>
+                <span className="tableau-count">{viewer.market.filter(Boolean).length}/{viewer.market.length}</span>
               </div>
               <div style={{ flexShrink: 0 }}>
                 <MarketDisplay
@@ -709,7 +710,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
               </div>
               <div className="player-board-section-head">
                 <div className="panel-section-title">{localMultiplayer ? `Player ${viewerPlayer + 1} Utilities` : 'Your Utilities'}</div>
-                {utilCount > 0 && <span className="ui-helper-text">{utilCount}/3</span>}
+                {utilCount > 0 && <span className="tableau-count">{utilCount}/3</span>}
               </div>
               <div style={{ flexShrink: 0, height: utilH }} data-utility-anchor={viewerPlayer}>
                 <UtilityArea
@@ -739,7 +740,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
                 />
               </div>
               <div className="player-board-section-head">
-                <div className="panel-section-title">{localMultiplayer ? `Player ${viewerPlayer + 1} Hand` : 'Your Hand'} · {viewer.hand.length}</div>
+                <div className="panel-section-title">{localMultiplayer ? `Player ${viewerPlayer + 1} Hand` : 'Your Hand'}<span className="tableau-count">{viewer.hand.length}</span></div>
                 {state.phase === 'PLAY' && isMyTurnNow && (
                   <span className="ui-helper-text">{state.actionsLeft} action{state.actionsLeft === 1 ? '' : 's'} left</span>
                 )}
@@ -785,11 +786,8 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
         minWidth: 0,
       }}>
         {/* Opponent area */}
-        <div ref={topPanelRef} className={`etched-wood-border turn-emphasis ${state.currentPlayer === opponentPlayer ? 'turn-emphasis-active' : 'turn-emphasis-inactive'}`} style={{
-          borderRadius: 12,
-          background: 'rgba(20,10,5,0.75)',
-          backdropFilter: 'blur(3px)',
-        }} data-center-target="top">
+        <div ref={topPanelRef} className={`tableau turn-emphasis ${state.currentPlayer === opponentPlayer ? 'turn-emphasis-active' : 'turn-emphasis-inactive'}`} data-center-target="top">
+          <TableauCorners />
           <OpponentArea
             seat={opponentPlayer}
             player={state.players[opponentPlayer]}
@@ -835,12 +833,10 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
         </div>
 
         {/* Player sections */}
-        <div className={`etched-wood-border turn-emphasis ${state.currentPlayer === viewerPlayer ? 'turn-emphasis-active' : 'turn-emphasis-inactive'}`} style={{
-          borderRadius: 12,
+        <div className={`tableau turn-emphasis ${state.currentPlayer === viewerPlayer ? 'turn-emphasis-active' : 'turn-emphasis-inactive'}`} style={{
           padding: '12px',
-          background: 'rgba(20,10,5,0.75)',
-          backdropFilter: 'blur(3px)',
         }} data-center-target="bottom">
+          <TableauCorners />
           {/* Player board: market · utilities · you (name, gold, turn modifiers) */}
           <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', padding: '2px 4px 10px' }}>
             <MarketDisplay
@@ -849,8 +845,10 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
               flashSlots={visualFeedback.marketFlashSlots[viewerPlayer]}
               flashVariant="soft"
               label={localMultiplayer ? `Player ${viewerPlayer + 1} Market` : 'Your Market'}
+              labelAside={`${state.players[viewerPlayer].market.filter(Boolean).length}/${state.players[viewerPlayer].market.length}`}
             />
-            <div data-utility-anchor={viewerPlayer}>
+            {/* utilities never squeeze into two rows; a long market wraps whole stands instead */}
+            <div data-utility-anchor={viewerPlayer} style={{ flexShrink: 0 }}>
             <UtilityArea
               utilities={state.players[viewerPlayer].utilities}
               onActivate={(i) => {
@@ -868,6 +866,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
               onMegaView={setMegaCardId}
               cardError={cardError}
               label={localMultiplayer ? `Player ${viewerPlayer + 1} Utilities` : 'Your Utilities'}
+              labelAside={`${state.players[viewerPlayer].utilities.length}/3`}
               cardSize={isShortDesktop ? 'small' : 'medium'}
               maxSlots={3}
               showHelperText={false}
@@ -909,8 +908,9 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
             marginBottom: 10,
           }} data-hand-anchor={viewerPlayer}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-            <div className="panel-section-title" style={{ fontSize: 15, marginBottom: 0 }}>
+            <div className="panel-section-title" style={{ marginBottom: 0 }}>
               {localMultiplayer ? `Player ${viewerPlayer + 1} Hand` : 'Your Hand'}
+              <span className="tableau-count">{state.players[viewerPlayer].hand.length}</span>
             </div>
           </div>
           <HandDisplay
@@ -922,6 +922,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
             cardError={cardError}
             useWoodBackground={false}
             transparentBackground={false}
+            mat
             showHelperText={false}
             onMegaView={setMegaCardId}
             cardScale={isShortDesktop ? 0.76 : 1}

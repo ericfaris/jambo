@@ -101,18 +101,16 @@ function OpponentAreaComponent({ player, aiMessage, onMessageHide, goldDelta = 0
         onHide={onMessageHide || (() => {})}
         right={portrait ? 'clamp(290px, 30vw, 350px)' : undefined}
       />
-      <div className="etched-wood-border" style={{
-        background: 'rgba(20,10,5,0.5)',
-        borderRadius: 10,
+      <div style={{
         padding: '10px 16px',
         display: 'flex',
         gap: 24,
         alignItems: 'flex-start',
       }}>
-        <MarketDisplay market={player.market} flashSlots={marketFlashSlots} flashVariant="strong" label="Market" owner={seat} />
+        <MarketDisplay market={player.market} flashSlots={marketFlashSlots} flashVariant="strong" label="Market" labelAside={`${player.market.filter(Boolean).length}/${player.market.length}`} owner={seat} />
         {/* maxSlots reserves the row's height so the board never jumps when a utility lands */}
-        <div data-spotlight-target="opponent-utilities" data-utility-anchor={seat}>
-          <UtilityArea utilities={player.utilities} disabled label="Utilities" cardSize="small" maxSlots={3} onMegaView={onMegaView} untappedCardId={untappedUtility} />
+        <div data-spotlight-target="opponent-utilities" data-utility-anchor={seat} style={{ flexShrink: 0 }}>
+          <UtilityArea utilities={player.utilities} disabled label="Utilities" labelAside={`${player.utilities.length}/3`} cardSize="small" maxSlots={3} onMegaView={onMegaView} untappedCardId={untappedUtility} />
         </div>
         {/* rightInset keeps the name clear of the fixed avatar/settings button, when it overlaps */}
         <SeatInfo seat={seat} label={label} subtitle={subtitle} portrait={portrait} gold={player.gold} goldDelta={goldDelta} handCount={player.hand.length} isActive={isActive} rightInset={rightInset} handAnchor />

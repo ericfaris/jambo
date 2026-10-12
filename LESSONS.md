@@ -542,3 +542,20 @@ overwrites tracked files.)
 - **A vertically centred dialog with per-chapter content jumps**; give it a
   fixed height and scroll the body. On phones a stretched grid body leaves a
   gap under short rows — `align-content: start`.
+
+## 2026-10-12 — Player tableau polish
+- **Gradient (background-clip) text can't carry a text-shadow.** The shadow
+  shows through the clear glyphs. Use `filter: drop-shadow()`, and do any glint
+  as a filter animation (`goldGlintLit`). Put the gradient on the element that
+  owns the text (`.gold-count`), not on a wrapper, or a filter on the child
+  can't reach it.
+- **Grouping the market into stands made the desktop row wider**, which
+  squeezed the utilities into two rows and wrapped the seat name. Utilities
+  and `SeatInfo` are `flex-shrink: 0`; only the market wraps, a whole stand at
+  a time. The compact phone row stays flat because `fitMarketSlots()`
+  assumes slots wrap one by one.
+- **Screenshot a real mid-game state, not a fresh deal.** Run the medium AI
+  from a seed until it's your play phase with wares and utilities, write a
+  `SavedGame` to `localStorage['jambo.savedGame']`, set
+  `sessionStorage['jambo.activeGame']='1'` and
+  `localStorage['jambo.tutorialSeen']='true'` (the string `'true'`).
