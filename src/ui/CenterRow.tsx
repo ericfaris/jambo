@@ -37,6 +37,8 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
   const pileScale = compact ? 0.62 : 1;
   const pileW = Math.round(96 * pileScale);
   const pileH = Math.round(128 * pileScale);
+  // room between a pile and its title: clears the deck's stacked-edge shadow (up to ~8px)
+  const pileTitleGap = compact ? 6 : 16;
   const phaseLabel = state.phase === 'DRAW'
     ? `Draw Phase (${state.drawsThisPhase}/5)`
     : state.phase === 'PLAY'
@@ -181,7 +183,7 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
       justifyContent: 'center',
       alignItems: 'center',
       gap: compact ? 14 : 32,
-      padding: compact ? '2px 0' : '12px 0',
+      padding: compact ? '2px 0' : '12px 0 18px',
       position: 'relative',
     }}>
       {visualFeedback?.trail && (
@@ -225,25 +227,13 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
       )}
 
       {/* Deck */}
-      <div ref={deckPileRef} key={`deck-${visualFeedback?.deckPulse ?? 0}`} className={deckPulseClass} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: compact ? 3 : 6 }}>
+      <div ref={deckPileRef} key={`deck-${visualFeedback?.deckPulse ?? 0}`} className={deckPulseClass} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: pileTitleGap }}>
         {state.deck.length > 0 ? (
           <div className="deck-stack" style={{ '--deck-thickness': deckThicknessShadow(state.deck.length) } as CSSProperties}>
             <CardFace cardId={state.deck[0]} faceDown small scale={pileScale} />
           </div>
         ) : (
-          <div style={{
-            width: pileW,
-            height: pileH,
-            borderRadius: 10,
-            border: '2px dashed var(--border)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'var(--text-muted)',
-            fontSize: 13,
-          }}>
-            Empty
-          </div>
+          <div className="empty-card-slot" style={{ width: pileW, height: pileH }} />
         )}
         <div className="panel-section-title" style={{ marginBottom: 0 }}>
           Deck ({state.deck.length})
@@ -290,7 +280,7 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: compact ? 3 : 6,
+        gap: pileTitleGap,
         ...(showGlow && {
           boxShadow: '0 0 20px rgba(212, 168, 80, 0.4), inset 0 0 20px rgba(212, 168, 80, 0.1)',
           borderRadius: 12,
@@ -306,19 +296,7 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
           {displayDiscardCard ? (
             <CardFace cardId={displayDiscardCard} small scale={pileScale} />
           ) : (
-            <div style={{
-              width: pileW,
-              height: pileH,
-              borderRadius: 10,
-              border: '2px dashed var(--border)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--text-muted)',
-              fontSize: 13,
-            }}>
-              Empty
-            </div>
+            <div className="empty-card-slot" style={{ width: pileW, height: pileH }} />
           )}
         </div>
         </div>
@@ -328,13 +306,13 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
       </div>
 
       {supplySlot && (
-        <div style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)' }}>
+        <div className="center-side-slot" style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)' }}>
           {supplySlot}
         </div>
       )}
 
       {endTurnSlot && (
-        <div style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)' }}>
+        <div className="center-side-slot" style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)' }}>
           {endTurnSlot}
         </div>
       )}

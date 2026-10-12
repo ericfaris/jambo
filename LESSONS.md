@@ -403,3 +403,18 @@ overwrites tracked files.)
   can't be dodged by restarting a losing game. Abandons live in their own
   `game_abandons` collection (tagged `mode`, so hotseat can be excluded) and
   don't touch wins/losses yet. The leaderboard decides how to weigh them.
+
+## 2026-10-12 — Board polish, Wise Man coins, utility-use spotlight (v1.15.0)
+
+- **Animation grammar: flying means moving.** A card flying somewhere reads
+  as placing or discarding it. A utility being *used* now turns sideways in
+  the spotlight and fades in place (`destination: 'inPlace'`). The board copy
+  stays upright (`untappedCardId`) until the spotlight clears, so the turn
+  happens in view instead of under the backdrop.
+- **One price function for engine and UI.** `effectiveWarePrices()`
+  (engine/market/warePrices.ts) drives both the charge and the coins. A coin
+  that drifts from what the engine charges is worse than no coin.
+- **Hand-seeding a GameState for Playwright:** `UtilityState` needs
+  `designId`. Without it Medium AI scoring goes NaN and returns `undefined`,
+  so the AI silently never moves. That looked like a resume bug, but it was
+  the seed. Always run `checkInvariants`. Note that it doesn't catch this.

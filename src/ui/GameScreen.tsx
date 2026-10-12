@@ -58,6 +58,7 @@ import { useMediaQuery, PHONE_MEDIA_QUERY, SHORT_DESKTOP_MEDIA_QUERY } from './u
 import { useElementSize } from './useElementSize.ts';
 import { fitCardsToBox, fitMarketSlots } from './fitLayout.ts';
 import { useCornerButtonInset } from './cornerClearance.ts';
+import { viewerPriceModifiers } from './WareCoin.tsx';
 import { AvatarImage } from './AvatarImage.tsx';
 
 type AnimationSpeed = 'normal' | 'fast';
@@ -148,6 +149,9 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   const [logSeenLength, setLogSeenLength] = useState(() => state.log.length);
   const [spotlightActive, setSpotlightActive] = useState(false);
   const [spotlitDiscard, setSpotlitDiscard] = useState<DeckCardId | null>(null);
+  // A utility the opponent is using stays upright on the board until its
+  // spotlight clears, so you see it turn there too
+  const [spotlitUtility, setSpotlitUtility] = useState<DeckCardId | null>(null);
   // A soft tap as each ware lands — throttled so a 6-ware buy doesn't clatter
   const lastLandSound = useRef(0);
   const handleFlightLand = useCallback((flight: Flight) => {
@@ -163,6 +167,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   const spotlightKey = useRef<PlaySpotlight['key'] | null>(null);
   const handleSpotlightCurrent = useCallback((spot: PlaySpotlight | null) => {
     setSpotlitDiscard(spot && spot.destination === 'discard' ? spot.cardId : null);
+    setSpotlitUtility(spot && spot.destination === 'inPlace' ? spot.cardId : null);
     const key = spot?.key ?? null;
     if (key !== spotlightKey.current) {
       spotlightKey.current = key;
@@ -213,6 +218,8 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   // Hotseat: the screen belongs to whoever must act next — including the
   // non-active player answering a Guard/Rain Maker, auction, draft, etc.
   const viewerPlayer: 0 | 1 = localMultiplayer ? getResponder(state) : 0;
+  // Wise Man: your ware coins show this turn's prices
+  const priceModifiers = viewerPriceModifiers(state.turnModifiers, state.currentPlayer, viewerPlayer);
   // Hotseat: whose hand is currently allowed on screen (changes only after a handoff)
   const [confirmedViewer, setConfirmedViewer] = useState<0 | 1>(viewerPlayer);
   const opponentPlayer: 0 | 1 = viewerPlayer === 0 ? 1 : 0;
@@ -855,6 +862,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
               </div>
               <div ref={phoneHandRef} className="player-hand-box" data-hand-anchor={viewerPlayer}>
                 <HandDisplay
+                  priceModifiers={priceModifiers}
                   hand={viewer.hand}
                   onPlayCard={handlePlayCard}
                   disabled={playActionsDisabled}
@@ -911,6 +919,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
             isActive={state.currentPlayer === opponentPlayer}
             onMegaView={setMegaCardId}
             rightInset={cornerInset}
+            untappedUtility={spotlitUtility}
           />
         </div>
 
@@ -931,7 +940,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
               <button
                 className="end-turn-button"
                 onClick={() => dispatch({ type: 'END_TURN' })}
-                style={{ padding: '12px 28px', fontSize: 16 }}
+                style={{ padding: '12px 10px', fontSize: 16 }}
                 aria-label={`End turn, ${state.actionsLeft} actions left${turnBonus ? `, earns +${turnBonus}g` : ''}`}
               >
                 <span>End Turn{turnBonus > 0 && <span className="end-turn-bonus">+{turnBonus}g</span>}</span>
@@ -1020,6 +1029,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
             </div>
           </div>
           <HandDisplay
+            priceModifiers={priceModifiers}
             hand={state.players[viewerPlayer].hand}
             onPlayCard={handlePlayCard}
             disabled={playActionsDisabled}
@@ -1463,6 +1473,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
       {wareDialog && wareDialogStillValid && (
         <CardPlayDialog
           cardId={wareDialog}
+          priceModifiers={priceModifiers}
           market={state.players[viewerPlayer].market}
           onBuy={() => {
             const validation = validatePlayCard(state, wareDialog, 'buy');
@@ -1624,7 +1635,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
 
       {/* Mega view */}
       {megaCardId && (
-        <MegaView cardId={megaCardId} onClose={() => setMegaCardId(null)} market={state.players[viewerPlayer].market} />
+        <MegaView cardId={megaCardId} onClose={() => setMegaCardId(null)} market={state.players[viewerPlayer].market} priceModifiers={priceModifiers} />
       )}
 
     </div>

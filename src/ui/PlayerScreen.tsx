@@ -30,6 +30,7 @@ import { useAuthSession } from './useAuthSession.ts';
 import { fitCardsToBox } from './fitLayout.ts';
 import { useElementSize } from './useElementSize.ts';
 import { AvatarImage } from './AvatarImage.tsx';
+import { viewerPriceModifiers } from './WareCoin.tsx';
 
 type AnimationSpeed = 'normal' | 'fast';
 const ANIMATION_SPEED_STORAGE_KEY = 'jambo.animationSpeed';
@@ -145,6 +146,8 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
   }, [authLogout]);
 
   if (!pub || !priv || slot === null) return null;
+  // Wise Man: your ware coins show this turn's prices
+  const priceModifiers = viewerPriceModifiers(pub.turnModifiers, pub.currentPlayer, slot);
 
   const dispatch = (action: GameAction) => ws.sendAction(action);
   const handleCastRematch = useCallback(() => {
@@ -462,6 +465,7 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
         </div>
         <div ref={handBoxRef} className="player-hand-box">
           <HandDisplay
+            priceModifiers={priceModifiers}
             hand={priv.hand}
             onPlayCard={handlePlayCard}
             disabled={actionsDisabled || !inPlayPhase || pub.actionsLeft <= 0}
@@ -493,6 +497,7 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
       {wareDialog && (
         <CardPlayDialog
           cardId={wareDialog}
+          priceModifiers={priceModifiers}
           market={pub.players[slot].market}
           onBuy={() => {
             const validation = validatePlayCard(validationState, wareDialog, 'buy');
@@ -764,7 +769,7 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
 
       {/* Mega view */}
       {megaCardId && (
-        <MegaView cardId={megaCardId} onClose={() => setMegaCardId(null)} market={pub.players[slot].market} />
+        <MegaView cardId={megaCardId} onClose={() => setMegaCardId(null)} market={pub.players[slot].market} priceModifiers={priceModifiers} />
       )}
 
       {isDevMode() && showDevTelemetry && telemetryEvents.length > 0 && (

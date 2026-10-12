@@ -8,6 +8,8 @@ import { HandReferenceStrip } from './HandReferenceStrip.tsx';
 import { HAND_STRIP_RESERVE_PX } from './ResolveMegaView.tsx';
 import { buttonProps } from './a11y.ts';
 import { MarketSummary } from './MarketSummary.tsx';
+import { WareCoin, wareCoinPrices } from './WareCoin.tsx';
+import type { PriceModifiers } from './WareCoin.tsx';
 
 interface ActionButtonsProps {
   state: GameState;
@@ -36,11 +38,14 @@ interface CardPlayDialogProps {
   onBuy: () => void;
   onSell: () => void;
   onCancel: () => void;
+  /** This turn's Wise Man modifiers, so the coins show what you'd pay / get. */
+  priceModifiers?: PriceModifiers | null;
 }
 
-export function CardPlayDialog({ cardId, market, onBuy, onSell, onCancel }: CardPlayDialogProps) {
+export function CardPlayDialog({ cardId, market, onBuy, onSell, onCancel, priceModifiers = null }: CardPlayDialogProps) {
   const card = getCard(cardId);
   if (!card.wares) return null;
+  const coins = wareCoinPrices(card.wares, priceModifiers);
 
   return (
     <div
@@ -82,13 +87,8 @@ export function CardPlayDialog({ cardId, market, onBuy, onSell, onCancel }: Card
           draggable={false}
         />
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 28, padding: '2px 0' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={onBuy} {...buttonProps(onBuy, `Buy for ${card.wares.buyPrice}g`)}>
-            <img
-              src={`/assets/coins/coin_${card.wares.buyPrice}.png`}
-              alt={`${card.wares.buyPrice}g`}
-              style={{ width: 56, height: 56 }}
-              draggable={false}
-            />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={onBuy} {...buttonProps(onBuy, `Buy for ${coins.buy.price}g`)}>
+            <WareCoin {...coins.buy} size={56} />
             <span className="coin-caption">Buy</span>
           </div>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 180 }}>
@@ -107,13 +107,8 @@ export function CardPlayDialog({ cardId, market, onBuy, onSell, onCancel }: Card
               />
             ))}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={onSell} {...buttonProps(onSell, `Sell for ${card.wares.sellPrice}g`)}>
-            <img
-              src={`/assets/coins/coin_${card.wares.sellPrice}.png`}
-              alt={`${card.wares.sellPrice}g`}
-              style={{ width: 56, height: 56 }}
-              draggable={false}
-            />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={onSell} {...buttonProps(onSell, `Sell for ${coins.sell.price}g`)}>
+            <WareCoin {...coins.sell} size={56} />
             <span className="coin-caption">Sell</span>
           </div>
         </div>
@@ -291,7 +286,7 @@ export function DrawModal({ state, dispatch, disabled, disabledReason, onClose, 
           market={state.players[viewerPlayer].market}
           cardId={!showCardBack && state.drawnCard && getCard(state.drawnCard).wares ? state.drawnCard : null}
         />
-        <div style={{
+        <div className="dialog-actions" style={{
           display: 'flex',
           gap: 12,
           justifyContent: 'center',
@@ -312,20 +307,11 @@ export function DrawModal({ state, dispatch, disabled, disabledReason, onClose, 
                 onClick={handleDrawCard}
                 style={{ flex: 1, padding: '12px' }}
               >
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
                   <div>Draw Card</div>
-                  <div style={{ display: 'flex', gap: 3 }}>
+                  <div className="draw-pips" role="img" aria-label={`${state.actionsLeft} of 5 actions left`}>
                     {Array.from({ length: 5 }, (_, i) => (
-                      <div
-                        key={i}
-                        style={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: '50%',
-                          backgroundColor: i < state.actionsLeft ? 'var(--gold)' : 'rgba(90,64,48,0.5)',
-                          border: '2px solid var(--gold)',
-                        }}
-                      />
+                      <span key={i} className={i < state.actionsLeft ? 'draw-pip' : 'draw-pip draw-pip-spent'} />
                     ))}
                   </div>
                 </div>

@@ -4,16 +4,21 @@ import { MarketSummary } from './MarketSummary.tsx';
 import { getCard } from '../engine/cards/CardDatabase.ts';
 import { WARE_COLORS } from './CardFace.tsx';
 import { TiltCardArt } from './TiltCardArt.tsx';
+import { WareCoin, wareCoinPrices } from './WareCoin.tsx';
+import type { PriceModifiers } from './WareCoin.tsx';
 
 interface MegaViewProps {
   cardId: DeckCardId;
   onClose: () => void;
   /** The viewer's market — the zoom covers the board, so show it here */
   market?: readonly (WareType | null)[];
+  /** This turn's Wise Man modifiers, so ware coins show what you'd pay / get. */
+  priceModifiers?: PriceModifiers | null;
 }
 
-export function MegaView({ cardId, onClose, market }: MegaViewProps) {
+export function MegaView({ cardId, onClose, market, priceModifiers = null }: MegaViewProps) {
   const card = getCard(cardId);
+  const coins = card.wares ? wareCoinPrices(card.wares, priceModifiers) : null;
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -65,12 +70,7 @@ export function MegaView({ cardId, onClose, market }: MegaViewProps) {
               gap: 16,
               padding: '6px 8px',
             }}>
-              <img
-                src={`/assets/coins/coin_${card.wares.buyPrice}.png`}
-                alt={`${card.wares.buyPrice}g`}
-                style={{ width: 54, height: 54, flexShrink: 0 }}
-                draggable={false}
-              />
+              {coins && <WareCoin {...coins.buy} size={54} style={{ flexShrink: 0 }} />}
               <div style={{
                 display: 'flex',
                 gap: 10,
@@ -93,12 +93,7 @@ export function MegaView({ cardId, onClose, market }: MegaViewProps) {
                   />
                 ))}
               </div>
-              <img
-                src={`/assets/coins/coin_${card.wares.sellPrice}.png`}
-                alt={`${card.wares.sellPrice}g`}
-                style={{ width: 54, height: 54, flexShrink: 0 }}
-                draggable={false}
-              />
+              {coins && <WareCoin {...coins.sell} size={54} style={{ flexShrink: 0 }} />}
             </div>
           ) : (
             <>

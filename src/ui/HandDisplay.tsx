@@ -5,6 +5,7 @@ import { CardFace } from './CardFace.tsx';
 import { splitIntoRows } from './fitLayout.ts';
 import type { HandCardHint } from './handHints.ts';
 import { useCardTilt } from './cardTilt.ts';
+import type { PriceModifiers } from './WareCoin.tsx';
 
 interface HandDisplayProps {
   hand: DeckCardId[];
@@ -31,6 +32,8 @@ interface HandDisplayProps {
   /** Per-card playability (computeHandHints): dims what can't be played now
    *  and marks ware cards that can be sold right now. */
   hints?: ReadonlyMap<DeckCardId, HandCardHint> | null;
+  /** This turn's Wise Man modifiers: ware coins show this turn's prices. */
+  priceModifiers?: PriceModifiers | null;
 }
 
 /** Max overlap as a fraction of card width — keeps each card's art readable. */
@@ -38,7 +41,7 @@ export const MAX_READABLE_OVERLAP_RATIO = 0.5;
 /** Hand size at which the fan stops squeezing and scrolls sideways. */
 export const SCROLL_HAND_SIZE = 12;
 
-function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaView, useWoodBackground = true, transparentBackground = false, showBorder = true, showHelperText = true, cardScale = 1, paddingBottom = 14, paddingX = 14, paddingLeft, paddingRight, paddingTop = 14, layoutMode = 'fan', fixedOverlapPx, rows = 1, gapPx = 8, hints = null }: HandDisplayProps) {
+function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaView, useWoodBackground = true, transparentBackground = false, showBorder = true, showHelperText = true, cardScale = 1, paddingBottom = 14, paddingX = 14, paddingLeft, paddingRight, paddingTop = 14, layoutMode = 'fan', fixedOverlapPx, rows = 1, gapPx = 8, hints = null, priceModifiers = null }: HandDisplayProps) {
   const [isMobile, setIsMobile] = useState(false);
   // The opening hand deals in one card after another; later draws arrive alone
   const dealtRef = useRef(false);
@@ -140,6 +143,7 @@ function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaVie
               scale={cardScale}
               onClick={!disabled && onPlayCard ? () => onPlayCard(cardId) : undefined}
               onMegaView={onMegaView}
+              priceModifiers={priceModifiers}
             />
             <span className="card-tilt-glare" aria-hidden="true" />
           </div>

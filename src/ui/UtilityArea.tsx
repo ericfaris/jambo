@@ -17,6 +17,8 @@ interface UtilityAreaProps {
   overlapOnDesktop?: boolean;
   singleRow?: boolean;
   hideScrollbar?: boolean;
+  /** Show this used card upright for now (its "used" spotlight is still up), so it turns in view after. */
+  untappedCardId?: DeckCardId | null;
   /** Show empty placeholder slots up to this count. */
   maxSlots?: number;
   /** Gap between non-overlapping cards (defaults: 0 on mobile, 8 on desktop). */
@@ -41,6 +43,7 @@ function UtilityAreaComponent({
   maxSlots,
   gapPx,
   onMegaView,
+  untappedCardId = null,
 }: UtilityAreaProps) {
   const [isMobile, setIsMobile] = useState(false);
 
@@ -97,7 +100,7 @@ function UtilityAreaComponent({
           >
             {/* A used utility turns sideways like a tapped card — the art stays
                 visible (it used to sit under a dark "USED" overlay) */}
-            <div className={u.usedThisTurn ? 'utility-card utility-card-tapped' : 'utility-card'}>
+            <div className={u.usedThisTurn && u.cardId !== untappedCardId ? 'utility-card utility-card-tapped' : 'utility-card'}>
               <CardFace
                 cardId={u.cardId}
                 small={cardSize === 'small'}
@@ -108,7 +111,7 @@ function UtilityAreaComponent({
                 onMegaView={onMegaView}
               />
             </div>
-            {u.usedThisTurn && <span className="utility-used-pill">Used</span>}
+            {u.usedThisTurn && u.cardId !== untappedCardId && <span className="utility-used-pill">Used</span>}
             {cardError && cardError.cardId === u.cardId && (
               <div style={{
                 position: 'absolute',
@@ -139,14 +142,7 @@ function UtilityAreaComponent({
           const w = Math.round((cardSize === 'small' ? 96 : cardSize === 'medium' ? 120 : cardSize === 'large' ? 180 : 140) * cardScale);
           const h = Math.round((cardSize === 'small' ? 128 : cardSize === 'medium' ? 160 : cardSize === 'large' ? 240 : 187) * cardScale);
           return (
-            <div key={`empty-${i}`} style={{
-              width: w,
-              height: h,
-              borderRadius: 8,
-              border: '2px dashed var(--border)',
-              background: 'rgba(255,255,255,0.06)',
-              flexShrink: 0,
-            }} />
+            <div key={`empty-${i}`} className="empty-card-slot" style={{ width: w, height: h }} />
           );
         })}
       </div>

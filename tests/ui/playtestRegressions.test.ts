@@ -153,3 +153,38 @@ describe('turn plaque (centre-row phase indicator)', () => {
     expect(theirs).toContain('1 action left');
   });
 });
+
+describe('center row side slots', () => {
+  it('supply and End Turn sit in same-width slots on either side', () => {
+    const html = renderToStaticMarkup(createElement(CenterRow, {
+      state: createTestState(), dispatch: noopDispatch, actorLabels: ['You', 'Baraka'],
+      supplySlot: createElement('div', { className: 'test-supply' }),
+      endTurnSlot: createElement('button', { className: 'test-end-turn' }),
+    }));
+    expect(html.match(/class="center-side-slot"/g)).toHaveLength(2);
+    expect(html).toMatch(/class="center-side-slot"[^>]*><div class="test-supply"/);
+    expect(html).toMatch(/class="center-side-slot"[^>]*><button class="test-end-turn"/);
+  });
+});
+
+describe('empty discard pile', () => {
+  it('looks like an empty utility slot, with no "Empty" label', () => {
+    const html = renderToStaticMarkup(createElement(CenterRow, { state: { ...createTestState(), discardPile: [] }, dispatch: noopDispatch, actorLabels: ['You', 'Baraka'] }));
+    expect(html).toContain('empty-card-slot');
+    expect(html).not.toContain('>Empty<');
+    expect(html).toContain('Discard (0)');
+  });
+});
+
+describe('pile titles have room to breathe', () => {
+  it('the empty deck is an empty slot too, with no "Empty" label', () => {
+    const html = renderToStaticMarkup(createElement(CenterRow, { state: { ...createTestState(), deck: [] }, dispatch: noopDispatch, actorLabels: ['You', 'Baraka'] }));
+    expect(html).toContain('Deck (0)');
+    expect(html).not.toContain('>Empty<');
+  });
+
+  it('desktop piles keep their title clear of the deck edge', () => {
+    const html = renderToStaticMarkup(createElement(CenterRow, { state: createTestState(), dispatch: noopDispatch, actorLabels: ['You', 'Baraka'] }));
+    expect(html.match(/flex-direction:column;align-items:center;gap:16px/g)?.length).toBeGreaterThanOrEqual(2);
+  });
+});

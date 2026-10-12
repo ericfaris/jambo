@@ -15,10 +15,14 @@ export const SPOTLIGHT_TIMINGS = {
    *  routine re-use of a utility. */
   holdQueuedMs: 700,
   exitMs: 480,
+  /** A used utility turning sideways, at the start of its hold. */
+  turnMs: 420,
 } as const;
 
-/** How long a spotlight holds before it flies off. */
-export function spotlightHoldMs(spot: Pick<PlaySpotlight, 'weight'>, queued: boolean): number {
+/** How long a spotlight holds before it flies off (or fades, for a used utility). */
+export function spotlightHoldMs(spot: Pick<PlaySpotlight, 'weight'> & Partial<Pick<PlaySpotlight, 'destination'>>, queued: boolean): number {
+  // a used utility needs time to turn, and a beat to be seen turned
+  if (spot.destination === 'inPlace') return SPOTLIGHT_TIMINGS.turnMs + SPOTLIGHT_TIMINGS.holdQueuedMs;
   if (queued || spot.weight === 'routine') return SPOTLIGHT_TIMINGS.holdQueuedMs;
   if (spot.weight === 'trade') return SPOTLIGHT_TIMINGS.holdTradeMs;
   return SPOTLIGHT_TIMINGS.holdMs;
@@ -26,7 +30,7 @@ export function spotlightHoldMs(spot: Pick<PlaySpotlight, 'weight'>, queued: boo
 
 /** How long a spotlight keeps the AI (and response panels) waiting: the
  *  game moves on as the card starts flying away, not after it lands. */
-export function spotlightBlockingMs(spot: Pick<PlaySpotlight, 'weight'>, queued = false): number {
+export function spotlightBlockingMs(spot: Pick<PlaySpotlight, 'weight'> & Partial<Pick<PlaySpotlight, 'destination'>>, queued = false): number {
   return SPOTLIGHT_TIMINGS.enterMs + spotlightHoldMs(spot, queued);
 }
 
@@ -62,7 +66,11 @@ const TARGET_SELECTORS: Record<PlaySpotlight['destination'], string[]> = {
   discard: ['[data-spotlight-target="discard"]'],
   utilities: ['[data-spotlight-target="opponent-utilities"]', '[data-center-target="top"]'],
   hand: ['[data-center-target="top"]'],
+  inPlace: [],
 };
+
+/** A used utility turns sideways like a tapped card — scaled so it stays on screen. */
+export const SPOTLIGHT_TURNED_TRANSFORM = 'rotate(90deg) scale(0.8)';
 
 interface OpponentPlaySpotlightProps {
   log: readonly GameLogEntry[];
@@ -154,9 +162,10 @@ export function OpponentPlaySpotlight({ log, viewer, actorLabel, enabled = true,
     return () => window.clearTimeout(timer);
   }, [current, phase, queued]);
 
-  // On exit, fly toward the destination's on-screen position.
+  // On exit, fly toward the destination's on-screen position (an 'inPlace'
+  // card has none: it fades where it is).
   useLayoutEffect(() => {
-    if (phase !== 'exit' || !current || prefersReducedMotion()) return;
+    if (phase !== 'exit' || !current || current.destination === 'inPlace' || prefersReducedMotion()) return;
     const card = cardRef.current;
     if (!card) return;
     const target = TARGET_SELECTORS[current.destination]
@@ -180,15 +189,28 @@ export function OpponentPlaySpotlight({ log, viewer, actorLabel, enabled = true,
   const f = speedFactor();
   const fullScale = typeof window === 'undefined' ? 1 : spotlightCardScale(window.innerWidth, window.innerHeight);
   const cardScale = unobtrusive ? Math.max(0.6, fullScale * 0.55) : fullScale;
-  const cardStyle: CSSProperties = {
-    pointerEvents: unobtrusive ? 'none' : 'auto',
-    cursor: unobtrusive ? undefined : 'pointer',
-    transition: phase === 'exit'
-      ? `transform ${Math.round(SPOTLIGHT_TIMINGS.exitMs * f)}ms cubic-bezier(0.55, 0, 0.75, 0.3), opacity ${Math.round(SPOTLIGHT_TIMINGS.exitMs * f)}ms ease-in`
-      : undefined,
-    transform: phase === 'exit' ? (exitTransform ?? 'scale(0.6)') : undefined,
-    opacity: phase === 'exit' ? (exitTransform ? 0.9 : 0) : 1,
-  };
+  const exitMs = Math.round(SPOTLIGHT_TIMINGS.exitMs * f);
+  // Used utility: turn sideways once it's on screen, then fade out right there
+  const turns = current.destination === 'inPlace';
+  const cardStyle: CSSProperties = turns
+    ? {
+      pointerEvents: unobtrusive ? 'none' : 'auto',
+      cursor: unobtrusive ? undefined : 'pointer',
+      transition: phase === 'exit'
+        ? `opacity ${exitMs}ms ease-in`
+        : `transform ${Math.round(SPOTLIGHT_TIMINGS.turnMs * f)}ms var(--anim-ease-emphasis, ease-out)`,
+      transform: phase === 'enter' ? undefined : SPOTLIGHT_TURNED_TRANSFORM,
+      opacity: phase === 'exit' ? 0 : 1,
+    }
+    : {
+      pointerEvents: unobtrusive ? 'none' : 'auto',
+      cursor: unobtrusive ? undefined : 'pointer',
+      transition: phase === 'exit'
+        ? `transform ${exitMs}ms cubic-bezier(0.55, 0, 0.75, 0.3), opacity ${exitMs}ms ease-in`
+        : undefined,
+      transform: phase === 'exit' ? (exitTransform ?? 'scale(0.6)') : undefined,
+      opacity: phase === 'exit' ? (exitTransform ? 0.9 : 0) : 1,
+    };
 
   return (
     <div className={`opp-spotlight opp-spotlight-${phase}${unobtrusive ? ' opp-spotlight-unobtrusive' : ''}`}>
@@ -205,7 +227,7 @@ export function OpponentPlaySpotlight({ log, viewer, actorLabel, enabled = true,
         <div
           key={current.key}
           ref={cardRef}
-          className="opp-spotlight-card"
+          className={turns ? 'opp-spotlight-card opp-spotlight-card-turns' : 'opp-spotlight-card'}
           style={cardStyle}
           onClick={unobtrusive ? undefined : skip}
           title={unobtrusive ? undefined : 'Tap to continue'}

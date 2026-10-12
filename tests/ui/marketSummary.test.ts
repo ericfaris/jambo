@@ -58,3 +58,15 @@ describe('dialogs that cover the board show the market', () => {
     expect(html).not.toContain('To sell');
   });
 });
+
+describe('market ledger styling', () => {
+  it('marks filled tokens, the gap before each small stand, and a full market', () => {
+    const market = ['hides', 'tea', null, null, null, null, 'salt', null, null] as const;
+    const html = renderToStaticMarkup(createElement(MarketSummary, { market: [...market] }));
+    expect(html.match(/market-summary-slot-filled/g)).toHaveLength(3);
+    expect(html.match(/market-summary-slot-stand/g)).toHaveLength(1);
+    expect(html).toContain('6 free');
+    const full = renderToStaticMarkup(createElement(MarketSummary, { market: ['hides', 'hides', 'tea', 'tea', 'salt', 'salt'] }));
+    expect(full).toContain('market-summary-free-none');
+  });
+});

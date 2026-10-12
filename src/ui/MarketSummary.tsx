@@ -59,34 +59,25 @@ export function MarketSummary({ market, cardId, tone = 'onLinen' }: MarketSummar
 
   return (
     <div
-      className="market-summary"
+      className={`market-summary market-summary-${tone}`}
       aria-label={`Your market: ${filled} ware${filled === 1 ? '' : 's'}, ${free} free slot${free === 1 ? '' : 's'}`}
-      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, color: textColor }}
+      style={{ color: textColor }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
-        <span style={{ fontFamily: 'var(--font-heading)', fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: mutedColor }}>
-          Your market
-        </span>
-        <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 260 }}>
+      <div className="market-summary-plate">
+        <span className="market-summary-label" style={{ color: mutedColor }}>Your market</span>
+        <div className="market-summary-slots">
           {market.map((slot, i) => (
-            <div
+            <span
               key={i}
               data-ware={slot ?? 'empty'}
               title={slot ?? 'empty'}
-              style={{
-                width: 16,
-                height: 16,
-                borderRadius: 4,
-                boxSizing: 'border-box',
-                background: slot ? WARE_COLORS[slot] : 'transparent',
-                border: slot ? '1.5px solid rgba(0,0,0,0.55)' : `1.5px dashed ${mutedColor}`,
-                // Gap between the large stand (6) and each small stand (3)
-                marginLeft: i >= 6 && (i - 6) % 3 === 0 ? 6 : 0,
-              }}
+              // the large stand (6) and each small stand (3) read as separate stalls
+              className={`market-summary-slot${slot ? ' market-summary-slot-filled' : ''}${i >= 6 && (i - 6) % 3 === 0 ? ' market-summary-slot-stand' : ''}`}
+              style={slot ? { background: WARE_COLORS[slot] } : undefined}
             />
           ))}
         </div>
-        <span style={{ fontSize: 12, color: mutedColor }}>{free} free</span>
+        <span className={`market-summary-free${free === 0 ? ' market-summary-free-none' : ''}`}>{free} free</span>
       </div>
       {sell && (
         <div className="market-summary-sell" style={{ fontSize: 13, fontWeight: 600, color: sell.canSell ? (tone === 'onDark' ? '#9cc46a' : '#3f6a1e') : textColor }}>

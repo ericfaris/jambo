@@ -30,6 +30,7 @@ import { checkEndgameTrigger } from './endgame/EndgameManager.ts';
 import { validateAction } from './validation/actionValidator.ts';
 import { initializeResolution, resolveInteraction } from './cards/CardResolver.ts';
 import { getSmallStandCost } from './market/standCost.ts';
+import { effectiveWarePrices } from './market/warePrices.ts';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -140,7 +141,7 @@ function canBuyWaresForCard(
   buyPrice: number,
   wareCount: number
 ): boolean {
-  const effectivePrice = Math.max(0, buyPrice - state.turnModifiers.buyDiscount);
+  const effectivePrice = effectiveWarePrices({ buyPrice, sellPrice: 0 }, state.turnModifiers).buy;
   const playerState = state.players[player];
   const emptySlots = getEmptySlots(state, player).length;
   const fee = getSixthSpaceFee(state, player, wareCount);
@@ -443,7 +444,7 @@ function handleWareCard(
     }
 
     // Add gold (with sell bonus)
-    const sellGold = wares.sellPrice + next.turnModifiers.sellBonus;
+    const sellGold = effectiveWarePrices(wares, next.turnModifiers).sell;
     next = withPlayer(next, cp, {
       gold: next.players[cp].gold + sellGold,
     });
@@ -456,7 +457,7 @@ function handleWareCard(
       throw new Error(`Cannot buy: insufficient gold or market space`);
     }
 
-    const effectivePrice = Math.max(0, wares.buyPrice - next.turnModifiers.buyDiscount);
+    const effectivePrice = effectiveWarePrices(wares, next.turnModifiers).buy;
     next = withPlayer(next, cp, {
       gold: next.players[cp].gold - effectivePrice,
     });

@@ -6,8 +6,10 @@ import { describeLogEntry } from './uiHints.ts';
 // Opponent play spotlight
 // ---------------------------------------------------------------------------
 
-/** Where the spotlit card settles once the announcement is over. */
-export type SpotlightDestination = 'discard' | 'utilities' | 'hand';
+/** Where the spotlit card settles once the announcement is over. 'inPlace':
+ *  it goes nowhere (a utility being used turns sideways and fades where it is;
+ *  flying would read as placing or discarding it). */
+export type SpotlightDestination = 'discard' | 'utilities' | 'hand' | 'inPlace';
 
 export interface PlaySpotlight {
   /** Stable per log entry (its index), so a re-render never replays it. */
@@ -49,7 +51,7 @@ export function spotlightForEntry(entry: GameLogEntry, index: number, actorLabel
     case 'PLAY_UTILITY':
       return { ...base, headline: `${actorLabel} placed ${name}`, detail: 'New utility', destination: 'utilities' };
     case 'ACTIVATE_UTILITY':
-      return { ...base, headline: `${actorLabel} used ${name}`, detail: null, destination: 'utilities', weight: 'routine' };
+      return { ...base, headline: `${actorLabel} used ${name}`, detail: null, destination: 'inPlace', weight: 'routine' };
     case 'PLAY_STAND':
       return { ...base, headline: `${actorLabel} built a market stand`, detail: gold ? `Paid ${gold}g · +3 market spaces` : '+3 market spaces' };
     case 'PLAY_ANIMAL':

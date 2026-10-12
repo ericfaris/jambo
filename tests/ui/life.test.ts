@@ -119,7 +119,7 @@ describe('living table components', () => {
   it("desktop opponent panel reserves 3 utility spaces so the board can't jump", () => {
     const player = createTestState().players[1];
     const html = renderToStaticMarkup(createElement(OpponentArea, { player: { ...player, utilities: [] } }));
-    expect(html.match(/border:2px dashed/g)?.length).toBe(3);
+    expect(html.match(/empty-card-slot/g)?.length).toBe(3);
     expect(html).toContain('opp-hand-fan');
   });
 

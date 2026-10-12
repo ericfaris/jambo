@@ -2,6 +2,8 @@ import { useState } from 'react';
 import type { DeckCardId, WareType } from '../engine/types.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
 import { buttonProps } from './a11y.ts';
+import { WareCoin, wareCoinPrices } from './WareCoin.tsx';
+import type { PriceModifiers } from './WareCoin.tsx';
 
 const CARD_TYPE_COLORS: Record<string, string> = {
   people: 'var(--card-people)',
@@ -46,9 +48,11 @@ interface CardFaceProps {
   faceDown?: boolean;
   scale?: number;
   onMegaView?: (cardId: DeckCardId) => void;
+  /** This turn's Wise Man modifiers: ware coins show the prices you'd actually pay / get. */
+  priceModifiers?: PriceModifiers | null;
 }
 
-export function CardFace({ cardId, onClick, selected, small, medium, large, extraLarge, faceDown, scale = 1, onMegaView }: CardFaceProps) {
+export function CardFace({ cardId, onClick, selected, small, medium, large, extraLarge, faceDown, scale = 1, onMegaView, priceModifiers = null }: CardFaceProps) {
   const [imgError, setImgError] = useState(false);
   const baseFaceWidth = small ? 96 : medium ? 120 : extraLarge ? 364 : large ? 180 : 140;
   const baseFaceHeight = small ? 128 : medium ? 160 : extraLarge ? 485 : large ? 240 : 187;
@@ -96,7 +100,8 @@ export function CardFace({ cardId, onClick, selected, small, medium, large, extr
     card.description,
   ];
   if (card.wares) {
-    tooltipLines.push(`Buy: ${card.wares.buyPrice}g | Sell: ${card.wares.sellPrice}g`);
+    const p = wareCoinPrices(card.wares, priceModifiers);
+    tooltipLines.push(`Buy: ${p.buy.price}g | Sell: ${p.sell.price}g`);
   }
   const tooltip = tooltipLines.join('\n');
 
@@ -121,6 +126,7 @@ export function CardFace({ cardId, onClick, selected, small, medium, large, extr
     const tinyFace = faceWidth < 70;
     const pipSize = tinyFace ? 9 : compactFace ? 16 : 20;
     const coinSize = tinyFace ? 12 : compactFace ? 18 : 26;
+    const coins = wareCoinPrices(card.wares ?? { buyPrice: 0, sellPrice: 0 }, priceModifiers);
     const pipGap = tinyFace ? 2 : compactFace ? 3 : 4;
     return (<>
       <div
@@ -192,12 +198,7 @@ export function CardFace({ cardId, onClick, selected, small, medium, large, extr
                 ))}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <img
-                  src={`/assets/coins/coin_${card.wares.buyPrice}.png`}
-                  alt={`${card.wares.buyPrice}g`}
-                  style={{ width: coinSize, height: coinSize }}
-                  draggable={false}
-                />
+                <WareCoin {...coins.buy} size={coinSize} />
                 <div style={{ display: 'flex', gap: pipGap }}>
                   {card.wares.types.slice(3).map((w, i) => (
                     <div key={i} style={{
@@ -209,12 +210,7 @@ export function CardFace({ cardId, onClick, selected, small, medium, large, extr
                     }} />
                   ))}
                 </div>
-                <img
-                  src={`/assets/coins/coin_${card.wares.sellPrice}.png`}
-                  alt={`${card.wares.sellPrice}g`}
-                  style={{ width: coinSize, height: coinSize }}
-                  draggable={false}
-                />
+                <WareCoin {...coins.sell} size={coinSize} />
               </div>
             </div>
             ) : (
@@ -233,12 +229,7 @@ export function CardFace({ cardId, onClick, selected, small, medium, large, extr
                 cursor: 'pointer',
               }}
             >
-              <img
-                src={`/assets/coins/coin_${card.wares.buyPrice}.png`}
-                alt={`${card.wares.buyPrice}g`}
-                style={{ width: coinSize, height: coinSize }}
-                draggable={false}
-              />
+              <WareCoin {...coins.buy} size={coinSize} />
               <div style={{ display: 'flex', gap: pipGap }}>
                 {card.wares.types.map((w, i) => (
                   <div key={i} style={{
@@ -250,12 +241,7 @@ export function CardFace({ cardId, onClick, selected, small, medium, large, extr
                   }} />
                 ))}
               </div>
-              <img
-                src={`/assets/coins/coin_${card.wares.sellPrice}.png`}
-                alt={`${card.wares.sellPrice}g`}
-                style={{ width: coinSize, height: coinSize }}
-                draggable={false}
-              />
+              <WareCoin {...coins.sell} size={coinSize} />
             </div>
             )
           ) : (
@@ -375,7 +361,7 @@ export function CardFace({ cardId, onClick, selected, small, medium, large, extr
             ))}
           </div>
           <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-            {card.wares.buyPrice}g / {card.wares.sellPrice}g
+            {wareCoinPrices(card.wares, priceModifiers).buy.price}g / {wareCoinPrices(card.wares, priceModifiers).sell.price}g
           </div>
         </div>
       )}
