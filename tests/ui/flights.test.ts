@@ -171,3 +171,36 @@ describe('the draft panel tags its pool cards', () => {
     expect(html).toContain('data-draft-card="parrot_1"');
   });
 });
+
+describe('Elephant: the pooled wares gather on the Elephant card', () => {
+  const empty = [null, null, null, null, null, null];
+  it('both markets’ wares (yours and the AI’s) fly onto the Elephant card, not the discard pile', () => {
+    const prev = snap({ markets: [['hides', 'tea', null, null, null, null], ['salt', 'silk', null, null, null, null]] });
+    const next = snap({ markets: [[...empty], [...empty]], logLength: 11, wareDraft: true });
+    const flights = planFlights(prev, next);
+    expect(flights).toHaveLength(4);
+    expect(flights.every((f) => f.to.type === 'draft-source')).toBe(true);
+    expect(flights.filter((f) => f.from.type === 'slot' && f.from.player === 1)).toHaveLength(2);
+  });
+
+  it('each pick leaves from the Elephant card into the picker’s market', () => {
+    const prev = snap({ wareDraft: true });
+    const next = snap({ markets: [['salt', null, null, null, null, null], [...empty]], logLength: 11, wareDraft: true });
+    const [f] = planFlights(prev, next);
+    expect(f.from).toEqual({ type: 'draft-source' });
+    expect(f.to).toEqual({ type: 'slot', player: 0, index: 0 });
+    // the last pick ends the draft — still from the Elephant card
+    const last = planFlights(snap({ wareDraft: true }), snap({ markets: [[...empty], ['tea', null, null, null, null, null]], logLength: 11, wareDraft: false }));
+    expect(last[0].from).toEqual({ type: 'draft-source' });
+  });
+
+  it('outside a draft, wares with nowhere else to go still use the table', () => {
+    const prev = snap({ markets: [['hides', null, null, null, null, null], [...empty]] });
+    const next = snap({ markets: [[...empty], [...empty]], logLength: 11 });
+    expect(planFlights(prev, next)[0].to).toEqual({ type: 'table' });
+  });
+
+  it('the Elephant card anchor is the draft panel’s source card', () => {
+    expect(anchorSelector({ type: 'draft-source' })).toBe('[data-draft-source]');
+  });
+});

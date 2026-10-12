@@ -19,7 +19,10 @@ export type FlightAnchor =
    *  once picked, so FlightLayer resolves it from positions cached the
    *  render before. */
   | { type: 'draft-card'; cardId: DeckCardId }
-  /** The center of the table (the discard pile): the bank, a draft pool. */
+  /** The card running a ware draft (Elephant), shown in the draft panel: the
+   *  pooled wares gather on it and each pick leaves from it. */
+  | { type: 'draft-source' }
+  /** The center of the table (the discard pile): the bank, leftovers. */
   | { type: 'table' };
 
 export interface Flight {
@@ -47,6 +50,8 @@ export interface FlightSnapshot {
   utilityCounts: [number, number];
   /** An Ape / Lion draft in progress: what's left in the pool, who picks. */
   draft: { mode: 'cards' | 'utilities'; available: DeckCardId[]; picker: 0 | 1 } | null;
+  /** An Elephant ware draft is in progress (its wares sit on the Elephant card). */
+  wareDraft?: boolean;
 }
 
 export function snapshotForFlights(state: GameState): FlightSnapshot {
@@ -60,6 +65,7 @@ export function snapshotForFlights(state: GameState): FlightSnapshot {
     logLength: state.log.length,
     utilityCounts: [state.players[0].utilities.length, state.players[1].utilities.length],
     draft: draftOf(state),
+    wareDraft: state.pendingResolution?.type === 'DRAFT' && state.pendingResolution.draftMode === 'wares',
   };
 }
 
@@ -134,6 +140,10 @@ export function planFlights(prev: FlightSnapshot, next: FlightSnapshot, startId 
     }
   }
 
+  // Elephant: the pool lives on the Elephant card — wares gather there and
+  // each pick leaves from there (never the discard pile)
+  const pool: FlightAnchor = prev.wareDraft || next.wareDraft ? { type: 'draft-source' } : { type: 'table' };
+
   const supplyBudget = new Map<WareType, number>();
   for (const w of WARE_TYPES) supplyBudget.set(w, next.supply[w] - prev.supply[w]);
 
@@ -156,7 +166,7 @@ export function planFlights(prev: FlightSnapshot, next: FlightSnapshot, startId 
     const budget = supplyBudget.get(a.ware) ?? 0;
     const fromSupply = budget < 0;
     if (fromSupply) supplyBudget.set(a.ware, budget + 1);
-    flights.push({ id: id++, kind: 'ware', ware: a.ware, from: fromSupply ? { type: 'supply', ware: a.ware } : { type: 'table' }, to: { type: 'slot', player: a.player, index: a.index }, delayMs: wareDelay(), revealsSlot: { player: a.player, index: a.index } });
+    flights.push({ id: id++, kind: 'ware', ware: a.ware, from: fromSupply ? { type: 'supply', ware: a.ware } : pool, to: { type: 'slot', player: a.player, index: a.index }, delayMs: wareDelay(), revealsSlot: { player: a.player, index: a.index } });
   }
   // 3) remaining departures: to the supply if it grew, else the table
   for (const d of departures) {
@@ -164,7 +174,7 @@ export function planFlights(prev: FlightSnapshot, next: FlightSnapshot, startId 
     const budget = supplyBudget.get(d.ware) ?? 0;
     const toSupply = budget > 0;
     if (toSupply) supplyBudget.set(d.ware, budget - 1);
-    flights.push({ id: id++, kind: 'ware', ware: d.ware, from: { type: 'slot', player: d.player, index: d.index }, to: toSupply ? { type: 'supply', ware: d.ware } : { type: 'table' }, delayMs: wareDelay() });
+    flights.push({ id: id++, kind: 'ware', ware: d.ware, from: { type: 'slot', player: d.player, index: d.index }, to: toSupply ? { type: 'supply', ware: d.ware } : pool, delayMs: wareDelay() });
   }
 
   // --- gold ------------------------------------------------------------------
@@ -208,6 +218,7 @@ export function anchorSelector(anchor: FlightAnchor): string {
     case 'hand': return `[data-hand-anchor="${anchor.player}"]`;
     case 'utilities': return `[data-utility-anchor="${anchor.player}"]`;
     case 'draft-card': return `[data-draft-card="${anchor.cardId}"]`;
+    case 'draft-source': return '[data-draft-source]';
     case 'table': return '[data-spotlight-target="discard"]';
   }
 }

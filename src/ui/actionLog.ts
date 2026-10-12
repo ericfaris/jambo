@@ -11,6 +11,8 @@ import { describeLogEntry } from './uiHints.ts';
  *  flying would read as placing or discarding it). */
 export type SpotlightDestination = 'discard' | 'utilities' | 'hand' | 'inPlace';
 
+export type SpotlightOrigin = 'hand' | 'utilities' | 'deck';
+
 export interface PlaySpotlight {
   /** Stable per log entry (its index), so a re-render never replays it. */
   key: number;
@@ -18,6 +20,10 @@ export interface PlaySpotlight {
   headline: string;
   detail: string | null;
   destination: SpotlightDestination;
+  /** Where the card comes from, so it visibly grows out of that spot: the
+   *  actor's hand (a play), their utility row (using one), or the deck
+   *  (Supplies turning up a ware card). Defaults to 'hand'. */
+  origin?: SpotlightOrigin;
   /** How long it holds: 'novel' (a new card), 'trade' (a ware buy/sell —
    *  the most common play), 'routine' (re-using a utility already on the
    *  table). Busy AI turns ran 16-20s with one full beat per play. */
@@ -51,7 +57,7 @@ export function spotlightForEntry(entry: GameLogEntry, index: number, actorLabel
     case 'PLAY_UTILITY':
       return { ...base, headline: `${actorLabel} placed ${name}`, detail: 'New utility', destination: 'utilities' };
     case 'ACTIVATE_UTILITY':
-      return { ...base, headline: `${actorLabel} used ${name}`, detail: null, destination: 'inPlace', weight: 'routine' };
+      return { ...base, headline: `${actorLabel} used ${name}`, detail: null, destination: 'inPlace', origin: 'utilities', weight: 'routine' };
     case 'PLAY_STAND':
       return { ...base, headline: `${actorLabel} built a market stand`, detail: gold ? `Paid ${gold}g · +3 market spaces` : '+3 market spaces' };
     case 'PLAY_ANIMAL':
@@ -63,7 +69,7 @@ export function spotlightForEntry(entry: GameLogEntry, index: number, actorLabel
     case 'SUPPLIES_PAY':
     case 'SUPPLIES_DRAW':
       // Supplies reveals the ware card it finds; it goes to their hand
-      return { ...base, headline: `${actorLabel} found ${name}`, detail: 'Supplies: kept in hand', destination: 'hand', weight: 'routine' };
+      return { ...base, headline: `${actorLabel} found ${name}`, detail: 'Supplies: kept in hand', destination: 'hand', origin: 'deck', weight: 'routine' };
     case 'PLAY_PEOPLE':
     case 'PLAY_CARD':
       return { ...base, headline: `${actorLabel} played ${name}`, detail: null };

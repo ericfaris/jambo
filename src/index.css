@@ -411,28 +411,20 @@ button.brown:hover:not(:disabled) {
   100% { opacity: 0; transform: translateY(-15px); }
 }
 
-@keyframes trailDrawTop {
-  0% { opacity: 0; transform: translate(var(--trail-draw-start-x, -200px), var(--trail-draw-start-y, 0px)) scale(0.8); }
-  20% { opacity: 0.9; }
-  100% { opacity: 0; transform: translate(var(--trail-draw-end-x, -70px), var(--trail-draw-end-y, -130px)) scale(0.65); }
+/* A card trail: from one real place on the board to another (deck → a hand,
+   a hand or utility row → the discard). Both ends come from trailPath.ts. */
+@keyframes trailDraw {
+  0% { opacity: 0; transform: translate(-50%, -50%) translate(var(--trail-start-x), var(--trail-start-y)) scale(0.85); }
+  15% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) translate(var(--trail-end-x), var(--trail-end-y)) scale(0.5); }
 }
 
-@keyframes trailDrawBottom {
-  0% { opacity: 0; transform: translate(var(--trail-draw-start-x, -200px), var(--trail-draw-start-y, 0px)) scale(0.8); }
-  20% { opacity: 0.9; }
-  100% { opacity: 0; transform: translate(var(--trail-draw-end-x, -70px), var(--trail-draw-end-y, 130px)) scale(0.65); }
-}
-
-@keyframes trailDiscardTop {
-  0% { opacity: 0; transform: translate(110px, -130px) scale(0.65); }
-  20% { opacity: 0.9; }
-  100% { opacity: 0; transform: translate(var(--trail-discard-end-x, 154px), var(--trail-discard-end-y, 0px)) scale(0.8); }
-}
-
-@keyframes trailDiscardBottom {
-  0% { opacity: 0; transform: translate(110px, 130px) scale(0.65); }
-  20% { opacity: 0.9; }
-  100% { opacity: 0; transform: translate(var(--trail-discard-end-x, 154px), var(--trail-discard-end-y, 0px)) scale(0.8); }
+@keyframes trailDiscard {
+  0% { opacity: 0; transform: translate(-50%, -50%) translate(var(--trail-start-x), var(--trail-start-y)) scale(0.5); }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { opacity: 0.9; transform: translate(-50%, -50%) translate(var(--trail-end-x), var(--trail-end-y)) scale(0.85); }
 }
 
 /* Overlay fade-in */
@@ -614,20 +606,12 @@ button.brown:hover:not(:disabled) {
   margin-bottom: 6px;
 }
 
-.center-row-trail-draw-top {
-  animation: trailDrawTop var(--anim-trail-duration) var(--anim-ease-standard) forwards;
+.center-row-trail-draw {
+  animation: trailDraw var(--anim-trail-duration) var(--anim-ease-standard) forwards;
 }
 
-.center-row-trail-draw-bottom {
-  animation: trailDrawBottom var(--anim-trail-duration) var(--anim-ease-standard) forwards;
-}
-
-.center-row-trail-discard-top {
-  animation: trailDiscardTop var(--anim-trail-duration) var(--anim-ease-standard) forwards;
-}
-
-.center-row-trail-discard-bottom {
-  animation: trailDiscardBottom var(--anim-trail-duration) var(--anim-ease-standard) forwards;
+.center-row-trail-discard {
+  animation: trailDiscard var(--anim-trail-duration) var(--anim-ease-standard) forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -645,12 +629,12 @@ button.brown:hover:not(:disabled) {
   .gold-delta-arrow-down,
   .gold-delta-text-soft,
   .gold-delta-text-strong,
-  .center-row-trail-draw-top,
-  .center-row-trail-draw-bottom,
-  .center-row-trail-discard-top,
-  .center-row-trail-discard-bottom {
+  .center-row-trail-draw,
+  .center-row-trail-discard {
     animation: none !important;
   }
+  /* without motion a trail would just sit mid-row; the pile pulse says enough */
+  .center-row-trail { display: none; }
 
   .center-row-action-tag {
     animation: none !important;
@@ -1634,10 +1618,12 @@ button.brown:hover:not(:disabled) {
 .opp-spotlight-enter .opp-spotlight-card {
   animation: opp-spotlight-in 260ms var(--anim-ease-emphasis) both;
 }
+/* grows out of where the card came from (the actor's hand / utility / the deck) */
 @keyframes opp-spotlight-in {
-  from { transform: translateY(-60px) scale(0.35) rotate(-6deg); opacity: 0; }
+  from { transform: translate(var(--spot-from-x, 0px), var(--spot-from-y, -60px)) scale(var(--spot-from-scale, 0.35)) rotate(-6deg); opacity: 0.4; }
   to { transform: none; opacity: 1; }
 }
+.opp-spotlight-card-slot { display: flex; justify-content: center; }
 @keyframes opp-spotlight-fade {
   from { opacity: 0; }
   to { opacity: 1; }

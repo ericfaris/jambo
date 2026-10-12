@@ -62,12 +62,30 @@ function prefersReducedMotion(): boolean {
   return typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 }
 
-const TARGET_SELECTORS: Record<PlaySpotlight['destination'], string[]> = {
-  discard: ['[data-spotlight-target="discard"]'],
-  utilities: ['[data-spotlight-target="opponent-utilities"]', '[data-center-target="top"]'],
-  hand: ['[data-center-target="top"]'],
-  inPlace: [],
-};
+/** Where a spotlit card lands: the real pile, or the actor's own hand / utility row. */
+export function spotlightTargetSelectors(destination: PlaySpotlight['destination'], actor: 0 | 1): string[] {
+  switch (destination) {
+    case 'discard': return ['[data-spotlight-target="discard"]'];
+    case 'utilities': return [`[data-utility-anchor="${actor}"]`, '[data-spotlight-target="opponent-utilities"]', '[data-center-target="top"]'];
+    case 'hand': return [`[data-hand-anchor="${actor}"]`, '[data-center-target="top"]'];
+    case 'inPlace': return [];
+  }
+}
+
+/** Where a spotlit card comes from, so it grows out of that spot. */
+export function spotlightOriginSelectors(origin: PlaySpotlight['origin'], actor: 0 | 1): string[] {
+  switch (origin ?? 'hand') {
+    case 'utilities': return [`[data-utility-anchor="${actor}"]`, '[data-center-target="top"]'];
+    case 'deck': return ['[data-deck-anchor]'];
+    case 'hand': return [`[data-hand-anchor="${actor}"]`, '[data-center-target="top"]'];
+  }
+}
+
+function firstVisible(selectors: readonly string[]): HTMLElement | null {
+  return selectors
+    .map((sel) => document.querySelector<HTMLElement>(sel))
+    .find((el): el is HTMLElement => !!el && el.getBoundingClientRect().width > 0) ?? null;
+}
 
 /** A used utility turns sideways like a tapped card — scaled so it stays on screen. */
 export const SPOTLIGHT_TURNED_TRANSFORM = 'rotate(90deg) scale(0.8)';
@@ -105,6 +123,8 @@ type Phase = 'enter' | 'hold' | 'exit';
  * blocks input — tap the card to skip ahead.
  */
 export function OpponentPlaySpotlight({ log, viewer, actorLabel, enabled = true, onActiveChange, unobtrusive = false, onCurrentChange, portrait, quote }: OpponentPlaySpotlightProps) {
+  // the seat whose plays are announced
+  const actor: 0 | 1 = viewer === 0 ? 1 : 0;
   // Entries already in the log when we mount (a resumed game) are history.
   const seenRef = useRef(log.length);
   const [queue, setQueue] = useState<PlaySpotlight[]>([]);
@@ -168,9 +188,7 @@ export function OpponentPlaySpotlight({ log, viewer, actorLabel, enabled = true,
     if (phase !== 'exit' || !current || current.destination === 'inPlace' || prefersReducedMotion()) return;
     const card = cardRef.current;
     if (!card) return;
-    const target = TARGET_SELECTORS[current.destination]
-      .map((sel) => document.querySelector<HTMLElement>(sel))
-      .find((el) => el && el.getBoundingClientRect().width > 0);
+    const target = firstVisible(spotlightTargetSelectors(current.destination, actor));
     if (!target) return;
     const from = card.getBoundingClientRect();
     const to = target.getBoundingClientRect();
@@ -178,7 +196,25 @@ export function OpponentPlaySpotlight({ log, viewer, actorLabel, enabled = true,
     const dy = to.top + to.height / 2 - (from.top + from.height / 2);
     const scale = Math.max(0.12, Math.min(0.5, to.height / from.height));
     setExitTransform(`translate(${Math.round(dx)}px, ${Math.round(dy)}px) scale(${scale.toFixed(3)})`);
-  }, [phase, current]);
+  }, [phase, current, actor]);
+
+  // On enter, grow out of where the card came from (their hand, a utility,
+  // the deck). Measured off the card's untransformed slot before first paint.
+  const slotRef = useRef<HTMLDivElement | null>(null);
+  const [enterFrom, setEnterFrom] = useState<{ x: number; y: number; scale: number } | null>(null);
+  useLayoutEffect(() => {
+    if (!current) { setEnterFrom(null); return; }
+    const slot = slotRef.current;
+    const source = firstVisible(spotlightOriginSelectors(current.origin, actor));
+    if (!slot || !source) { setEnterFrom(null); return; }
+    const to = slot.getBoundingClientRect();
+    const from = source.getBoundingClientRect();
+    setEnterFrom({
+      x: Math.round(from.left + from.width / 2 - (to.left + to.width / 2)),
+      y: Math.round(from.top + from.height / 2 - (to.top + to.height / 2)),
+      scale: Math.max(0.12, Math.min(0.5, from.height / Math.max(1, to.height))),
+    });
+  }, [current, actor]);
 
   if (!current) return null;
 
@@ -224,15 +260,24 @@ export function OpponentPlaySpotlight({ log, viewer, actorLabel, enabled = true,
             {quote && <div className="opp-spotlight-quote">“{quote}”</div>}
           </div>
         </div>
-        <div
-          key={current.key}
-          ref={cardRef}
-          className={turns ? 'opp-spotlight-card opp-spotlight-card-turns' : 'opp-spotlight-card'}
-          style={cardStyle}
-          onClick={unobtrusive ? undefined : skip}
-          title={unobtrusive ? undefined : 'Tap to continue'}
-        >
-          <CardFace cardId={current.cardId} large scale={cardScale} />
+        <div ref={slotRef} className="opp-spotlight-card-slot">
+          <div
+            key={current.key}
+            ref={cardRef}
+            className={turns ? 'opp-spotlight-card opp-spotlight-card-turns' : 'opp-spotlight-card'}
+            style={{
+              ...cardStyle,
+              ...(enterFrom ? {
+                '--spot-from-x': `${enterFrom.x}px`,
+                '--spot-from-y': `${enterFrom.y}px`,
+                '--spot-from-scale': String(enterFrom.scale),
+              } : {}),
+            } as CSSProperties}
+            onClick={unobtrusive ? undefined : skip}
+            title={unobtrusive ? undefined : 'Tap to continue'}
+          >
+            <CardFace cardId={current.cardId} large scale={cardScale} />
+          </div>
         </div>
       </div>
     </div>

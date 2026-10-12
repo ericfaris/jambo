@@ -51,7 +51,10 @@ function centerOfElement(el: Element | null): { x: number; y: number } | null {
 }
 
 function centerOf(anchor: FlightAnchor): { x: number; y: number } | null {
-  return centerOfElement(document.querySelector(anchorSelector(anchor)));
+  const at = centerOfElement(document.querySelector(anchorSelector(anchor)));
+  // the draft panel isn't up (yet): the table still says "into the middle"
+  if (!at && anchor.type === 'draft-source') return centerOf({ type: 'table' });
+  return at;
 }
 
 /** Where every draft-pool card sits right now (read before the next change). */

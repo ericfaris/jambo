@@ -592,11 +592,13 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
         gold: state.players[0].gold,
         handCount: state.players[0].hand.length,
         market: state.players[0].market,
+        utilityCount: state.players[0].utilities.length,
       },
       {
         gold: state.players[1].gold,
         handCount: state.players[1].hand.length,
         market: state.players[1].market,
+        utilityCount: state.players[1].utilities.length,
       },
     ],
     lastLog: lastLog ? { player: lastLog.player, action: lastLog.action } : null,

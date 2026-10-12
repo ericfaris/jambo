@@ -6,6 +6,8 @@ interface FeedbackPlayerSnapshot {
   gold: number;
   handCount: number;
   market: (WareType | null)[];
+  /** Utilities in play — a discard that came off the table, not the hand (Snake, Crocodile). */
+  utilityCount?: number;
 }
 
 interface FeedbackLogEntry {
@@ -28,6 +30,8 @@ export interface FeedbackTrail {
   kind: 'draw' | 'discard';
   actor: 0 | 1;
   cardId: DeckCardId | null;
+  /** discard only: where the card left from — the actor's hand, or their utilities. */
+  source?: 'hand' | 'utilities';
 }
 
 export interface VisualFeedbackState {
@@ -147,11 +151,13 @@ export function useVisualFeedback(snapshot: FeedbackSnapshot): VisualFeedbackSta
     if (snapshot.discardCount > previousSnapshot.discardCount) {
       setDiscardPulse((value) => value + 1);
       const actor = detectActor('discard', previousSnapshot, snapshot);
+      const fromUtilities = (snapshot.players[actor].utilityCount ?? 0) < (previousSnapshot.players[actor].utilityCount ?? 0);
       const nextTrail: FeedbackTrail = {
         id: Date.now() + 1,
         kind: 'discard',
         actor,
         cardId: snapshot.topDiscardCard,
+        source: fromUtilities ? 'utilities' : 'hand',
       };
       setTrail(nextTrail);
       if (clearTrailTimerRef.current) {

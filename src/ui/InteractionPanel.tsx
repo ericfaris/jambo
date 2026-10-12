@@ -235,6 +235,7 @@ export function InteractionPanel({ state, dispatch, viewerPlayer = 0, onMegaView
       compactSourceCard={compactSourceCard}
       onCancel={cancellable ? () => dispatch({ type: 'CANCEL_ACTION' }) : undefined}
       cancelLabel={`Cancel ${source.name} and get your action back`}
+      draftSource={pr.type === 'DRAFT' && pr.draftMode === 'wares'}
     >
       <ResolutionContent state={state} pr={pr} dispatch={dispatch} viewerPlayer={viewerPlayer} onMegaView={onMegaView} />
     </PanelShell>
@@ -374,7 +375,7 @@ function shouldUseCompactSourceCard(pr: PendingResolution): boolean {
   }
 }
 
-function PanelShell({ title, breadcrumb, children, sourceCardId, onMegaView, compactSourceCard, sourceCardOverlay, onCancel, cancelLabel }: { title: string; breadcrumb?: string; children?: React.ReactNode; sourceCardId?: DeckCardId; onMegaView?: (cardId: DeckCardId) => void; compactSourceCard?: boolean; sourceCardOverlay?: React.ReactNode; onCancel?: () => void; cancelLabel?: string }) {
+function PanelShell({ title, breadcrumb, children, sourceCardId, onMegaView, compactSourceCard, sourceCardOverlay, onCancel, cancelLabel, draftSource }: { title: string; breadcrumb?: string; children?: React.ReactNode; sourceCardId?: DeckCardId; onMegaView?: (cardId: DeckCardId) => void; compactSourceCard?: boolean; sourceCardOverlay?: React.ReactNode; onCancel?: () => void; cancelLabel?: string; /** The source card holds a ware draft's pool: wares fly onto / off it. */ draftSource?: boolean }) {
   const sourceCard = sourceCardId ? getCard(sourceCardId) : null;
 
   // Esc backs out too, while the panel offers it
@@ -414,6 +415,7 @@ function PanelShell({ title, breadcrumb, children, sourceCardId, onMegaView, com
         )}
         {sourceCard && (
           <div
+            data-draft-source={draftSource ? '' : undefined}
             onClick={sourceCardId && onMegaView ? () => onMegaView(sourceCardId) : undefined}
             style={{
               cursor: sourceCardId && onMegaView ? 'zoom-in' : 'default',

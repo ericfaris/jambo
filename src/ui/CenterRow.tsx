@@ -3,9 +3,11 @@ import { CONSTANTS } from '../engine/types.ts';
 import { CardFace } from './CardFace.tsx';
 import type { VisualFeedbackState } from './useVisualFeedback.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import { FEEDBACK_TIMINGS } from './animationTimings.ts';
+import { measureTrailPath, spotlightCoversDiscard } from './trailPath.ts';
+import type { TrailPath } from './trailPath.ts';
 import { describeTrailTag, formatLogRecap, formatTurnOwner } from './uiHints.ts';
 import { finalTurnStatus } from './endgameHints.ts';
 import { deckThicknessShadow, discardGhostPoses, useJustSpent } from './life.tsx';
@@ -59,10 +61,8 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
   const [actionTag, setActionTag] = useState<string | null>(null);
   const [lastActionRecap, setLastActionRecap] = useState<string | null>(null);
   const rowRef = useRef<HTMLDivElement | null>(null);
-  const deckPileRef = useRef<HTMLDivElement | null>(null);
-  const discardPileRef = useRef<HTMLDivElement | null>(null);
-  const [drawTrailPath, setDrawTrailPath] = useState<{ startX: number; startY: number; endX: number; endY: number } | null>(null);
-  const [discardTrailTarget, setDiscardTrailTarget] = useState<{ x: number; y: number } | null>(null);
+  // Both ends of the current trail, measured from the board before it paints
+  const [trailPath, setTrailPath] = useState<TrailPath | null>(null);
 
   useEffect(() => {
     const trail = visualFeedback?.trail;
@@ -105,52 +105,21 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
     return () => window.clearTimeout(timer);
   }, [state.log.length]);
 
-  useEffect(() => {
-    const updateDrawTrailPath = () => {
-      const rowEl = rowRef.current;
-      const deckEl = deckPileRef.current;
-      if (!rowEl || !deckEl) return;
-
-      const trail = visualFeedback?.trail;
-      if (!trail || trail.kind !== 'draw') return;
-
-      const targetEl = document.querySelector<HTMLElement>(`[data-center-target="${trail.actor === 1 ? 'top' : 'bottom'}"]`);
-      if (!targetEl) return;
-
-      const rowRect = rowEl.getBoundingClientRect();
-      const deckRect = deckEl.getBoundingClientRect();
-      const targetRect = targetEl.getBoundingClientRect();
-      setDrawTrailPath({
-        startX: deckRect.left + (deckRect.width / 2) - (rowRect.left + (rowRect.width / 2)),
-        startY: deckRect.top + (deckRect.height / 2) - (rowRect.top + (rowRect.height / 2)),
-        endX: targetRect.left + (targetRect.width / 2) - (rowRect.left + (rowRect.width / 2)),
-        endY: targetRect.top + (targetRect.height / 2) - (rowRect.top + (rowRect.height / 2)),
-      });
-    };
-
-    updateDrawTrailPath();
-    window.addEventListener('resize', updateDrawTrailPath);
-    return () => window.removeEventListener('resize', updateDrawTrailPath);
+  // Measured in a layout effect so the first painted frame already starts on
+  // the deck / the actor's hand — never at a placeholder spot
+  useLayoutEffect(() => {
+    const trail = visualFeedback?.trail;
+    const rowEl = rowRef.current;
+    if (!trail || !rowEl) { setTrailPath(null); return; }
+    const update = () => setTrailPath(measureTrailPath(trail, rowEl.getBoundingClientRect()));
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
   }, [visualFeedback?.trail]);
 
-  useEffect(() => {
-    const updateDiscardTrailTarget = () => {
-      const rowEl = rowRef.current;
-      const discardEl = discardPileRef.current;
-      if (!rowEl || !discardEl) return;
-
-      const rowRect = rowEl.getBoundingClientRect();
-      const discardRect = discardEl.getBoundingClientRect();
-      setDiscardTrailTarget({
-        x: discardRect.left + (discardRect.width / 2) - (rowRect.left + (rowRect.width / 2)),
-        y: discardRect.top + (discardRect.height / 2) - (rowRect.top + (rowRect.height / 2)),
-      });
-    };
-
-    updateDiscardTrailTarget();
-    window.addEventListener('resize', updateDiscardTrailTarget);
-    return () => window.removeEventListener('resize', updateDiscardTrailTarget);
-  }, []);
+  const latestLog = state.log.length > 0 ? state.log[state.log.length - 1] : null;
+  const showTrail = !!visualFeedback?.trail && !!trailPath
+    && !(visualFeedback.trail.kind === 'discard' && spotlightCoversDiscard(latestLog, spotlitPlayer));
 
   const trailKind = visualFeedback?.trail?.kind;
   const trailActor = visualFeedback?.trail?.actor;
@@ -186,24 +155,16 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
       padding: compact ? '2px 0' : '12px 0 18px',
       position: 'relative',
     }}>
-      {visualFeedback?.trail && (
+      {showTrail && visualFeedback?.trail && trailPath && (
         <div
           key={visualFeedback.trail.id}
-          className={`center-row-trail center-row-trail-${visualFeedback.trail.kind}-${visualFeedback.trail.actor === 0 ? 'bottom' : 'top'}${trailIntensityClass ? ` ${trailIntensityClass}` : ''}`}
-          style={(() => {
-            const vars: Record<string, string> = {};
-            if (visualFeedback.trail.kind === 'draw' && drawTrailPath) {
-              vars['--trail-draw-start-x'] = `${drawTrailPath.startX}px`;
-              vars['--trail-draw-start-y'] = `${drawTrailPath.startY}px`;
-              vars['--trail-draw-end-x'] = `${drawTrailPath.endX}px`;
-              vars['--trail-draw-end-y'] = `${drawTrailPath.endY}px`;
-            }
-            if (visualFeedback.trail.kind === 'discard' && discardTrailTarget) {
-              vars['--trail-discard-end-x'] = `${discardTrailTarget.x}px`;
-              vars['--trail-discard-end-y'] = `${discardTrailTarget.y}px`;
-            }
-            return Object.keys(vars).length > 0 ? (vars as CSSProperties) : undefined;
-          })()}
+          className={`center-row-trail center-row-trail-${visualFeedback.trail.kind}${trailIntensityClass ? ` ${trailIntensityClass}` : ''}`}
+          style={{
+            '--trail-start-x': `${trailPath.startX}px`,
+            '--trail-start-y': `${trailPath.startY}px`,
+            '--trail-end-x': `${trailPath.endX}px`,
+            '--trail-end-y': `${trailPath.endY}px`,
+          } as CSSProperties}
           aria-hidden
         >
           {visualFeedback.trail.kind === 'discard' && visualFeedback.trail.cardId ? (
@@ -227,7 +188,7 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
       )}
 
       {/* Deck */}
-      <div ref={deckPileRef} key={`deck-${visualFeedback?.deckPulse ?? 0}`} className={deckPulseClass} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: pileTitleGap }}>
+      <div data-deck-anchor key={`deck-${visualFeedback?.deckPulse ?? 0}`} className={deckPulseClass} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: pileTitleGap }}>
         {state.deck.length > 0 ? (
           <div className="deck-stack" style={{ '--deck-thickness': deckThicknessShadow(state.deck.length) } as CSSProperties}>
             <CardFace cardId={state.deck[0]} faceDown small scale={pileScale} />
@@ -276,7 +237,7 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
       </div>
 
       {/* Discard */}
-      <div ref={discardPileRef} key={`discard-${visualFeedback?.discardPulse ?? 0}`} className={discardPulseClass} data-spotlight-target="discard" style={{
+      <div key={`discard-${visualFeedback?.discardPulse ?? 0}`} className={discardPulseClass} data-spotlight-target="discard" style={{
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',

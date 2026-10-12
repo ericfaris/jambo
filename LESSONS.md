@@ -418,3 +418,24 @@ overwrites tracked files.)
   `designId`. Without it Medium AI scoring goes NaN and returns `undefined`,
   so the AI silently never moves. That looked like a resume bug, but it was
   the seed. Always run `checkInvariants`. Note that it doesn't catch this.
+
+## 2026-10-12 — Flights start and end on real places (v1.16.0)
+
+- **Measure animation endpoints in a layout effect, not useEffect.** The draw
+  trail read its coordinates in `useEffect`, so the first painted frame ran
+  the keyframe with fallback values and the card visibly started from a
+  made-up spot. `useLayoutEffect` sets the CSS vars before paint, and the
+  trail renders nothing until it has real endpoints.
+- **Rule: a flight starts and lands on a pile, a hand (the AI's card fan),
+  a utility row, a market slot, or the card that owns the effect** (Elephant's
+  pool gathers on the Elephant card). "The table" is only a last-resort
+  fallback. `trailPath.ts`, `spotlightOriginSelectors`/`TargetSelectors` and
+  `FlightAnchor 'draft-source'` encode it.
+- **Measure a transformed element through an untransformed wrapper.** The
+  spotlight card animates on mount, so its own rect is mid-animation. Measure
+  `.opp-spotlight-card-slot` instead.
+- **Playwright vs Vite dev:** the first reload after a cold start sometimes
+  hits ERR_CONNECTION_REFUSED (the dep optimizer restarting). Retry
+  `goto(BASE)` until "Resume Game" shows. A MutationObserver recorder must
+  also search *inside* added nodes, because the flight layer mounts with its
+  sprites already in it.
