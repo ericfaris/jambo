@@ -252,8 +252,13 @@ export function useWebSocketGame(): WebSocketGameState {
 
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
+    // Only the newest socket may touch state. A replaced one (StrictMode's
+    // remount, a reconnect) must not flip `connected` while wsRef points at a
+    // socket still connecting — sends would be dropped and never retried.
+    const isCurrent = () => wsRef.current === ws;
 
     ws.onopen = () => {
+      if (!isCurrent()) return;
       setConnected(true);
       reconnectAttempt.current = 0;
 
@@ -285,6 +290,7 @@ export function useWebSocketGame(): WebSocketGameState {
     };
 
     ws.onmessage = (event) => {
+      if (!isCurrent()) return;
       try {
         const msg = JSON.parse(event.data as string) as ServerMessage;
         handleMessage(msg);
@@ -294,6 +300,8 @@ export function useWebSocketGame(): WebSocketGameState {
     };
 
     ws.onclose = () => {
+      // A socket closed on purpose (unmount) or already replaced: no reconnect
+      if (!isCurrent()) return;
       setConnected(false);
       wsRef.current = null;
 
@@ -312,7 +320,9 @@ export function useWebSocketGame(): WebSocketGameState {
     connect();
     return () => {
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-      wsRef.current?.close();
+      const ws = wsRef.current;
+      wsRef.current = null;
+      ws?.close();
     };
   }, [connect]);
 
