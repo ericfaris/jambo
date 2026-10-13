@@ -114,7 +114,10 @@
   border: 1px solid rgba(212, 168, 80, 0.4);
   background: rgba(0, 0, 0, 0.25);
   color: var(--tut-cream);
-  font-size: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
   cursor: pointer;
 }
 

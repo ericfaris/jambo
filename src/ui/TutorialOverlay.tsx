@@ -108,7 +108,11 @@ export function TutorialOverlay({ onClose, finishLabel = 'Start playing', onFini
               </button>
             ))}
           </nav>
-          <button type="button" className="tut-close" onClick={onClose} aria-label="Close how to play">✕</button>
+          <button type="button" className="tut-close" onClick={onClose} aria-label="Close how to play">
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+              <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+            </svg>
+          </button>
         </header>
 
         <div className="tut-body">
