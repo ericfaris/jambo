@@ -621,3 +621,22 @@ overwrites tracked files.)
 - **Showcase page on a phone:** the app's `body` is a flex row, so a page
   dropped into it sizes to its widest child. Give the page wrapper
   `width: 100%; min-width: 0`.
+
+## 2026-10-13 — Sounds, resolve panels, market-sign menu (v1.24–1.26)
+- **One action, one sound**: KEEP_CARD shared DRAW_CARD's swish, so every kept
+  card played twice. Give follow-up actions their own quieter cue (card-keep /
+  card-discard) instead of reusing the headline sound.
+- **Size a sound from state, not the action**: the coin burst counts gold
+  gained between states (`goldGained`), so solo, Cast and online agree without
+  a protocol change; `useAudioEvents` takes the public state for that.
+- **`display: contents` keeps ancestor-scoped styles**: on phones the resolve
+  body becomes `display: contents` so its children join the panel grid, while
+  `.resolve-body button` styles still match by DOM ancestry.
+- **Glyph ✕ is never centred**: font metrics push "✕" off-centre in a round
+  button; use an SVG and flex-centre it.
+- **Animation fill pins properties**: a drop-in with `fill-mode: both` on
+  `translate` silently disabled the `:active` press nudge. Use `backwards`
+  for entrance animations on elements that also transition that property.
+- **Layer motion across elements**: button = drop-in + press (translate),
+  inner board = sway/swing (rotate), so the animations never fight over one
+  property.
