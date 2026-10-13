@@ -4,7 +4,7 @@ import { throneGiveOptions, throneStealOptions } from '../engine/market/throneSw
 import type { GameState, PendingResolution, InteractionResponse, WareType, DeckCardId } from '../engine/types.ts';
 import { WARE_TYPES } from '../engine/types.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
-import { CardFace, WareToken, WARE_COLORS } from './CardFace.tsx';
+import { CardFace, WareToken } from './CardFace.tsx';
 import { MarketDisplay } from './MarketDisplay.tsx';
 import { formatResolutionBreadcrumb } from './uiHints.ts';
 import { isAuctionBidding } from '../engine/responder.ts';
@@ -225,19 +225,11 @@ function InteractionPanelBody({ state, dispatch, viewerPlayer = 0, onMegaView, c
     const isMyReaction = state.pendingWareCardReaction.targetPlayer === viewerPlayer;
     if (!isMyReaction) return <PanelShell title={`Waiting: ${name} deciding Rain Maker reaction`} />;
     const rainMakerCardId = findHandCardByDesign(state, viewerPlayer, 'rain_maker');
-    const opponentWareCard = getCard(state.pendingWareCardReaction.wareCardId);
     return (
       <PanelShell
         title={`${Name} used a ware card! Play Rain Maker to take it?`}
         sourceCardId={state.pendingWareCardReaction.wareCardId}
         onMegaView={onMegaView}
-        sourceCardOverlay={opponentWareCard.wares ? (
-          <WareCardTradeOverlay
-            buyPrice={opponentWareCard.wares.buyPrice}
-            sellPrice={opponentWareCard.wares.sellPrice}
-            wareTypes={opponentWareCard.wares.types}
-          />
-        ) : undefined}
       >
         <ReactionDecisionPanel
           reactionCardId={rainMakerCardId}
@@ -343,47 +335,6 @@ function ReactionCardTile({ cardId, onMegaView }: { cardId: DeckCardId; onMegaVi
   );
 }
 
-function WareCardTradeOverlay({ buyPrice, sellPrice, wareTypes }: { buyPrice: number; sellPrice: number; wareTypes: WareType[] }) {
-  return (
-    <div
-      style={{
-        position: 'absolute',
-        left: 8,
-        right: 8,
-        bottom: 8,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 16,
-        padding: '6px 8px',
-        borderRadius: 10,
-        background: 'rgba(20,10,5,0.55)',
-        backdropFilter: 'blur(2px)',
-        pointerEvents: 'none',
-      }}
-    >
-      <img src={`/assets/coins/coin_${buyPrice}.png`} alt={`${buyPrice}g`} style={{ width: 54, height: 54 }} draggable={false} />
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 200 }}>
-        {wareTypes.map((wareType, index) => (
-          <div
-            key={`${wareType}-${index}`}
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: '50%',
-              background: WARE_COLORS[wareType],
-              border: '2px solid rgba(0,0,0,0.6)',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
-            }}
-            title={wareType}
-          />
-        ))}
-      </div>
-      <img src={`/assets/coins/coin_${sellPrice}.png`} alt={`${sellPrice}g`} style={{ width: 54, height: 54 }} draggable={false} />
-    </div>
-  );
-}
-
 function shouldUseCompactSourceCard(pr: PendingResolution): boolean {
   switch (pr.type) {
     case 'DECK_PEEK':
@@ -408,9 +359,7 @@ function shouldUseCompactSourceCard(pr: PendingResolution): boolean {
   }
 }
 
-function PanelShell({ title, breadcrumb, children, sourceCardId, onMegaView, compactSourceCard, sourceCardOverlay, onCancel, cancelLabel, draftSource }: { title: string; breadcrumb?: string; children?: React.ReactNode; sourceCardId?: DeckCardId; onMegaView?: (cardId: DeckCardId) => void; compactSourceCard?: boolean; sourceCardOverlay?: React.ReactNode; onCancel?: () => void; cancelLabel?: string; /** The source card holds a ware draft's pool: wares fly onto / off it. */ draftSource?: boolean }) {
-  const sourceCard = sourceCardId ? getCard(sourceCardId) : null;
-
+function PanelShell({ title, breadcrumb, children, sourceCardId, onMegaView, compactSourceCard, onCancel, cancelLabel, draftSource }: { title: string; breadcrumb?: string; children?: React.ReactNode; sourceCardId?: DeckCardId; onMegaView?: (cardId: DeckCardId) => void; /** The content is wide (a row of cards to pick from) */ compactSourceCard?: boolean; onCancel?: () => void; cancelLabel?: string; /** The source card holds a ware draft's pool: wares fly onto / off it. */ draftSource?: boolean }) {
   // Esc backs out too, while the panel offers it
   useEffect(() => {
     if (!onCancel) return;
@@ -419,19 +368,17 @@ function PanelShell({ title, breadcrumb, children, sourceCardId, onMegaView, com
     return () => window.removeEventListener('keydown', onKey);
   }, [onCancel]);
 
+  // The full card sits in the upper left, the title and controls beside it
+  const maxWidth = sourceCardId ? (compactSourceCard ? 980 : 720) : 460;
   return (
-    <div className="panel-slide" style={{ maxWidth: compactSourceCard ? 980 : 460, margin: '0 auto', width: '100%' }}>
+    <div className="panel-slide" style={{ maxWidth, margin: '0 auto', width: '100%' }}>
       <div
-        className="dialog-pop linen-texture resolve-panel"
+        className={`dialog-pop linen-texture resolve-panel${sourceCardId ? ' resolve-panel-with-card' : ''}`}
         style={{
           borderRadius: 14,
           padding: 'clamp(6px, 2vw, 10px)',
           border: '2px solid #a89880',
           boxShadow: '0 8px 32px rgba(0,0,0,0.45)',
-          display: compactSourceCard ? 'flex' : 'block',
-          flexWrap: compactSourceCard ? 'wrap' : undefined,
-          gap: compactSourceCard ? 10 : 0,
-          alignItems: 'start',
           position: 'relative',
         }}
       >
@@ -443,51 +390,40 @@ function PanelShell({ title, breadcrumb, children, sourceCardId, onMegaView, com
             aria-label={cancelLabel ?? 'Cancel'}
             title={cancelLabel ?? 'Cancel'}
           >
-            ✕
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+              <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+            </svg>
           </button>
         )}
-        {sourceCard && (
+        {sourceCardId && (
           <div
+            className="resolve-source"
             data-draft-source={draftSource ? '' : undefined}
-            onClick={sourceCardId && onMegaView ? () => onMegaView(sourceCardId) : undefined}
-            style={{
-              cursor: sourceCardId && onMegaView ? 'zoom-in' : 'default',
-              maxWidth: compactSourceCard ? 180 : undefined,
-              width: compactSourceCard ? 'min(180px, 40vw)' : undefined,
-              flex: compactSourceCard ? '0 0 auto' : undefined,
-              margin: compactSourceCard ? '0 auto' : undefined,
-              position: 'relative',
-            }}
+            onClick={onMegaView ? () => onMegaView(sourceCardId) : undefined}
+            style={{ cursor: onMegaView ? 'zoom-in' : 'default' }}
           >
-            <img
-              src={`/assets/cards/${sourceCard.designId}.png`}
-              alt={sourceCard.name}
-              className={`resolve-source-art ${compactSourceCard ? 'panel-source-art-compact' : 'panel-source-art'}`}
-              style={{ width: '100%', borderRadius: 10, display: 'block' }}
-              draggable={false}
-            />
-            {sourceCardOverlay}
+            <CardFace cardId={sourceCardId} fill onMegaView={onMegaView} />
           </div>
         )}
 
         <div className="linen-texture resolve-body" style={{
-          marginTop: sourceCard && !compactSourceCard ? 8 : 0,
           borderRadius: 10,
           padding: 'clamp(10px, 2.5vw, 14px)',
           border: 'none',
           color: '#1a1714',
-          flex: compactSourceCard ? '1 1 320px' : undefined,
-          minWidth: compactSourceCard ? 0 : undefined,
+          minWidth: 0,
         }}>
-          {breadcrumb && (
-            <div className="resolve-eyebrow">
-              <span className="resolve-eyebrow-rule" aria-hidden="true" />
-              {breadcrumb}
-              <span className="resolve-eyebrow-rule" aria-hidden="true" />
-            </div>
-          )}
-          <h3 className="resolve-title">{title}</h3>
-          <div className="resolve-divider" aria-hidden="true"><span /></div>
+          <div className={`resolve-head${onCancel ? ' resolve-head-clear-x' : ''}`}>
+            {breadcrumb && (
+              <div className="resolve-eyebrow">
+                <span className="resolve-eyebrow-rule" aria-hidden="true" />
+                {breadcrumb}
+                <span className="resolve-eyebrow-rule" aria-hidden="true" />
+              </div>
+            )}
+            <h3 className="resolve-title">{title}</h3>
+            <div className="resolve-divider" aria-hidden="true"><span /></div>
+          </div>
           {children}
           {onCancel && (
             <div className="resolve-footer">
@@ -501,7 +437,6 @@ function PanelShell({ title, breadcrumb, children, sourceCardId, onMegaView, com
     </div>
   );
 }
-
 function ResolutionContent({ state, pr, dispatch, viewerPlayer, onMegaView }: { state: GameState; pr: PendingResolution; dispatch: InteractionPanelProps['dispatch']; viewerPlayer: 0 | 1; onMegaView?: (cardId: DeckCardId) => void }) {
   switch (pr.type) {
     case 'WARE_TRADE':
@@ -663,6 +598,7 @@ function AuctionPanel({ pr, state, viewerPlayer, dispatch, onMegaView }: { pr: E
         pr={pr}
         viewerPlayer={viewerPlayer}
         myGold={state.players[viewerPlayer].gold}
+        theirGold={state.players[viewerPlayer === 0 ? 1 : 0].gold}
         onBid={() => resolve(dispatch, { type: 'AUCTION_BID', amount: nextBid })}
         onPass={() => resolve(dispatch, { type: 'AUCTION_PASS' })}
         canAfford={state.players[viewerPlayer].gold >= nextBid}
@@ -674,12 +610,14 @@ function AuctionPanel({ pr, state, viewerPlayer, dispatch, onMegaView }: { pr: E
 
 /**
  * The bidding half of an auction: the current bid as a big coin, who leads,
- * your purse, and Bid / Pass — or who's thinking, while it isn't your call.
+ * both purses, and Bid / Pass — or who's thinking, while it isn't your call.
  */
-function AuctionBidBoard({ pr, viewerPlayer, myGold, onBid, onPass, canAfford, isMyBid }: {
+function AuctionBidBoard({ pr, viewerPlayer, myGold, theirGold, onBid, onPass, canAfford, isMyBid }: {
   pr: Extract<PendingResolution, { type: 'AUCTION' }>;
   viewerPlayer: 0 | 1;
   myGold: number;
+  /** The opponent's purse is public — and it caps how high they can go */
+  theirGold: number;
   onBid: () => void;
   onPass: () => void;
   canAfford: boolean;
@@ -691,6 +629,10 @@ function AuctionBidBoard({ pr, viewerPlayer, myGold, onBid, onPass, canAfford, i
   return (
     <div className="auction-board">
       <div className="auction-standing">
+        <div className="auction-purse">
+          <span className="auction-caption">Your gold</span>
+          <span className="auction-purse-amount">{myGold}g</span>
+        </div>
         <div className="auction-current">
           <span className="auction-caption">Current bid</span>
           <span className={`ware-coin auction-coin${pr.currentBid === 0 ? ' auction-coin-empty' : ''}`} aria-label={`${pr.currentBid}g`}>
@@ -700,9 +642,9 @@ function AuctionBidBoard({ pr, viewerPlayer, myGold, onBid, onPass, canAfford, i
             {leading === 'mine' ? 'You lead' : leading === 'theirs' ? `${Name} leads` : 'No bids yet'}
           </span>
         </div>
-        <div className="auction-purse">
-          <span className="auction-caption">Your gold</span>
-          <span className="auction-purse-amount">{myGold}g</span>
+        <div className="auction-purse auction-purse-theirs">
+          <span className="auction-caption">{`${Name}'s gold`}</span>
+          <span className="auction-purse-amount">{theirGold}g</span>
         </div>
       </div>
       {isMyBid ? (
@@ -742,6 +684,7 @@ function CardAuctionPanel({ pr, cards, state, viewerPlayer, dispatch, onMegaView
         pr={pr}
         viewerPlayer={viewerPlayer}
         myGold={state.players[viewerPlayer].gold}
+        theirGold={state.players[viewerPlayer === 0 ? 1 : 0].gold}
         onBid={() => resolve(dispatch, { type: 'AUCTION_BID', amount: nextBid })}
         onPass={() => resolve(dispatch, { type: 'AUCTION_PASS' })}
         canAfford={state.players[viewerPlayer].gold >= nextBid}

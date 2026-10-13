@@ -50,9 +50,11 @@ interface CardFaceProps {
   onMegaView?: (cardId: DeckCardId) => void;
   /** This turn's Wise Man modifiers: ware coins show the prices you'd actually pay / get. */
   priceModifiers?: PriceModifiers | null;
+  /** Fill the container's width at the card's 3:4 shape; the caption scales with it. */
+  fill?: boolean;
 }
 
-export function CardFace({ cardId, onClick, selected, small, medium, large, extraLarge, faceDown, scale = 1, onMegaView, priceModifiers = null }: CardFaceProps) {
+export function CardFace({ cardId, onClick, selected, small, medium, large, extraLarge, faceDown, scale = 1, onMegaView, priceModifiers = null, fill = false }: CardFaceProps) {
   const [imgError, setImgError] = useState(false);
   const baseFaceWidth = small ? 96 : medium ? 120 : extraLarge ? 364 : large ? 180 : 140;
   const baseFaceHeight = small ? 128 : medium ? 160 : extraLarge ? 485 : large ? 240 : 187;
@@ -135,8 +137,10 @@ export function CardFace({ cardId, onClick, selected, small, medium, large, extr
         {...buttonProps(onClick, card.name)}
         className={faceClass('linen-texture')}
         style={{
-          width: faceWidth,
-          height: faceHeight,
+          width: fill ? '100%' : faceWidth,
+          height: fill ? 'auto' : faceHeight,
+          aspectRatio: fill ? '3 / 4' : undefined,
+          containerType: fill ? 'inline-size' : undefined,
           borderRadius: 10,
           padding: pad,
           boxSizing: 'border-box',
@@ -259,7 +263,7 @@ export function CardFace({ cardId, onClick, selected, small, medium, large, extr
               }}
             >
               <div style={{
-                fontSize: compactFace ? 7 : 8,
+                fontSize: fill ? 'clamp(8px, 6cqw, 13px)' : compactFace ? 7 : 8,
                 fontWeight: 700,
                 color: '#1a1714',
                 lineHeight: 1,
@@ -271,8 +275,8 @@ export function CardFace({ cardId, onClick, selected, small, medium, large, extr
                 {card.name}
               </div>
               {!compactFace && (
-                <div style={{
-                  fontSize: 7,
+                <div className="card-face-desc" style={{
+                  fontSize: fill ? 'clamp(7px, 4.6cqw, 10px)' : 7,
                   color: '#4a4540',
                   lineHeight: 1.1,
                   textAlign: 'center',
@@ -294,8 +298,9 @@ export function CardFace({ cardId, onClick, selected, small, medium, large, extr
       {...buttonProps(onClick, card.name)}
       className={faceClass()}
       style={{
-        width: fallbackWidth,
-        height: fallbackHeight,
+        width: fill ? '100%' : fallbackWidth,
+        height: fill ? 'auto' : fallbackHeight,
+        aspectRatio: fill ? '3 / 4' : undefined,
         borderRadius: 10,
         border: `2px solid ${selected ? 'var(--gold)' : 'var(--border)'}`,
         background: selected ? 'var(--surface-accent)' : 'var(--surface)',

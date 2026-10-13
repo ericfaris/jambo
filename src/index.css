@@ -853,39 +853,36 @@ button.brown:hover:not(:disabled) {
 
 /* Resolve panels: on short screens the source-card art becomes a cropped
    banner so the choices below it stay on screen without scrolling. */
-.panel-source-art {
-  max-height: 34vh;
-  max-height: 34dvh;
-  object-fit: cover;
-  object-position: center 30%;
+/* Resolve panels: the full source card in the upper left, the title and
+   controls beside it (2026-10-13). The card was a cropped art strip on top. */
+.resolve-panel-with-card {
+  --resolve-card-w: clamp(150px, 19vw, 200px);
+  display: grid;
+  grid-template-columns: var(--resolve-card-w) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+.resolve-source { position: relative; width: var(--resolve-card-w); }
+.resolve-source .card-face { box-shadow: 0 6px 18px rgba(40,24,10,0.35), 0 0 0 1px rgba(90,64,40,0.35); }
+/* the ✕ sits top-right over the title row: keep the title clear of it, centred */
+.resolve-head-clear-x { padding-inline: 40px; }
+.resolve-head { display: flex; flex-direction: column; gap: 10px; }
+
+/* Short screens (360×640 phones, 1366×768 laptops): a smaller card so the
+   controls stay on screen — Dancer's Confirm was below the fold there. */
+@media (max-height: 760px) {
+  .resolve-panel-with-card { --resolve-card-w: clamp(110px, 15vw, 150px); }
 }
 
-.panel-source-art-compact {
-  max-height: 22vh;
-  max-height: 22dvh;
-  object-fit: contain;
-}
-
-/* Short screens (360×640 phones): the art yields so the controls stay on
-   screen — Dancer's Confirm was below the fold there. */
-@media (max-height: 700px) {
-  .panel-source-art {
-    max-height: 18vh;
-    max-height: 18dvh;
-  }
-  .panel-source-art-compact {
-    max-height: 14vh;
-    max-height: 14dvh;
-  }
-}
-
-/* Tall screens get bigger art, but still capped so the panel's controls
-   (e.g. Dancer's Confirm) never fall below the fold at ~900px */
-@media (min-height: 900px) {
-  .panel-source-art {
-    max-height: 45vh;
-    max-height: 45dvh;
-  }
+/* Phones: a small card beside the title; the controls take the full width
+   underneath. resolve-body stays the DOM parent (button styles key on it). */
+@media (max-width: 600px) {
+  .resolve-panel-with-card { --resolve-card-w: 84px; gap: 10px; padding: 10px !important; }
+  .resolve-panel-with-card > .resolve-body { display: contents; }
+  .resolve-panel-with-card > .resolve-body > * { grid-column: 1 / -1; }
+  .resolve-panel-with-card > .resolve-body > .resolve-head { grid-column: 2; align-self: center; padding-inline: 0 44px; }
+  .resolve-panel-with-card .resolve-head .resolve-title { font-size: 19px; }
+  .resolve-source .card-face-desc { display: none; }
 }
 
 /* Card-level validation errors, repeated as a readable toast above the board */
@@ -3122,7 +3119,6 @@ button.menu-abandon-link:hover:not(:disabled) { background: none; border: 0; col
 
 /* --- Resolve panels (2026-10-12 uplift): the draw dialog is the north star -- */
 .resolve-panel { box-shadow: 0 10px 36px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.6) !important; }
-.resolve-source-art { box-shadow: 0 6px 18px rgba(40,24,10,0.35), 0 0 0 1px rgba(90,64,40,0.35); }
 .resolve-body { display: flex; flex-direction: column; gap: 10px; }
 .resolve-eyebrow {
   display: flex; align-items: center; justify-content: center; gap: 10px;
@@ -3189,6 +3185,8 @@ button.menu-abandon-link:hover:not(:disabled) { background: none; border: 0; col
 .auction-leader-mine { color: #2e6a24; border-color: rgba(46,106,36,0.45); background: rgba(46,139,46,0.12); }
 .auction-leader-theirs { color: #9a3424; border-color: rgba(154,52,36,0.4); background: rgba(184,50,42,0.1); }
 .auction-purse-amount { font-family: var(--font-heading); font-size: 22px; font-weight: 700; color: #7a5a1e; font-variant-numeric: tabular-nums; }
+.auction-purse { min-width: 92px; }
+.auction-purse-theirs .auction-purse-amount { color: #8a3a28; }
 .auction-actions { display: flex; gap: 12px; justify-content: center; width: 100%; padding: 0; }
 .auction-actions button { flex: 1; max-width: 200px; padding: 12px; }
 .auction-note { font-size: 12.5px; color: #6b5843; text-align: center; }

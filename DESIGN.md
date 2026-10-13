@@ -380,9 +380,16 @@ Keyframes are named descriptively (`pilePulse`, `marketSlotFlash`,
   `.ware-pick` buttons (`-waiting` while the other player picks), the
   footer cancel is `.resolve-cancel`. Throne asks for **your** ware first
   (give, then take).
+  The source card is the **full card face** (`.resolve-source`,
+  `CardFace fill`: art, name/text or ware strip, 3:4, never cropped) in the
+  **upper left**, title and controls beside it (`.resolve-panel-with-card`
+  grid; card 150–200px, 110–150px under 760px tall). Phones (≤600px): an
+  84px card beside the title, controls full width below (`.resolve-body` is
+  `display: contents` there so button styles still apply). 2026-10-13.
 - **Auction board** (`.auction-board`) — the current bid on a coin
   (`.auction-coin`, "–" before any bid), who leads (`.auction-leader-mine` /
-  `-theirs`, by name online: "Sam leads"), your purse, Bid/Pass, and while
+  `-theirs`, by name online: "Sam leads"), both purses (yours left, the
+  opponent's right in red, "Sam's gold" — what they can still bid), Bid/Pass, and while
   the other side decides "Waiting for Sam's bid…" with animated dots.
 - **Settings panel** (`SettingsPanel.tsx` + `SettingsPanel.css`, all
   `.settings-*`; 2026-10-12) — one panel in the main menu, the in-game menu

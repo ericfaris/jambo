@@ -143,3 +143,52 @@ describe('Arabian Merchant panel layout', () => {
     expect(html).toContain('max-width:980px');
   });
 });
+
+describe('auction board shows both purses', () => {
+  const withGold = (state: GameState, mine: number, theirs: number): GameState => ({
+    ...state,
+    players: [{ ...state.players[0], gold: mine }, { ...state.players[1], gold: theirs }],
+  });
+  const purses = (html: string) => [...html.matchAll(/auction-caption">([^<]+)<\/span><span class="auction-purse-amount">(\d+)g/g)].map((m) => [m[1].replace(/&#x27;/g, "'"), m[2]]);
+
+  it('shows your gold and the opponent\'s, from either seat', () => {
+    const state = withGold(withAuctionState(createTestState(), ['tea', 'salt']), 23, 41);
+    const p0 = renderToStaticMarkup(createElement(InteractionPanel, { state, dispatch: noopDispatch, viewerPlayer: 0 }));
+    const p1 = renderToStaticMarkup(createElement(InteractionPanel, { state, dispatch: noopDispatch, viewerPlayer: 1 }));
+    expect(purses(p0)).toEqual([['Your gold', '23'], ["Opponent's gold", '41']]);
+    expect(purses(p1)).toEqual([['Your gold', '41'], ["Opponent's gold", '23']]);
+  });
+
+  it('names the opponent online', () => {
+    const state = withGold(withAuctionState(createTestState(), ['tea', 'salt']), 23, 41);
+    const html = renderToStaticMarkup(createElement(InteractionPanel, { state, dispatch: noopDispatch, viewerPlayer: 0, opponentName: 'Sam' }));
+    expect(purses(html)).toEqual([['Your gold', '23'], ["Sam's gold", '41']]);
+  });
+
+  it('shows both purses on the Arabian Merchant card auction too', () => {
+    const base = withGold(createTestState(), 30, 12);
+    const state: GameState = {
+      ...base,
+      currentPlayer: 0,
+      pendingResolution: {
+        type: 'AUCTION', sourceCard: 'arabian_merchant_1', wares: [], revealedCards: ['guard_1', 'well_1'],
+        currentBid: 0, currentBidder: 0, nextBidder: 0, passed: [false, false],
+      },
+    };
+    const html = renderToStaticMarkup(createElement(InteractionPanel, { state, dispatch: noopDispatch, viewerPlayer: 0 }));
+    expect(purses(html)).toEqual([['Your gold', '30'], ["Opponent's gold", '12']]);
+  });
+});
+
+describe('resolve panel source card', () => {
+  it('is the full card face in the panel grid, not a cropped art strip', () => {
+    const html = renderToStaticMarkup(createElement(InteractionPanel, { state: withAuctionState(createTestState(), ['tea', 'salt']), dispatch: noopDispatch, viewerPlayer: 0 }));
+    expect(html).toContain('resolve-panel-with-card');
+    expect(html).toMatch(/class="resolve-source"[^>]*><div[^>]*class="card-face/);
+    // the card's own name and text are on it
+    expect(html).toMatch(/resolve-source[\s\S]*Traveling Merchant<\/div><div class="card-face-desc"/);
+    expect(html).not.toContain('panel-source-art');
+    // the source card comes before the title, so it sits upper left
+    expect(html.indexOf('resolve-source')).toBeLessThan(html.indexOf('resolve-title'));
+  });
+});

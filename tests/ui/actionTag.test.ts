@@ -31,9 +31,11 @@ describe('center-row action tag names the real play', () => {
 });
 
 describe('short phones keep resolve-panel controls on screen', () => {
-  it('shrinks the panel art below 700px tall (Dancer Confirm was off-screen on 360×640)', () => {
+  it('shrinks the source card on short screens and phones (Dancer Confirm was off-screen on 360×640)', () => {
     const css = readFileSync('src/index.css', 'utf8');
-    const block = css.slice(css.indexOf('@media (max-height: 700px)'));
-    expect(block).toMatch(/\.panel-source-art\s*{\s*max-height: 18vh;/);
+    const short = css.slice(css.indexOf('@media (max-height: 760px)'));
+    expect(short).toMatch(/\.resolve-panel-with-card\s*{\s*--resolve-card-w: clamp\(110px/);
+    const phone = css.slice(css.indexOf('@media (max-width: 600px)'));
+    expect(phone).toMatch(/\.resolve-panel-with-card\s*{\s*--resolve-card-w: 84px;/);
   });
 });
