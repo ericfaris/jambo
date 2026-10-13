@@ -6,8 +6,17 @@
 <title>Jambo — Design System</title>
 <!-- Pulls the app's real stylesheet — tokens/components below are read from this live file, not hand-duplicated. -->
 <link rel="stylesheet" href="/src/index.css" />
+<link rel="stylesheet" href="/src/ui/screens/MainMenu.css" />
+<link rel="stylesheet" href="/src/ui/screens/Landing.css" />
+<link rel="stylesheet" href="/src/ui/tutorial/Tutorial.css" />
+<link rel="stylesheet" href="/src/ui/SettingsPanel.css" />
+<link rel="stylesheet" href="/src/ui/FriendLobby.css" />
 <style>
   .ds-page {
+    /* the app's body is a flex row: without these the page sizes to its widest demo */
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
     max-width: 1100px;
     margin: 0 auto;
     padding: 32px 20px 80px;
@@ -175,6 +184,8 @@
     border-bottom: 1px dashed var(--border);
   }
   .ds-audio-row:last-child { border-bottom: none; }
+  .ds-audio-row { flex-wrap: wrap; }
+  .ds-audio-row code { overflow-wrap: anywhere; min-width: 0; }
   .ds-tag {
     display: inline-block;
     font-size: 10px;
@@ -440,6 +451,253 @@
     </div>
   </div>
 
+  <div class="ds-section" id="ds-board-1012">
+    <h2>Board — turn plaque, seat block, tableau (2026-10-12)</h2>
+    <p class="ds-note">The brass turn plaque sits between deck and discard (<code>CenterRow</code>); <code>-mine</code> on your turn, <code>-compact</code> on phones. Coins in carved sockets count actions; a spent one is dark. The seat block (<code>SeatInfo</code>) is the same for you, a trader and a friend: portrait (trader art, your avatar, or the silhouette), name, minted coin + gold, card count.</p>
+    <div class="ds-component-demo" style="align-items:center; gap:32px;">
+      <div class="turn-plaque turn-plaque-mine" style="--phase-color: var(--gold);">
+        <span class="turn-plaque-stud turn-plaque-stud-l" aria-hidden="true"></span>
+        <span class="turn-plaque-stud turn-plaque-stud-r" aria-hidden="true"></span>
+        <div class="turn-plaque-eyebrow"><span class="turn-plaque-rule"></span>Turn 7 · Your turn<span class="turn-plaque-rule"></span></div>
+        <div class="turn-plaque-phase">Play Phase</div>
+        <span class="turn-plaque-gem" aria-hidden="true"></span>
+        <div class="turn-plaque-actions"><div class="turn-plaque-coins">
+          <span class="turn-plaque-socket"><span class="turn-plaque-coin"></span></span><span class="turn-plaque-socket"><span class="turn-plaque-coin"></span></span><span class="turn-plaque-socket"><span class="turn-plaque-coin"></span></span><span class="turn-plaque-socket"><span class="turn-plaque-coin turn-plaque-coin-spent"></span></span><span class="turn-plaque-socket"><span class="turn-plaque-coin turn-plaque-coin-spent"></span></span>
+        </div><span class="turn-plaque-count">3 actions left</span></div>
+      </div>
+      <div class="turn-plaque turn-plaque-compact" style="--phase-color: var(--teal);">
+        <div class="turn-plaque-eyebrow"><span class="turn-plaque-rule"></span>Turn 8 · Sam's turn<span class="turn-plaque-rule"></span></div>
+        <div class="turn-plaque-phase">Draw Phase</div>
+      </div>
+      <div class="seat-info" style="display:flex; gap:14px; align-items:flex-start;">
+        <span class="trader-portrait player-avatar player-avatar-active" style="width:72px; height:72px; display:inline-block;"><svg class="avatar-silhouette" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="25" r="12"/><path d="M8 64c0-14 10.7-23 24-23s24 9 24 23z"/></svg></span>
+        <div style="display:flex; flex-direction:column; gap:4px;">
+          <span class="seat-name seat-name-active">You · your turn</span>
+          <span class="seat-gold"><span class="seat-coin" aria-hidden="true"></span><span class="seat-gold-num"><span class="gold-count">34</span>g</span></span>
+          <span class="seat-cards ui-helper-text">5 cards</span>
+        </div>
+      </div>
+    </div>
+    <div class="ds-component-demo" style="margin-top:14px;">
+      <div class="tableau turn-emphasis turn-emphasis-active" style="position:relative; padding:20px 24px; width:100%; max-width:560px;">
+        <span class="tableau-corner tableau-corner-tl"></span><span class="tableau-corner tableau-corner-tr"></span><span class="tableau-corner tableau-corner-bl"></span><span class="tableau-corner tableau-corner-br"></span>
+        <div class="panel-section-title">Your Market <span class="tableau-count">3/6</span></div>
+        <div style="display:flex; gap:6px; margin:8px 0 14px;">
+          <div class="market-slot" style="--ware-c: var(--ware-tea); width:44px; height:44px;"><img src="/assets/tokens/tea.png" alt="tea" style="width:38px;height:38px;border-radius:5px;"></div>
+          <div class="market-slot" style="--ware-c: var(--ware-silk); width:44px; height:44px;"><img src="/assets/tokens/silk.png" alt="silk" style="width:38px;height:38px;border-radius:5px;"></div>
+          <div class="market-slot" style="--ware-c: var(--ware-salt); width:44px; height:44px;"><img src="/assets/tokens/salt.png" alt="salt" style="width:38px;height:38px;border-radius:5px;"></div>
+          <div class="market-slot" style="width:44px; height:44px;"></div>
+          <div class="market-slot" style="width:44px; height:44px;"></div>
+          <div class="market-slot market-slot-fee" style="width:44px; height:44px;"></div>
+        </div>
+        <div class="panel-section-title">Your Utilities <span class="tableau-count">1/3</span></div>
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <div class="empty-card-slot" style="width:64px; height:86px;"><span class="empty-card-slot-mark"></span></div>
+          <div class="empty-card-slot" style="width:64px; height:86px;"><span class="empty-card-slot-mark"></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ds-section" id="ds-coins">
+    <h2>Wise Man coins</h2>
+    <p class="ds-note">With a Wise Man in play, ware prices are drawn in CSS (there's no coin art for them) with a green ring — the same numbers the engine charges (<code>effectiveWarePrices()</code>).</p>
+    <div class="ds-component-demo" style="align-items:center; gap:28px;">
+      <div style="text-align:center;"><img src="/assets/coins/coin_5.png" alt="5g" style="width:48px;height:48px"/><div class="ds-scale-label">normal 5g</div></div>
+      <div style="text-align:center;"><span class="ware-coin ware-coin-deal" style="width:48px; height:48px; font-size:25px;">3</span><div class="ds-scale-label">Wise Man buy 3g</div></div>
+      <div style="text-align:center;"><span class="ware-coin ware-coin-deal" style="width:48px; height:48px; font-size:21px;">14</span><div class="ds-scale-label">Wise Man sell 14g</div></div>
+    </div>
+  </div>
+
+  <div class="ds-section" id="ds-utility-states">
+    <h2>Utility states</h2>
+    <p class="ds-note">Ready (a slow ember), used (turned sideways like a tapped card, art still visible), and unusable right now (faded, with the engine's reason as the tooltip — hover it). When a utility is <em>used</em> it turns sideways in the spotlight in place; it doesn't fly anywhere.</p>
+    <div class="ds-component-demo" style="gap:36px; align-items:center;">
+      <div class="utility-ready"><div class="utility-card"><div class="card-face" style="width:90px; height:120px; border-radius:10px; overflow:hidden; border:1px solid #a89880;"><img src="/assets/cards/well.png" alt="Well" style="width:100%;height:100%;object-fit:cover;display:block;"></div></div></div>
+      <div style="position:relative;"><div class="utility-card utility-card-tapped"><div class="card-face" style="width:90px; height:120px; border-radius:10px; overflow:hidden; border:1px solid #a89880;"><img src="/assets/cards/drums.png" alt="Drums" style="width:100%;height:100%;object-fit:cover;display:block;"></div></div><span class="utility-used-pill">Used</span></div>
+      <div class="utility-unusable" title="You need at least 1 gold to use the Well."><div class="utility-card"><div class="card-face" style="width:90px; height:120px; border-radius:10px; overflow:hidden; border:1px solid #a89880;"><img src="/assets/cards/boat.png" alt="Boat" style="width:100%;height:100%;object-fit:cover;display:block;"></div></div></div>
+    </div>
+  </div>
+
+  <div class="ds-section" id="ds-spotlight">
+    <h2>Opponent-play spotlight</h2>
+    <p class="ds-note">A trader's (or friend's) play is held center stage for a moment: portrait, headline, detail and — for traders only — a quote. Friends get their name and avatar, never a quote or voice.</p>
+    <div class="ds-component-demo" style="justify-content:center;">
+      <div class="opp-spotlight-caption opp-spotlight-caption-portrait" style="position:relative;">
+        <span class="opp-spotlight-portrait"><span class="trader-portrait player-avatar" style="width:48px;height:48px;display:inline-block;"><svg class="avatar-silhouette" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="25" r="12"/><path d="M8 64c0-14 10.7-23 24-23s24 9 24 23z"/></svg></span></span>
+        <div><div class="opp-spotlight-headline">Sam played Parrot</div><div class="opp-spotlight-detail">Steals 1 ware from your market</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ds-section" id="ds-flights">
+    <h2>Flights</h2>
+    <p class="ds-note">A flight starts and lands on a real place — a pile, a hand, a utility row, a market slot, or the card that owns the effect. Flying cards are real card faces (<code>.flight-card .card-face</code>), never bare art. Click to fly.</p>
+    <div class="ds-component-demo" id="ds-flight-stage" style="position:relative; height:170px; justify-content:space-between; align-items:center; cursor:pointer;">
+      <div style="width:84px; height:112px; border-radius:10px; background:url(/assets/cards/card_back.png) center/cover; border:2px solid var(--border);" title="Deck"></div>
+      <div class="market-slot" style="width:48px; height:48px;" title="Market slot"></div>
+      <div style="width:84px; height:112px; border-radius:10px; border:2px dashed var(--border);" title="Hand"></div>
+      <div class="flight-card" id="ds-flight-card" style="position:absolute; left:24px; top:29px; transition: transform 700ms cubic-bezier(0.2,0.8,0.2,1);"><div class="card-face linen-texture" style="width:84px; height:112px; border-radius:10px; overflow:hidden; border:1px solid #a89880;"><img src="/assets/cards/ware_3t.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block;"></div></div>
+    </div>
+  </div>
+
+  <div class="ds-section" id="ds-resolve">
+    <h2>Resolve panels — buttons, cancel, auction</h2>
+    <p class="ds-note">The linen resolve body (<code>.resolve-body</code>) with ware picks, the round Cancel ✕ (<code>.panel-cancel-x</code>) — you can back out from any of the card's screens until the friend or trader is involved (a Guard decision, a bid, a draft pick, an opponent choice) — and the auction board, whose leader line says who leads by name.</p>
+    <div class="ds-component-demo" style="gap:24px;">
+      <div class="linen-texture resolve-body" style="position:relative; padding:18px 18px 16px; border-radius:12px; width:300px;">
+        <button type="button" class="panel-cancel-x" style="position:absolute; top:-12px; right:-12px;" aria-label="Cancel Boat and get your action back">✕</button>
+        <div class="ui-prompt-text">Pick a ware to take from the supply</div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:10px;">
+          <button class="ware-pick" aria-label="tea"><img src="/assets/tokens/tea.png" alt="" style="width:36px;height:36px;border-radius:5px;"></button>
+          <button class="ware-pick" aria-label="silk"><img src="/assets/tokens/silk.png" alt="" style="width:36px;height:36px;border-radius:5px;"></button>
+          <div class="ware-pick ware-pick-waiting"><img src="/assets/tokens/salt.png" alt="" style="width:36px;height:36px;border-radius:5px;"></div>
+        </div>
+      </div>
+      <div class="linen-texture resolve-body" style="padding:16px; border-radius:12px; width:320px;">
+        <div class="auction-board">
+          <div class="auction-standing">
+            <div class="auction-current"><span class="auction-caption">Current bid</span><span class="ware-coin auction-coin">6</span><span class="auction-leader auction-leader-theirs">Sam leads</span></div>
+            <div class="auction-purse"><span class="auction-caption">Your gold</span><span class="auction-purse-amount">22g</span></div>
+          </div>
+          <div class="dialog-actions auction-actions"><button class="primary">Bid 7g</button><button>Pass</button></div>
+          <div class="auction-note">Your call — raise or pass. Passing ends the auction.</div>
+        </div>
+      </div>
+      <div class="linen-texture resolve-body" style="padding:16px; border-radius:12px; width:280px;">
+        <div class="auction-board">
+          <div class="auction-standing">
+            <div class="auction-current"><span class="auction-caption">Current bid</span><span class="ware-coin auction-coin">7</span><span class="auction-leader auction-leader-mine">You lead</span></div>
+          </div>
+          <div class="auction-waiting" role="status">Waiting for Sam's bid<span class="auction-waiting-dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ds-section" id="ds-draw">
+    <h2>Draw dialog — pips</h2>
+    <p class="ds-note">Draw Card carries gold-coin pips for the actions left; a spent pip goes dark.</p>
+    <div class="ds-component-demo">
+      <div class="linen-texture" style="padding:14px; border-radius:12px; display:flex; gap:10px; width:340px;">
+        <button class="primary" style="flex:1; padding:12px;"><div style="display:flex; flex-direction:column; align-items:center; gap:6px;"><div>Draw Card</div><div class="draw-pips"><span class="draw-pip"></span><span class="draw-pip"></span><span class="draw-pip"></span><span class="draw-pip draw-pip-spent"></span><span class="draw-pip draw-pip-spent"></span></div></div></button>
+        <button style="flex:1; padding:12px;">Skip Draw Phase</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ds-section" id="ds-tilt">
+    <h2>Card tilt &amp; glare</h2>
+    <p class="ds-note">A card leans toward the pointer and catches the light (<code>cardTilt.ts</code>; the same math runs here). Hand cards tilt for a mouse only — a tap means "play". Off under reduced motion.</p>
+    <div class="ds-component-demo" style="justify-content:center;">
+      <div class="card-tilt" id="ds-tilt-card" style="width:180px;">
+        <div class="card-face" style="width:180px; height:240px; border-radius:10px; overflow:hidden; border:1px solid #a89880;"><img src="/assets/cards/dancer.png" alt="Dancer" style="width:100%;height:100%;object-fit:cover;display:block;"></div>
+        <span class="card-tilt-glare"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="ds-section" id="ds-settings">
+    <h2>Settings panel</h2>
+    <p class="ds-note">One panel everywhere (main menu, in-game menu, Cast phone), over <code>preferences.ts</code>. Click the switch and segments.</p>
+    <div class="ds-component-demo">
+      <div class="settings-panel" style="width:min(420px,100%);">
+        <section class="settings-section">
+          <h3 class="settings-section-title"><span class="settings-section-icon" aria-hidden="true">♪</span>Sound</h3>
+          <div class="settings-section-body">
+            <div class="settings-row settings-row-volume"><span class="settings-row-text"><span class="settings-row-label">Volume</span></span><div class="settings-volume"><input class="settings-range" type="range" min="0" max="100" value="70" id="ds-volume"><span class="settings-volume-value" id="ds-volume-value">70%</span></div></div>
+            <button type="button" class="settings-row settings-row-switch" id="ds-switch-row" role="switch" aria-checked="true"><span class="settings-row-text"><span class="settings-row-label">Ambient motion</span><span class="settings-row-hint">Breathing cards, lamp light, dust</span></span><span class="settings-switch is-on" id="ds-switch"><span class="settings-switch-thumb"></span></span></button>
+            <div class="settings-row settings-row-segmented"><span class="settings-row-text"><span class="settings-row-label">Animation speed</span></span><div class="settings-segmented" role="radiogroup" id="ds-segmented"><button type="button" class="settings-segment">Slow</button><button type="button" class="settings-segment is-active">Normal</button><button type="button" class="settings-segment">Fast</button></div></div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <div class="ds-section" id="ds-landing">
+    <h2>Landing — CTA and modes</h2>
+    <p class="ds-note">One gold button; modes named by task. <em>Play a friend</em> sits beside Pass &amp; play and never asks about a saved game (it doesn't touch it).</p>
+    <div class="ds-component-demo landing" style="position:relative; inset:auto; overflow:visible; flex-direction:column; align-items:stretch; max-width:420px;">
+      <button type="button" class="landing-cta">Play vs Amara<span class="landing-cta-sub">Cloth weaver · Basic strategy</span></button>
+      <div class="landing-modes">
+        <button type="button" class="landing-secondary">Pass &amp; play</button>
+        <button type="button" class="landing-secondary">Play a friend</button>
+        <button type="button" class="landing-secondary">Play on TV</button>
+        <button type="button" class="landing-secondary">Join a TV game</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ds-section" id="ds-tutorial">
+    <h2>How to play — chapter tabs</h2>
+    <div class="ds-component-demo" style="display:block;">
+      <div class="tut-tabs" style="max-width:100%; min-width:0; overflow-x:auto;">
+        <button type="button" class="tut-tab"><span class="tut-tab-num">✓</span>Goal</button>
+        <button type="button" class="tut-tab tut-tab-current"><span class="tut-tab-num">2</span>Your turn</button>
+        <button type="button" class="tut-tab"><span class="tut-tab-num">3</span>Trade</button>
+        <button type="button" class="tut-tab"><span class="tut-tab-num">4</span>Cards</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ds-section" id="ds-ceremony">
+    <h2>Coin toss &amp; endgame</h2>
+    <p class="ds-note">Online, the coin's faces are "You" and the friend's initial, and the line says who goes first by name. The endgame card always shows your column first; a status line under the buttons says who still has to agree to a rematch.</p>
+    <div class="ds-component-demo" style="gap:40px; align-items:center;">
+      <div style="position:relative; width:120px; height:120px;"><span class="coin-face coin-face-front" style="position:absolute; inset:0; transform:none;">You</span></div>
+      <div style="position:relative; width:120px; height:120px;"><span class="coin-face coin-face-front" style="position:absolute; inset:0; transform:none;">S</span></div>
+      <div class="endgame-card" style="position:relative; width:320px;">
+        <div class="endgame-eyebrow">Game over · 31 turns</div>
+        <h2 class="endgame-title" style="color:var(--gold);">You win!</h2>
+        <div class="endgame-scores"><div class="endgame-score-side"><div class="endgame-score-label">You</div><div class="endgame-score endgame-score-0">63g</div></div><div class="endgame-vs">vs</div><div class="endgame-score-side"><div class="endgame-score-label">Sam</div><div class="endgame-score endgame-score-1">48g</div></div></div>
+        <div class="endgame-actions"><button class="primary" disabled>Rematch</button><button>Main menu</button></div>
+        <div class="endgame-rematch-status">Waiting for Sam…</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ds-section" id="ds-friend">
+    <h2>Play a friend — lobby, presence, leaving</h2>
+    <p class="ds-note">The lobby (<code>FriendLobby</code>, all <code>.friend-lobby-*</code>) is the landing plate: code in gold digits, the invite link with Copy (Share where the browser has it), a waiting line, a guest note, Cancel. On the board the friend sits in the trader's seat with a presence dot; a fixed banner (never in the layout) says when they drop, counts down their held seat, and says when they're back.</p>
+    <div class="ds-component-demo landing" style="position:relative; inset:auto; overflow:visible; gap:24px;">
+      <section class="landing-panel friend-lobby-panel" style="animation:none;">
+        <div class="friend-lobby-eyebrow">Play a friend</div>
+        <h1 class="friend-lobby-title">Invite a friend</h1>
+        <div class="friend-lobby-code"><span class="friend-lobby-digit">4</span><span class="friend-lobby-digit">8</span><span class="friend-lobby-digit">2</span><span class="friend-lobby-digit">1</span></div>
+        <div class="friend-lobby-invite">
+          <label class="friend-lobby-invite-label" for="ds-invite">Invite link</label>
+          <div class="friend-lobby-invite-row"><input id="ds-invite" class="friend-lobby-link" type="text" readonly value="https://jambo.mooseflip.com/#/play/4821"><button type="button" class="landing-cta friend-lobby-copy" id="ds-copy">Copy link</button></div>
+          <button type="button" class="landing-secondary friend-lobby-share">Share…</button>
+        </div>
+        <p class="friend-lobby-help">Send this link to your friend. The game starts as soon as they open it.</p>
+        <div class="friend-lobby-waiting">Waiting for your friend<span class="friend-lobby-dots"><span>.</span><span>.</span><span>.</span></span></div>
+        <p class="friend-lobby-note">Playing as a guest — sign in to keep your record.</p>
+        <button type="button" class="landing-secondary friend-lobby-cancel">Cancel</button>
+      </section>
+      <section class="landing-panel friend-lobby-panel" style="animation:none; align-self:flex-start;">
+        <div class="friend-lobby-eyebrow">Play a friend</div>
+        <h1 class="friend-lobby-title">This invite has expired</h1>
+        <p class="friend-lobby-help">The game may have ended, or the host closed it.</p>
+        <button type="button" class="landing-cta friend-lobby-home">Back to menu</button>
+      </section>
+    </div>
+    <div class="ds-component-demo" style="margin-top:14px; gap:28px; align-items:center;">
+      <span class="human-seat-portrait"><span class="trader-portrait player-avatar" style="width:56px;height:56px;display:inline-block;"><svg class="avatar-silhouette" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="25" r="12"/><path d="M8 64c0-14 10.7-23 24-23s24 9 24 23z"/></svg></span><span class="presence-dot presence-dot-online presence-dot-large" title="Online"></span></span>
+      <span class="human-seat-portrait"><span class="trader-portrait player-avatar" style="width:56px;height:56px;display:inline-block;"><svg class="avatar-silhouette" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="25" r="12"/><path d="M8 64c0-14 10.7-23 24-23s24 9 24 23z"/></svg></span><span class="presence-dot presence-dot-away presence-dot-large" title="Reconnecting"></span></span>
+      <span class="human-seat-portrait"><span class="trader-portrait player-avatar" style="width:56px;height:56px;display:inline-block;"><svg class="avatar-silhouette" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="25" r="12"/><path d="M8 64c0-14 10.7-23 24-23s24 9 24 23z"/></svg></span><span class="presence-dot presence-dot-gone presence-dot-large" title="Left the game"></span></span>
+      <div class="presence-banner presence-banner-away" role="status" style="position:relative; top:auto; left:auto; transform:none; animation:none;"><span class="presence-banner-dot presence-banner-dot-away"></span><span id="ds-presence-line">Sam disconnected — holding their seat 4:59</span></div>
+      <div class="presence-banner presence-banner-back" style="position:relative; top:auto; left:auto; transform:none; animation:none;"><span class="presence-banner-dot presence-banner-dot-back"></span><span>Sam is back</span></div>
+    </div>
+    <div class="ds-component-demo" style="margin-top:14px; justify-content:center;">
+      <div class="endgame-card opponent-left-card" style="position:relative;">
+        <div class="endgame-eyebrow">Game over</div>
+        <h2 class="endgame-title opponent-left-title">Sam didn't come back</h2>
+        <p class="opponent-left-body">The game has ended. Their seat was held, but the time ran out.</p>
+        <div class="endgame-actions"><button class="primary">Main menu</button></div>
+      </div>
+    </div>
+  </div>
+
   <div class="ds-section">
     <h2>Card art sample</h2>
     <div class="ds-row">
@@ -461,8 +719,9 @@
 
   <div class="ds-section">
     <h2>Sound</h2>
-    <p class="ds-note">Background music (5-track shuffled playlist) and the 6 sound effects, which play in every mode (solo, pass-and-play, Cast). Generated with ElevenLabs on 2026-10-04; prompts and picks are in DESIGN.md.</p>
+    <p class="ds-note">Background music (6-track shuffled playlist, a 20&nbsp;s gap between tracks) over a quiet market ambience bed, and every sound effect the game plays — in every mode (solo, pass-and-play, online, Cast). Online, sounds come from the server's audio events. Prompts and picks are in DESIGN.md.</p>
     <div id="audio-bgm"></div>
+    <div class="ds-audio-row"><span class="ds-tag">bed</span> <code>/audio/Market_Ambience_Bed.mp3</code> <audio controls preload="none" src="/audio/Market_Ambience_Bed.mp3" style="height:28px;"></audio></div>
     <h3 style="font-size:14px; color:var(--text-muted); margin: 16px 0 8px;">Sound effects</h3>
     <div id="audio-sfx"></div>
   </div>
@@ -638,21 +897,57 @@ bgmTracks.forEach((f) => {
   bgmEl.appendChild(row);
 });
 
+// Every key of AUDIO_FILES in src/ui/useAudioEvents.ts (a test keeps this list in sync)
 const sfxEvents = [
-  ['card-draw', 'card-draw.mp3', 'Drawing a card'],
-  ['coin', 'coin.mp3', 'Playing a ware card'],
-  ['card-play', 'card-play.mp3', 'Playing a people/utility card'],
-  ['attack', 'attack.mp3', 'Playing an animal card'],
-  ['turn-end', 'turn-end.mp3', 'Ending a turn'],
-  ['guard', 'guard.mp3', 'Guard reaction played'],
+  'coin', 'coin-out', 'card-play', 'card-draw', 'turn-end', 'attack', 'guard', 'ware-land',
+  'win', 'lose', 'final-turn', 'gavel',
+  'parrot', 'elephant', 'snake', 'hyena', 'crocodile', 'ape', 'lion', 'cheetah',
+  'drums', 'well', 'kettle', 'boat', 'scale', 'weapons',
 ];
 const sfxEl = document.getElementById('audio-sfx');
-sfxEvents.forEach(([event, file, fires]) => {
+sfxEvents.forEach((event) => {
   const row = document.createElement('div');
   row.className = 'ds-audio-row';
-  row.innerHTML = `<span class="ds-tag">sfx</span> <code>${event}</code> — ${fires} <audio controls preload="none" src="/audio/sfx/${file}" style="height:28px;"></audio>`;
+  row.innerHTML = `<span class="ds-tag">sfx</span> <code>${event}</code> <audio controls preload="none" src="/audio/sfx/${event}.mp3" style="height:28px;"></audio>`;
   sfxEl.appendChild(row);
 });
+
+// 2026-10-12 + Play a friend demos
+(function () {
+  // flight: deck → market slot → hand, a real card face in flight
+  const stage = document.getElementById('ds-flight-stage');
+  const card = document.getElementById('ds-flight-card');
+  let leg = 0;
+  stage.addEventListener('click', () => {
+    leg = (leg + 1) % 3;
+    const w = stage.clientWidth - 24 - 84 - 24;
+    card.style.transform = leg === 0 ? 'none' : leg === 1 ? `translateX(${w / 2}px) rotate(6deg) scale(0.8)` : `translateX(${w}px)`;
+  });
+  // tilt: same pose math as src/ui/cardTilt.ts tiltFromPointer (maxDeg 10)
+  const tilt = document.getElementById('ds-tilt-card');
+  const pose = (x, y, max) => { const cx = Math.min(1, Math.max(0, x)) - 0.5, cy = Math.min(1, Math.max(0, y)) - 0.5; return { rx: -cy * 2 * max, ry: cx * 2 * max, gx: cx * 100 + 50, gy: cy * 100 + 50 }; };
+  tilt.addEventListener('pointermove', (e) => {
+    const r = tilt.getBoundingClientRect(); const p = pose((e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height, 10);
+    tilt.style.setProperty('--rx', p.rx + 'deg'); tilt.style.setProperty('--ry', p.ry + 'deg'); tilt.style.setProperty('--gx', p.gx + '%'); tilt.style.setProperty('--gy', p.gy + '%');
+    tilt.classList.add('card-tilt-active');
+  });
+  tilt.addEventListener('pointerleave', () => { ['--rx', '--ry'].forEach((v) => tilt.style.setProperty(v, '0deg')); tilt.classList.remove('card-tilt-active'); });
+  // settings controls
+  const sw = document.getElementById('ds-switch'), row = document.getElementById('ds-switch-row');
+  row.addEventListener('click', () => { sw.classList.toggle('is-on'); row.setAttribute('aria-checked', String(sw.classList.contains('is-on'))); });
+  document.getElementById('ds-segmented').addEventListener('click', (e) => {
+    const b = e.target.closest('.settings-segment'); if (!b) return;
+    for (const x of b.parentElement.children) x.classList.toggle('is-active', x === b);
+  });
+  const vol = document.getElementById('ds-volume');
+  vol.addEventListener('input', () => { document.getElementById('ds-volume-value').textContent = vol.value + '%'; });
+  // copy link feedback
+  const copy = document.getElementById('ds-copy');
+  copy.addEventListener('click', () => { copy.textContent = 'Copied!'; setTimeout(() => { copy.textContent = 'Copy link'; }, 2000); });
+  // presence countdown (same format as src/ui/presence.ts formatGrace)
+  const line = document.getElementById('ds-presence-line'); let left = 299;
+  setInterval(() => { left = left > 0 ? left - 1 : 299; line.textContent = `Sam disconnected — holding their seat ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`; }, 1000);
+})();
 </script>
 </body>
 </html>

@@ -2253,6 +2253,7 @@ button.brown:hover:not(:disabled) {
   border: 2px solid var(--bg);
   box-shadow: 0 1px 3px rgba(0,0,0,0.6);
 }
+.presence-dot-large { width: 14px; height: 14px; }
 .presence-dot-small { width: 10px; height: 10px; border-width: 1.5px; right: -1px; bottom: -1px; }
 .presence-dot-online { background: radial-gradient(circle at 35% 30%, #b8e08a, #6a8a40 70%); }
 .presence-dot-away {
@@ -2285,9 +2286,11 @@ button.brown:hover:not(:disabled) {
   animation: presenceBannerIn 260ms var(--anim-ease-standard) both;
   pointer-events: none;
 }
+.presence-banner-away { border-color: var(--gold-dim); }
 .presence-banner-back { border-color: #6a8a40; }
 .presence-banner-self { border-color: var(--accent-red); }
 .presence-banner-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; background: var(--gold); animation: presenceAway 1.4s ease-in-out infinite; }
+.presence-banner-dot-away { background: var(--gold); }
 .presence-banner-dot-back { background: #8ab65a; animation: none; }
 .presence-banner-dot-self { background: var(--accent-red); }
 @keyframes presenceBannerIn { from { opacity: 0; transform: translate(-50%, -8px); } to { opacity: 1; transform: translate(-50%, 0); } }

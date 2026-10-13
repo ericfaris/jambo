@@ -221,10 +221,13 @@ Keyframes are named descriptively (`pilePulse`, `marketSlotFlash`,
   `<style>` tag injected at runtime from `GameScreen.tsx`.
 - **Cancel ✕ on resolve panels** (`.panel-cancel-x`) — 40px dark disc with
   a gold-dim ring, top-right of the panel over the card art; Esc does the
-  same. Shown only while the active player can still back out of the card
-  or utility they just started (engine `CANCEL_ACTION`, see
-  `src/engine/cancelAction.ts` for exactly which cards and steps qualify).
-  Label: "Cancel <card> and get your action back".
+  same. Shown on **every** screen of a card or utility the active player
+  started, until the opponent is involved: a Guard decision, a bid, a draft
+  pick, or an opponent choice (2026-10-12, cancel-anywhere). Cancelling
+  restores the state from just before the play (`cancellableAction.restore`),
+  so cards a step already showed you (Scale, Psychic, Arabian Merchant) go
+  back where they were. Scale draws its two cards as it starts. Label:
+  "Cancel <card> and get your action back".
 - **Landing page** (`MainMenu.tsx` + `screens/Landing.css`, all `.landing-*`;
   2026-10-12, from the web-game landing research) — two columns on desktop
   (framed hero art with the wordmark, a fan of real cards hanging off its
@@ -237,8 +240,9 @@ Keyframes are named descriptively (`pilePulse`, `marketSlotFlash`,
     four portraits below it (remembered in `jambo.lastTrader`). With a save,
     *New game vs …* and *Pass & play* ask before overwriting it.
   - **Modes named by task** (`.landing-secondary`, outlined): Pass & play,
-    Play on TV (only when Cast is configured; opens the TV setup modal), Join
-    a TV game (`#/play`).
+    Play a friend (opens the friend lobby; never asks about a saved game,
+    because it doesn't touch it), Play on TV (only when Cast is configured;
+    opens the TV setup modal), Join a TV game (`#/play`).
   - **Footer links**: How to play · Settings · Sound on/off. The win/loss
     chip only shows once a game exists — never a 0–0.
   - **Account chip** (`.landing-account`, top right) is the one sign-in /
@@ -334,6 +338,94 @@ Keyframes are named descriptively (`pilePulse`, `marketSlotFlash`,
   part of the card (opens Buy/Sell); it only acts as a zoom button when the
   card can't be played. Non-ware caption strips always zoom.
 
+- **Turn plaque** (`.turn-plaque`, in `CenterRow`; 2026-10-12) — the brass
+  plaque between deck and discard: studs, a rule-flanked eyebrow ("Turn 7 ·
+  Your turn" / "Sam's turn"), the phase in large type, a gem, and the
+  actions left as minted coins in carved sockets (`.turn-plaque-coin`,
+  `-spent` goes dark). `-mine` on your turn, `-compact` on phones, the
+  endgame line inside it when the game is ending.
+- **Seat block** (`SeatInfo`, `.seat-name`/`.seat-gold`/`.seat-coin`) — the
+  same block for every seat: portrait (trader art, your Google/account
+  avatar, or the **avatar silhouette** `.avatar-silhouette` when there's no
+  picture), name (gold gradient on that seat's turn), a minted coin and the
+  gold total, card count. Online, the friend's block takes the trader's
+  place, with a presence dot on the portrait.
+- **Card tilt & glare** (`.card-tilt`, `.card-tilt-glare`, `cardTilt.ts`;
+  2026-10-12) — a card leans toward the pointer (`tiltFromPointer`) and
+  catches a soft light; the zoomed card follows a dragging finger, hand
+  cards a mouse only (a tap means play). Cards with art layers
+  (`PARALLAX_LAYERS`, e.g. Dancer) slide each layer by its own depth. Off
+  under reduced motion.
+- **Wise Man coins** (`.ware-coin.ware-coin-deal`, `WareCoin.tsx`) — with a
+  Wise Man in play, ware prices are drawn in CSS with a green ring, since
+  there's no coin art for those numbers. They come from
+  `effectiveWarePrices()`, the same function the engine charges with.
+- **Utility states** — ready (`.utility-ready`, a slow ember), used
+  (`.utility-card-tapped`, turned sideways like a tapped card, art still
+  visible, "Used" pill), and **unusable right now** (`.utility-unusable`,
+  faded, `aria-disabled`, the engine's reason as the tooltip — from
+  `computeUtilityHints`, which asks `validateActivateUtility`). A utility
+  being *used* turns sideways in the spotlight in place
+  (`destination: 'inPlace'`); it doesn't fly anywhere.
+- **Draw dialog** — the linen plate with Draw Card (gold-coin pips for the
+  actions left, `.draw-pips`/`.draw-pip`, spent ones dark) and Skip Draw
+  Phase. Deck and discard share a width (`.center-side-slot`); an empty pile
+  is an `.empty-card-slot`.
+- **Flights** — rule: a flight starts and lands on a real place: a pile, a
+  hand (the opponent's card fan), a utility row, a market slot, or the card
+  that owns the effect (Elephant's pool gathers on the Elephant). "The table"
+  is only a fallback. Flying cards render a real `CardFace`
+  (`.flight-card .card-face`), never bare art.
+- **Resolve panels** (`.resolve-body`) — linen body; ware choices are
+  `.ware-pick` buttons (`-waiting` while the other player picks), the
+  footer cancel is `.resolve-cancel`. Throne asks for **your** ware first
+  (give, then take).
+- **Auction board** (`.auction-board`) — the current bid on a coin
+  (`.auction-coin`, "–" before any bid), who leads (`.auction-leader-mine` /
+  `-theirs`, by name online: "Sam leads"), your purse, Bid/Pass, and while
+  the other side decides "Waiting for Sam's bid…" with animated dots.
+- **Settings panel** (`SettingsPanel.tsx` + `SettingsPanel.css`, all
+  `.settings-*`; 2026-10-12) — one panel in the main menu, the in-game menu
+  and the Cast phone, over `preferences.ts`: sections with an icon and title,
+  rows with a label and hint, switches (`.settings-switch.is-on`), segmented
+  choices (`.settings-segmented`, `.settings-segment.is-active`), and a
+  volume slider with mute. Add a setting in `preferences.ts`, never as local
+  state in a screen.
+- **Abandon / Leave** (`ConfirmButton`, `.menu-abandon`) — the in-game menu's
+  "Abandon game" (solo) or "Leave game" (online) asks first, in place; the
+  landing's "Abandon saved game" is the link form. Online the question is
+  "Leave this game? It ends for both of you and counts as abandoned."
+- **Play a friend lobby** (`FriendLobby.tsx` + `FriendLobby.css`, all
+  `.friend-lobby-*`; 2026-10-13) — the landing's background and framed plate.
+  Host: eyebrow "Play a friend", "Invite a friend", the room code as four gold
+  digits (`.friend-lobby-digit`), the invite link in a read-only field with
+  **Copy link** (gold, "Copied!" for 2s; falls back to select + copy) and
+  **Share…** where the browser has `navigator.share`, a helper line, "Waiting
+  for your friend…" with dots, a guest note when signed out, and Cancel.
+  Friend: "Joining room 4821…", then the board. Errors (expired or full
+  invite) get a title, a line, and "Back to menu". Never mentions a TV. Fits
+  390×844 without scrolling; dots stop under reduced motion.
+- **Presence** (`OnlinePresence.tsx`, `presence.ts`) — a dot on the friend's
+  portrait (`.presence-dot-online` green, `-away` pulsing gold, `-gone`
+  dark); under their name "Reconnecting… 4:32" or "Left the game"; and a
+  fixed top-center banner (`.presence-banner`, never in the layout): "Sam
+  disconnected — holding their seat 4:32" (counting down from the server's
+  relative grace, so clocks don't matter), then "Sam is back" for 2.5s, or
+  "Reconnecting to the server…" when it's your own connection.
+- **Opponent left** (`.opponent-left-card` on the endgame card) — "Sam left
+  the game" / "Sam didn't come back", "The game has ended.", one gold Main
+  menu button (focused).
+- **Coin toss with names** — online, the coin's faces are "You" and the
+  friend's initial and the line says "You go first" / "Sam goes first". It
+  plays once per game per tab (a refresh doesn't replay it) and plays out
+  even if the friend moves while it spins.
+- **Rematch status** (`.endgame-rematch-status`) — a line under the endgame
+  buttons: "Waiting for Sam…" after you vote, "Sam wants a rematch", or
+  "Sam left the table" (Rematch disabled).
+- **Waiting hint** (`.waiting-hint`) — while the friend acts, the hint in
+  the hand heading says what they're doing ("Sam is choosing a ware…"); on
+  desktop it sits in the Your Hand heading row so it never adds height.
+
 ## Layout — Phone player view (Cast mode `PlayerScreen`)
 
 **Rule: the phone player view never scrolls.** Everything renders inside
@@ -371,10 +463,13 @@ with no server (like `/?tv=1`). Staging params: `hand=N`, `utils=N` (≤3),
 `phase=play`. Cards are moved out of the deck, so invariants hold and the
 game stays playable.
 
-## Layout — Phone solo / hotseat board (`GameScreen` ≤ 640px)
+## Layout — Phone solo / hotseat / online board (`GameBoard` ≤ 640px)
 
 Same rule as the Cast player view: **never scrolls**, 100dvh, down to
-360×640. `useMediaQuery(PHONE_MEDIA_QUERY)` (`(max-width: 640px)`) swaps
+360×640. The board is `GameBoard.tsx`, shared by solo and pass-and-play
+(`GameScreen`, the local store) and online games (`OnlineGameScreen`, the
+server's views) — same layouts at every size; the online presence banner is
+fixed and never takes layout space. `useMediaQuery(PHONE_MEDIA_QUERY)` (`(max-width: 640px)`) swaps
 GameScreen's main area for a phone layout; desktop is untouched, and every
 overlay (dialogs, resolve panels, settings, endgame) is shared. The game-log
 sidebar is hidden on phones.
@@ -593,6 +688,10 @@ removed, trimmed, faded out, peak-normalized to the levels above, mono
 44.1 kHz VBR MP3 (`-q:a 4`). Regenerating one: same prompt, then the same
 trim/fade/peak treatment; keep each under ~1.5s.
 
+**Online (Play a friend)** plays the server's audio events
+(`useAudioEvents`) plus the win/lose sting (`useOutcomeAudio`), like Cast.
+Friends are people: no trader voice lines or chatter for them.
+
 Volume/mute are user-controlled and persisted via `audioSettings.ts`
 (`localStorage`, keys `jambo.volume`/`jambo.muted`), read by both hooks
 through `getEffectiveVolume()`.
@@ -619,13 +718,61 @@ through `getEffectiveVolume()`.
 | File | Role | Status |
 |---|---|---|
 | `public/audio/sfx/{coin,card-play,card-draw,turn-end,attack,guard}.mp3` | Sound effects, all modes (see Sound) | Generated 2026-10-04 (ElevenLabs), 3–15 KB each |
-| `design-system.html` | Static showcase page, tokens/components rendered live from `src/index.css` | Added this pass |
+| `design-system.html` | Static showcase page, tokens/components rendered live from the app's stylesheets (`index.css`, `MainMenu.css`, `Landing.css`, `Tutorial.css`, `SettingsPanel.css`, `FriendLobby.css`) | Added 2026-09-24; 2026-10-13 sections for the 2026-10-12 board and the friend game |
+| `public/audio/sfx/*.mp3` (26) | Every `AUDIO_FILES` event: coin, coin-out, card-play/draw, turn-end, attack, guard, ware-land, win, lose, final-turn, gavel, each animal, each utility | `tests/ui/designSystem.test.ts` keeps the showcase list equal to `AUDIO_FILES` |
+| `public/audio/Golden_Hour_Kalimba.mp3` | 6th music track | ElevenLabs Music v2.5, 2026-10-12 |
+| `public/audio/Market_Ambience_Bed.mp3` | Ambience bed under the music | ElevenLabs SFX v2 layers, v2 2026-10-12 |
+| `public/audio/traders/baraka-v2-*` | Baraka's re-voiced lines | 2026-10-12 (drier voice) |
+| `public/assets/cards/parallax/dancer-{back,figure,front}.webp` | Parallax layers for card tilt (`PARALLAX_LAYERS` in `TiltCardArt.tsx`) | 2026-10-12 |
 
 No new illustrated art, fonts, or background music were generated — the
 existing set already covers the full identity; this pass's job was
 documenting it, fixing one duplication, and identifying the SFX gap.
 
 ## Changelog
+### 2026-10-13 — Play a friend online (v1.23.0)
+A third two-player mode: **Play a friend** on the landing page makes a room
+and shows its code and an invite link (`#/play/<code>`); the friend opens it
+and lands on the board with no typing. Both players see the solo table
+(`GameBoard`, now shared with solo/hotseat), driven by the server. New:
+friend lobby, presence dot/banner/countdown, the friend in the trader's seat,
+opponent-left card, coin toss with names, rematch status, waiting hints that
+name the friend. Fixed on the way: the desktop "wait for your turn" hint no
+longer pushes the board 10px past the viewport; a draft pool shrinking past
+eight cards no longer trips a React style warning.
+
+### 2026-10-12 — Baraka re-voiced
+Kelechi's take had too much room reverb (measured ~−37 dB 40–120 ms after
+each word vs Mama Zawadi's −62); re-voiced with a drier library voice under a
+new file prefix (`baraka-v2-*`) because `/audio` is cached.
+
+### 2026-10-12 — Unified settings; Throne gives first; faded utilities (v1.18–v1.20)
+One `SettingsPanel` over `preferences.ts` everywhere (switches, segmented
+choices, volume slider). Throne asks for your ware first, then theirs.
+Utilities you can't use right now fade, with the engine's reason as the
+tooltip. See Components › Settings panel, Utility states.
+
+### 2026-10-12 — Cancel anywhere, resolve uplift, music + ambience, flying card faces (v1.17.0)
+Cancel ✕ on every screen of your own card until the opponent is involved
+(snapshot restore). Resolve panels got linen ware-pick buttons and the
+auction board. A 6th music track (ElevenLabs) and a 5-minute market
+ambience bed under it, 20s between songs. Flying cards are real card faces.
+
+### 2026-10-12 — Flights start and end on real places (v1.16.0)
+A flight starts and lands on a pile, a hand, a utility row, a market slot,
+or the card that owns the effect; endpoints are measured before paint. See
+Components › Flights.
+
+### 2026-10-12 — Wise Man coins, utility-use spotlight, draw dialog (v1.15.0)
+Wise Man prices drawn as green-ringed coins from the engine's own price
+function; a used utility turns sideways in the spotlight in place; the draw
+dialog plate with gold-coin pips; deck and discard share a width.
+
+### 2026-10-12 — Turn plaque, abandon, card tilt (v1.11.4–v1.13.0)
+The brass turn plaque; abandoning a game (menu and landing, logged per user);
+avatar silhouette and matching seat blocks; cards tilt toward the pointer
+with glare and parallax layers.
+
 ### 2026-10-12 — How to Play redesign
 Researched how five web games teach (Wordle, Chess.com, Lichess, Balatro,
 Board Game Arena) and rebuilt the eight static slides on what they share:
