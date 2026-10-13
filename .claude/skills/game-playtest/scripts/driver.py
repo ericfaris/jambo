@@ -483,12 +483,16 @@ def run_game(gid, mode, difficulty, human_policy, eps, seed):
         pg.evaluate('() => window.__ptLoad()')
         g = Game(pg, gid, mode, difficulty, human_policy, eps, log)
         log(f'=== Game {gid}: mode={mode} ai={difficulty} human-policy={human_policy} eps={eps}')
-        pg.get_by_role('button', name='Play Solo' if mode == 'solo' else 'Multiplayer').click()
-        pg.clock.run_for(300)
-        g.shot('setup')
+        # Landing page (2026-10-12 redesign): pick a trader, then the big CTA;
+        # pass and play is in the modes row
         if mode == 'solo':
-            pg.get_by_role('button', name=difficulty.capitalize()).click()
-        pg.get_by_role('button', name='Start Game').click()
+            pg.locator('.landing-trader', has_text=difficulty).first.click()
+            pg.clock.run_for(300)
+            g.shot('setup')
+            pg.locator('.landing-cta').first.click()
+        else:
+            g.shot('setup')
+            pg.get_by_role('button', name='Pass & play').click()
         # first player reveal
         for _ in range(20):
             pg.clock.run_for(500)
