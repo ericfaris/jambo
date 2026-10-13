@@ -5,7 +5,7 @@ import { MainMenu } from '../../src/ui/screens/MainMenu.tsx';
 import { PreGameSetupModal } from '../../src/ui/screens/PreGameSetupModal.tsx';
 import {
   DEMO_SALE, FAN_CARDS, FAN_DEMO_INDEX, LANDING_PITCH, LAST_TRADER_STORAGE_KEY,
-  readLastTrader, statsLine, writeLastTrader,
+  playerRecord, readLastTrader, statsLine, writeLastTrader,
 } from '../../src/ui/screens/landing.ts';
 import { getCard, isValidDeckCardId } from '../../src/engine/cards/CardDatabase.ts';
 import type { AuthSession } from '../../src/ui/useAuthSession.ts';
@@ -43,6 +43,14 @@ describe('landing page helpers', () => {
     expect(statsLine({ wins: 0, losses: 0, winRate: 0, gamesPlayed: 0 } as never)).toBeNull();
     expect(statsLine({ wins: 3, losses: 1, winRate: 0.75, gamesPlayed: 4 } as never)).toBe('3–1 · 75% won · 4 games');
     expect(statsLine({ wins: 1, losses: 0, winRate: 1, gamesPlayed: 1 } as never)).toBe('1–0 · 100% won · 1 game');
+  });
+
+  it('splits the record into labelled parts for the ledger beside the greeting', () => {
+    expect(playerRecord(null)).toBeNull();
+    expect(playerRecord({ wins: 0, losses: 0, winRate: 0, gamesPlayed: 0 } as never)).toBeNull();
+    expect(playerRecord({ wins: 17, losses: 16, winRate: 17 / 33, gamesPlayed: 33 } as never))
+      .toEqual({ wins: 17, losses: 16, pct: 52, games: '33 games' });
+    expect(playerRecord({ wins: 1, losses: 0, winRate: 1, gamesPlayed: 1 } as never)?.games).toBe('1 game');
   });
 
   it('the hero fan holds real cards, and the sale demo matches its card', () => {
@@ -89,7 +97,7 @@ describe('landing page', () => {
   it('offers Play a friend next to pass & play, even with a saved game (it never touches the save)', () => {
     for (const html of [menu(), menu({ resumeLabel: 'vs Baraka (Hard) · turn 12' })]) {
       const modes = html.slice(html.indexOf('landing-modes'));
-      expect(modes).toContain('>Play a friend</button>');
+      expect(modes).toContain('landing-sign-label">Play a friend<');
       expect(modes.indexOf('Pass &amp; play')).toBeLessThan(modes.indexOf('Play a friend'));
     }
   });
@@ -105,6 +113,27 @@ describe('landing page', () => {
 
   it('offers a sound toggle on the landing page', () => {
     expect(menu()).toMatch(/Sound (on|off)/);
+  });
+
+  it('how to play, settings and sound are labelled icon buttons', () => {
+    const footer = menu().slice(menu().indexOf('landing-footer'));
+    for (const label of ['How to play', 'Settings', 'Sound']) {
+      expect(footer).toMatch(new RegExp(`class="landing-iconbtn"[^>]*aria-label="${label}"`));
+    }
+    expect(footer.match(/<svg/g)).toHaveLength(3);
+    // no text links left in the footer
+    expect(footer.slice(0, footer.indexOf('</nav>'))).not.toContain('landing-link');
+  });
+
+  it('the play modes are market signs, each with an icon and a hint', () => {
+    const html = menu({ onPlayOnTv: noop });
+    const signs = html.slice(html.indexOf('landing-signs'), html.indexOf('landing-footer'));
+    expect(signs.match(/class="landing-sign"/g)).toHaveLength(4);
+    expect(signs.match(/landing-sign-icon/g)).toHaveLength(4);
+    for (const label of ['Pass &amp; play', 'Play a friend', 'Play on TV', 'Join a TV game']) {
+      expect(signs).toContain(`landing-sign-label">${label}<`);
+    }
+    expect(signs.match(/landing-sign-hint/g)).toHaveLength(4);
   });
 
   it('holds its motion still while a modal is open', () => {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import './MainMenu.css';
 import './Landing.css';
 import { fetchUserStatsSummary } from '../../persistence/userStatsApi.ts';
@@ -13,7 +13,8 @@ import { AvatarImage } from '../AvatarImage.tsx';
 import { AmbientLayer } from '../life.tsx';
 import { ConfirmButton } from '../ConfirmButton.tsx';
 import { usePreferences } from '../preferences.ts';
-import { DEMO_SALE, FAN_CARDS, FAN_DEMO_INDEX, LANDING_PITCH, TRADER_ORDER, readLastTrader, statsLine, writeLastTrader } from './landing.ts';
+import { DEMO_SALE, FAN_CARDS, FAN_DEMO_INDEX, LANDING_PITCH, TRADER_ORDER, playerRecord, readLastTrader, statsLine, writeLastTrader } from './landing.ts';
+import { BookIcon, FriendIcon, GearIcon, JoinIcon, PassPlayIcon, SoundIcon, TvIcon } from './landingIcons.tsx';
 
 interface MainMenuProps {
   onSelectOption: (option: 'login' | 'settings') => void;
@@ -73,13 +74,15 @@ export function MainMenu({
   const hasSave = !!(resumeLabel && onResume);
   const chosen = traderFor(trader);
   const stats = statsLine(statsSummary);
+  const record = playerRecord(statsSummary);
   const firstName = auth.authUser?.name?.split(' ')[0] ?? null;
 
   const playLabel = `Play vs ${chosen.name}`;
-  const startOver = (start: () => void, label: string, className: string) => (hasSave
+  const startOver = (start: () => void, label: ReactNode, className: string, style?: CSSProperties) => (hasSave
     ? (
       <ConfirmButton
         className={className}
+        style={style}
         label={label}
         question="Start a new game? Your saved game will be abandoned."
         confirmLabel="Start new"
@@ -87,7 +90,9 @@ export function MainMenu({
         onConfirm={start}
       />
     )
-    : <button type="button" className={className} onClick={start}>{label}</button>);
+    : <button type="button" className={className} style={style} onClick={start}>{label}</button>);
+  // The modes hang as market signs; --i staggers their drop-in and sway
+  const signStyle = (i: number) => ({ '--i': i } as CSSProperties);
 
   return (
     <div className={`landing${dimmed ? ' landing-dimmed' : ''}`}>
@@ -152,7 +157,23 @@ export function MainMenu({
         {/* ---- Panel: pitch, the one gold button, traders, other modes ---- */}
         <section className="landing-panel" aria-label="Play">
           <p className="landing-pitch">{LANDING_PITCH}</p>
-          {firstName && <p className="landing-welcome">Welcome back, {firstName}.</p>}
+          {(firstName || record) && (
+            <div className="landing-greeting">
+              {firstName && <p className="landing-welcome">Welcome back, {firstName}.</p>}
+              {record && (
+                <div className="landing-record" title={stats ?? undefined} aria-label={`Your record: ${record.wins} won, ${record.losses} lost, ${record.pct}% over ${record.games}`}>
+                  <span className="landing-record-label">Your record</span>
+                  <span className="landing-record-tally">
+                    <b>{record.wins}</b> won <span aria-hidden="true">·</span> <b>{record.losses}</b> lost
+                  </span>
+                  <span className="landing-record-bar" aria-hidden="true">
+                    <span className="landing-record-fill" style={{ '--pct': `${record.pct}%` } as CSSProperties} />
+                  </span>
+                  <span className="landing-record-rate">{record.pct}% won · {record.games}</span>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="landing-primary">
             {hasSave ? (
@@ -207,31 +228,59 @@ export function MainMenu({
           </div>
           {hasSave && startOver(() => onPlayTrader(trader), `New game vs ${chosen.name}`, 'landing-secondary landing-secondary-wide')}
 
-          <div className="landing-modes">
-            {startOver(onPassAndPlay, 'Pass & play', 'landing-secondary')}
+          <div className="landing-modes landing-signs">
+            {startOver(onPassAndPlay, <SignFace icon={<PassPlayIcon />} label="Pass & play" hint="Share this screen" />, 'landing-sign', signStyle(0))}
             {/* Never behind the save confirm: a friend game doesn't touch the local save */}
-            <button type="button" className="landing-secondary" onClick={onPlayFriend}>Play a friend</button>
-            {onPlayOnTv && <button type="button" className="landing-secondary" onClick={onPlayOnTv}>Play on TV</button>}
-            <button type="button" className="landing-secondary" onClick={onJoinTv}>Join a TV game</button>
+            <button type="button" className="landing-sign" style={signStyle(1)} onClick={onPlayFriend}>
+              <SignFace icon={<FriendIcon />} label="Play a friend" hint="Send an invite link" />
+            </button>
+            {onPlayOnTv && (
+              <button type="button" className="landing-sign" style={signStyle(2)} onClick={onPlayOnTv}>
+                <SignFace icon={<TvIcon />} label="Play on TV" hint="Cast the table" />
+              </button>
+            )}
+            <button type="button" className="landing-sign" style={signStyle(3)} onClick={onJoinTv}>
+              <SignFace icon={<JoinIcon />} label="Join a TV game" hint="Use your phone" />
+            </button>
           </div>
 
           <nav className="landing-footer" aria-label="More">
-            {onTutorial && <button type="button" className="landing-link" onClick={onTutorial}>How to play</button>}
-            <button type="button" className="landing-link" onClick={() => onSelectOption('settings')}>Settings</button>
+            {onTutorial && (
+              <button type="button" className="landing-iconbtn" data-tip="How to play" aria-label="How to play" onClick={onTutorial}>
+                <BookIcon />
+              </button>
+            )}
+            <button type="button" className="landing-iconbtn" data-tip="Settings" aria-label="Settings" onClick={() => onSelectOption('settings')}>
+              <GearIcon />
+            </button>
             <button
               type="button"
-              className="landing-link"
+              className="landing-iconbtn"
+              data-tip={prefs.muted ? 'Sound off' : 'Sound on'}
+              aria-label="Sound"
               aria-pressed={!prefs.muted}
               onClick={() => setPref('muted', !prefs.muted)}
             >
-              {prefs.muted ? 'Sound off' : 'Sound on'}
+              <SoundIcon muted={prefs.muted} />
             </button>
-            {stats && <span className="landing-stats">{stats}</span>}
           </nav>
           {auth.authError && <div className="menu-error">{auth.authError}</div>}
         </section>
       </div>
     </div>
+  );
+}
+
+/** A hanging market sign: the board sways on its ropes; the button around it drops in and presses. */
+function SignFace({ icon, label, hint }: { icon: ReactNode; label: string; hint: string }) {
+  return (
+    <span className="landing-sign-board">
+      <span className="landing-sign-icon">{icon}</span>
+      <span className="landing-sign-text">
+        <span className="landing-sign-label">{label}</span>
+        <span className="landing-sign-hint">{hint}</span>
+      </span>
+    </span>
   );
 }
 

@@ -517,6 +517,26 @@ New phone components:
   9px and coins 12px. Named sizes on desktop (140/120/96) render exactly as
   before.
 
+### Landing panel: market signs (2026-10-13)
+
+- **Play modes are hanging market signs** (`.landing-signs` > `.landing-sign` >
+  `.landing-sign-board`): planks `public/assets/menu/sign_plank_a|b.webp`
+  (Ideogram 4 transparent, alternating), cream painted lettering, a burnt-in
+  line icon (`landingIcons.tsx`) and a one-line hint (hidden on phones). Rope
+  pseudo-elements run from the plank's nails up to a wooden beam
+  (`.landing-signs::before`) or the sign above. Motion: drop-in (staggered
+  `--i`, one-shot), idle sway ±0.5° about the rope tops (ambient), a damped
+  swing on hover (kept when ambient is off), press nudges 2px.
+- **How to play / Settings / Sound** are 44px brass icon buttons
+  (`.landing-iconbtn`, `aria-label` + a `data-tip` tag on hover/focus): the
+  gear turns, the ledger's page lifts, the speaker's waves breathe while sound
+  is on and an ✕ pops in when muted.
+- **Your record** moved from a footer pill to a ledger tag beside the
+  greeting (`.landing-record`): "17 won · 16 lost", a gold win-rate bar that
+  fills on load, "52% won · 33 games". Hidden until there's a record.
+- The selected trader's portrait breathes (2px).
+
+
 ## Life — the "living table" layer (2026-10-09)
 
 Goal: the board should feel like a real market table in late-afternoon

@@ -254,11 +254,72 @@
   text-wrap: balance;
 }
 
+.landing-greeting {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-top: -6px;
+}
+
 .landing-welcome {
-  margin: -8px 0 0;
+  margin: 0;
   font-size: 15px;
   color: var(--text-muted);
 }
+
+/* Your record: a little ledger tag beside the greeting (was a pill in the footer) */
+.landing-record {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-left: auto;
+  padding: 6px 12px 7px;
+  border-radius: 10px;
+  background: rgba(212, 168, 80, 0.07);
+  box-shadow: inset 0 0 0 1px rgba(212, 168, 80, 0.28);
+  font-variant-numeric: tabular-nums;
+}
+
+.landing-record-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(212, 168, 80, 0.8);
+}
+
+.landing-record-tally { justify-self: end; font-size: 14px; color: var(--landing-cream); }
+.landing-record-tally b { font-family: var(--font-heading); color: var(--gold); }
+
+.landing-record-bar {
+  grid-column: 1 / -1;
+  position: relative;
+  height: 4px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.landing-record-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--pct);
+  border-radius: 2px;
+  background: linear-gradient(90deg, #b88a38, #f0cd78);
+  transform-origin: left;
+  animation: landingRecordFill 1.1s var(--anim-ease-standard) 700ms both;
+}
+
+@keyframes landingRecordFill { from { scale: 0 1; } to { scale: 1 1; } }
+
+.landing-record-rate { grid-column: 1 / -1; font-size: 11.5px; color: var(--text-muted); text-align: right; }
+
+/* the trader you'll play stands a little taller, breathing */
+.landing-trader-selected .trader-portrait { animation: landingTraderBreathe 4.2s ease-in-out infinite; }
+@keyframes landingTraderBreathe { 0%, 100% { translate: 0 0; } 50% { translate: 0 -2px; } }
 
 .landing-primary {
   display: grid;
@@ -366,15 +427,8 @@
   color: var(--text-muted);
 }
 
-/* --- Other modes ----------------------------------------------------------- */
-.landing-modes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.landing-modes > *,
-.landing-secondary-wide { flex: 1 1 140px; }
+/* --- Secondary buttons ("New game vs …" beside a saved game) -------------- */
+.landing-secondary-wide { width: 100%; }
 
 .landing-secondary {
   padding: 11px 14px;
@@ -391,19 +445,236 @@
 .landing-secondary:hover { background: rgba(212, 168, 80, 0.12); border-color: var(--gold); color: var(--gold); }
 .landing-secondary:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 
-.landing-modes .confirm-ask,
 .landing-panel > .confirm-ask { flex-basis: 100%; }
 
-/* --- Footer links ---------------------------------------------------------- */
+/* --- Market signs: the play modes hang from a beam (2026-10-13) ---------
+   .landing-sign (the button) drops in and presses; .landing-sign-board (the
+   plank, its ropes and lettering) sways on the ropes and swings when you
+   reach for it. Planks: sign_plank_a/b.webp (Ideogram), alternating. */
+.landing-signs {
+  --rope: 20px;
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--rope) 14px;
+  padding-top: var(--rope);
+}
+
+/* the beam the first row hangs from */
+.landing-signs::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -6px;
+  right: -6px;
+  height: 7px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #8a6236 0%, #5e3f1f 55%, #3d2812 100%);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 220, 160, 0.25);
+}
+
+.landing-signs > .confirm-ask { grid-column: 1 / -1; }
+
+.landing-sign {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  animation: landingSignDrop 760ms var(--life-spring, cubic-bezier(.34, 1.56, .64, 1)) calc(520ms + var(--i, 0) * 90ms) backwards;
+  transition: translate 140ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.landing-sign:active { translate: 0 2px; }
+.landing-sign:focus-visible { outline: none; }
+.landing-sign:focus-visible .landing-sign-board { outline: 2px solid var(--gold); outline-offset: 3px; border-radius: 6px; }
+
+@keyframes landingSignDrop {
+  0% { opacity: 0; translate: 0 -18px; }
+  55% { opacity: 1; translate: 0 3px; }
+  100% { opacity: 1; translate: 0 0; }
+}
+
+.landing-sign-board {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 280px;
+  margin: 0 auto;
+  aspect-ratio: 640 / 189;
+  padding: 6% 9% 3%;
+  background: url('/assets/menu/sign_plank_a.webp') center / 100% 100% no-repeat;
+  filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.45));
+  /* swing from where the ropes meet the beam */
+  transform-origin: 50% calc(-1 * var(--rope));
+  animation: landingSignSway 6.2s ease-in-out calc(var(--i, 0) * -1.7s) infinite;
+  transition: filter 160ms ease;
+}
+
+.landing-sign:nth-child(even) .landing-sign-board { background-image: url('/assets/menu/sign_plank_b.webp'); }
+
+/* the two ropes, from the nails up to the beam (or the sign above) */
+.landing-sign-board::before,
+.landing-sign-board::after {
+  content: '';
+  position: absolute;
+  bottom: 82%;
+  width: 3px;
+  height: calc(var(--rope) + 18%);
+  border-radius: 2px;
+  background: repeating-linear-gradient(160deg, #d8b679 0 2px, #8c6a3c 2px 4px);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+.landing-sign-board::before { left: 6.2%; }
+.landing-sign-board::after { right: 6.4%; }
+
+@keyframes landingSignSway {
+  0%, 100% { rotate: -0.5deg; }
+  50% { rotate: 0.5deg; }
+}
+
+/* reach for a sign and it swings, settling back */
+@keyframes landingSignSwing {
+  0% { rotate: 0deg; }
+  18% { rotate: 2.6deg; }
+  40% { rotate: -1.7deg; }
+  62% { rotate: 0.9deg; }
+  82% { rotate: -0.35deg; }
+  100% { rotate: 0deg; }
+}
+
+@media (hover: hover) {
+  .landing-sign:hover .landing-sign-board {
+    animation: landingSignSwing 1.1s ease-out both;
+    filter: drop-shadow(0 9px 12px rgba(0, 0, 0, 0.5)) brightness(1.08);
+  }
+  .landing-sign:hover .landing-sign-label { color: #ffd98a; }
+}
+
+.landing-sign-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  color: rgba(250, 232, 192, 0.92);
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.7));
+}
+
+.landing-sign-text {
+  display: grid;
+  justify-items: start;
+  gap: 1px;
+  min-width: 0;
+  text-align: left;
+}
+
+/* lettering painted on the plank: cream with a dark undercut */
+.landing-sign-label {
+  font-family: var(--font-heading);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #f8e6bd;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.85), 0 0 6px rgba(0, 0, 0, 0.35);
+  white-space: nowrap;
+  transition: color 160ms ease;
+}
+
+.landing-sign-hint {
+  font-size: 12px;
+  line-height: 1.15;
+  color: rgba(248, 230, 189, 0.72);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* each icon does its own small thing as you reach for its sign */
+.landing-icon * { transform-box: fill-box; transform-origin: center; transition: translate 260ms var(--life-spring, ease), rotate 400ms var(--life-spring, ease), opacity 200ms ease; }
+@media (hover: hover) {
+  .landing-sign:hover .landing-icon-plane { translate: 2px -2px; rotate: -6deg; }
+  .landing-sign:hover .landing-icon-pass-other { translate: 0 -1.5px; }
+  .landing-sign:hover .landing-icon-join-arrow { translate: 0 1.5px; }
+  .landing-sign:hover .landing-icon-cast { animation: landingCast 900ms ease-in-out infinite; }
+}
+@keyframes landingCast { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+/* --- Footer: icon buttons -------------------------------------------------- */
 .landing-footer {
   display: flex;
-  flex-wrap: wrap;
+  justify-content: center;
   align-items: center;
-  gap: 4px 18px;
+  gap: 14px;
   padding-top: 14px;
   border-top: 1px solid rgba(212, 168, 80, 0.18);
 }
 
+.landing-iconbtn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(212, 168, 80, 0.4);
+  background: radial-gradient(circle at 35% 30%, rgba(255, 230, 170, 0.1), rgba(0, 0, 0, 0.15) 70%);
+  color: rgba(230, 200, 140, 0.85);
+  cursor: pointer;
+  transition: color 150ms ease, border-color 150ms ease, translate 200ms var(--life-spring, ease), box-shadow 150ms ease;
+}
+
+.landing-iconbtn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.landing-iconbtn:active { translate: 0 1px; }
+
+/* the label, as a little tag above the button */
+.landing-iconbtn::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  translate: -50% 4px;
+  padding: 3px 9px;
+  border-radius: 6px;
+  background: #2a1a0c;
+  box-shadow: 0 0 0 1px rgba(212, 168, 80, 0.4), 0 4px 10px rgba(0, 0, 0, 0.45);
+  color: var(--landing-cream);
+  font-size: 12.5px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 140ms ease, translate 160ms ease;
+}
+
+.landing-iconbtn:focus-visible::after { opacity: 1; translate: -50% 0; }
+
+@media (hover: hover) {
+  .landing-iconbtn:hover { color: var(--gold); border-color: var(--gold); translate: 0 -2px; box-shadow: 0 0 14px rgba(212, 168, 80, 0.25); }
+  .landing-iconbtn:hover::after { opacity: 1; translate: -50% 0; }
+  .landing-iconbtn:hover .landing-icon-gear-wheel { rotate: 90deg; }
+  .landing-iconbtn:hover .landing-icon-book-page { rotate: -8deg; translate: 0.5px -0.5px; }
+}
+
+.landing-icon-gear-wheel { transition: rotate 600ms var(--life-spring, ease) !important; }
+
+/* the speaker's waves breathe while the sound is on */
+.landing-icon-wave { animation: landingWave 2.4s ease-in-out infinite; }
+.landing-icon-wave-2 { animation-delay: 0.3s; }
+@keyframes landingWave { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+.landing-icon-sound-x { animation: landingPop 260ms var(--life-spring, ease) both; }
+@keyframes landingPop { from { opacity: 0; scale: 0.4; } to { opacity: 1; scale: 1; } }
+.landing-iconbtn[aria-pressed='false'] { color: rgba(200, 170, 120, 0.6); }
+
+/* --- Text links (Abandon saved game, the account menu) ------------------ */
 .landing-link {
   padding: 4px 0;
   border: none;
@@ -419,17 +690,6 @@
 .landing-link:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 4px; }
 .landing-link-danger { justify-self: center; font-size: 14px; }
 .landing-link-danger:hover { color: #f0a08f; }
-
-.landing-stats {
-  margin-left: auto;
-  padding: 3px 10px;
-  border-radius: 999px;
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-  color: var(--gold);
-  background: rgba(212, 168, 80, 0.1);
-  box-shadow: inset 0 0 0 1px rgba(212, 168, 80, 0.35);
-}
 
 /* --- Account chip: the one place to sign in or out ----------------------- */
 .landing-account {
@@ -503,6 +763,12 @@
   .landing-panel { gap: 14px; padding: 18px 16px; margin-top: 40px; }
   .landing-pitch { font-size: 19px; text-align: center; }
   .landing-welcome { text-align: center; }
+  .landing-greeting { justify-content: center; }
+  .landing-record { margin-left: 0; }
+  .landing-sign-label { font-size: 15px; }
+  .landing-sign-hint { display: none; }
+  .landing-sign-board { gap: 7px; padding: 7% 8% 3%; }
+  .landing-sign-icon svg { width: 18px; height: 18px; }
   .landing-trader .trader-portrait { width: 48px !important; height: 48px !important; }
 }
 
@@ -528,17 +794,32 @@
   .landing-fan-inner,
   .landing-demo-ware,
   .landing-demo-gold,
-  .landing-cta::after {
+  .landing-cta::after,
+  .landing-sign,
+  .landing-sign-board,
+  .landing-record-fill,
+  .landing-icon-wave,
+  .landing-icon-cast,
+  .landing-trader-selected .trader-portrait {
     animation: none !important;
   }
   .landing-cta::after { display: none; }
+  .landing-icon * { transition: none !important; }
 }
 
 :root[data-ambient='off'] .landing-fan-inner,
 :root[data-ambient='off'] .landing-demo-ware,
 :root[data-ambient='off'] .landing-demo-gold,
-:root[data-ambient='off'] .landing-cta::after {
+:root[data-ambient='off'] .landing-cta::after,
+:root[data-ambient='off'] .landing-sign-board,
+:root[data-ambient='off'] .landing-icon-wave,
+:root[data-ambient='off'] .landing-trader-selected .trader-portrait {
   animation: none !important;
 }
 
 :root[data-ambient='off'] .landing-cta::after { display: none; }
+
+/* Ambient off stops the idle sway, but reaching for a sign still swings it */
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  :root[data-ambient='off'] .landing-sign:hover .landing-sign-board { animation: landingSignSwing 1.1s ease-out both !important; }
+}

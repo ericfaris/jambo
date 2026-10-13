@@ -616,15 +616,16 @@
 
   <div class="ds-section" id="ds-landing">
     <h2>Landing — CTA and modes</h2>
-    <p class="ds-note">One gold button; modes named by task. <em>Play a friend</em> sits beside Pass &amp; play and never asks about a saved game (it doesn't touch it).</p>
+    <p class="ds-note">One gold button; modes named by task, hung as wooden market signs (sway on their ropes, swing on hover, drop in on load). <em>Play a friend</em> sits beside Pass &amp; play and never asks about a saved game (it doesn't touch it). How to play / Settings / Sound are brass icon buttons with a tag on hover. The game app draws real SVG icons; this page uses glyphs.</p>
     <div class="ds-component-demo landing" style="position:relative; inset:auto; overflow:visible; flex-direction:column; align-items:stretch; max-width:420px;">
       <button type="button" class="landing-cta">Play vs Amara<span class="landing-cta-sub">Cloth weaver · Basic strategy</span></button>
-      <div class="landing-modes">
-        <button type="button" class="landing-secondary">Pass &amp; play</button>
-        <button type="button" class="landing-secondary">Play a friend</button>
-        <button type="button" class="landing-secondary">Play on TV</button>
-        <button type="button" class="landing-secondary">Join a TV game</button>
+      <div class="landing-modes landing-signs">
+        <button type="button" class="landing-sign" style="--i:0"><span class="landing-sign-board"><span class="landing-sign-text"><span class="landing-sign-label">Pass &amp; play</span><span class="landing-sign-hint">Share this screen</span></span></span></button>
+        <button type="button" class="landing-sign" style="--i:1"><span class="landing-sign-board"><span class="landing-sign-text"><span class="landing-sign-label">Play a friend</span><span class="landing-sign-hint">Send an invite link</span></span></span></button>
+        <button type="button" class="landing-sign" style="--i:2"><span class="landing-sign-board"><span class="landing-sign-text"><span class="landing-sign-label">Play on TV</span><span class="landing-sign-hint">Cast the table</span></span></span></button>
+        <button type="button" class="landing-sign" style="--i:3"><span class="landing-sign-board"><span class="landing-sign-text"><span class="landing-sign-label">Join a TV game</span><span class="landing-sign-hint">Use your phone</span></span></span></button>
       </div>
+      <nav class="landing-footer"><button type="button" class="landing-iconbtn" data-tip="How to play" aria-label="How to play">?</button><button type="button" class="landing-iconbtn" data-tip="Settings" aria-label="Settings">⚙</button><button type="button" class="landing-iconbtn" data-tip="Sound on" aria-label="Sound" aria-pressed="true">♪</button></nav>
     </div>
   </div>
 
