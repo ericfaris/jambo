@@ -28,6 +28,7 @@ import { useCastRoomSync } from '../cast/useCastRoomSync.ts';
 import { getCastSessionController, isCastSdkEnabled } from '../cast/factory.ts';
 import { useAuthSession } from './useAuthSession.ts';
 import { fitCardsToBox } from './fitLayout.ts';
+import { resolutionStatusMessage } from './onlineView.ts';
 import { useElementSize } from './useElementSize.ts';
 import { usePreferences, isDevMode } from './preferences.ts';
 import { SettingsPanel, SettingsSection, TvIcon } from './SettingsPanel.tsx';
@@ -643,7 +644,7 @@ function CastInteractionPanel({ pub, priv, slot, dispatch, onMegaView }: {
 
   // InteractionPanel expects GameState — cast as any since we're providing a subset
   if (!syntheticState.pendingResolution && pub.pendingResolutionType) {
-    const resolvingMessage = getResolutionStatusMessage(pub.pendingResolutionType);
+    const resolvingMessage = resolutionStatusMessage(pub.pendingResolutionType);
     return (
       <div className="panel-slide" style={{ maxWidth: 460, margin: '0 auto', width: '100%' }}>
         <div className="dialog-pop" style={{ borderRadius: 14, padding: 12 }}>
@@ -813,50 +814,6 @@ function OpponentActionPanel({
       </div>
     </div>
   );
-}
-
-function getResolutionStatusMessage(type: NonNullable<PublicGameState['pendingResolutionType']>): string {
-  switch (type) {
-    case 'AUCTION':
-      return 'Resolving auction...';
-    case 'DRAFT':
-      return 'Resolving draft picks...';
-    case 'OPPONENT_DISCARD':
-      return 'Opponent is choosing cards to discard...';
-    case 'OPPONENT_CHOICE':
-    case 'BINARY_CHOICE':
-      return 'Waiting for a decision...';
-    case 'HAND_SWAP':
-      return 'Resolving hand swap...';
-    case 'WARE_TRADE':
-    case 'WARE_SELECT_MULTIPLE':
-    case 'WARE_SELL_BULK':
-    case 'WARE_RETURN':
-    case 'WARE_CASH_CONVERSION':
-    case 'CARRIER_WARE_SELECT':
-      return 'Resolving ware transaction...';
-    case 'WARE_THEFT_SINGLE':
-    case 'WARE_THEFT_SWAP':
-      return 'Resolving ware theft...';
-
-    case 'UTILITY_KEEP':
-    case 'UTILITY_REPLACE':
-    case 'UTILITY_EFFECT':
-    case 'CROCODILE_USE':
-      return 'Resolving utility effect...';
-    case 'SUPPLIES_DISCARD':
-      return 'Resolving Supplies card...';
-    case 'DECK_PEEK':
-      return 'Resolving card selection...';
-    case 'DISCARD_PICK':
-      return 'Resolving discard pile pick...';
-    case 'DRAW_MODIFIER':
-      return 'Resolving draw effect...';
-    case 'TURN_MODIFIER':
-      return 'Applying turn effect...';
-    default:
-      return 'Resolving card effect...';
-  }
 }
 
 function getLatestOpponentAction(pub: PublicGameState, slot: 0 | 1): OpponentActionInfo | null {

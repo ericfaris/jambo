@@ -209,3 +209,10 @@ describe('Draft panel stays visible during opponent pick', () => {
     });
   });
 });
+
+describe('card pool styles', () => {
+  it('never mix the margin shorthand with longhands (a shrinking pool swaps them on one div)', async () => {
+    const { getCardGridStyle } = await import('../../src/ui/InteractionPanel.tsx');
+    for (let n = 0; n <= 20; n++) expect(getCardGridStyle(n)).not.toHaveProperty('margin');
+  });
+});

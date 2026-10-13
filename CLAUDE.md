@@ -64,9 +64,18 @@ src/
     endgame/EndgameManager.ts
   ai/RandomAI.ts             # getRandomAiAction(), getRandomInteractionResponse()
   ui/                        # React components
-    GameScreen.tsx            # Main layout
+    GameBoard.tsx             # The table, store-agnostic: state + dispatch + viewer seat
+    GameScreen.tsx            # Solo / hotseat: GameBoard over the local store, AI, autosave
+    OnlineGameScreen.tsx      # Play a friend: GameBoard over the server's views
+    onlineView.ts             # toBoardState(): public + private view → a GameState
+    FriendLobby.tsx           # Play a friend lobby (invite link, join by link)
     InteractionPanel.tsx      # Resolution UI panels (one per PendingResolution type)
     CardFace.tsx, HandDisplay.tsx, MarketDisplay.tsx, etc.
+  multiplayer/                # Node server (rooms, auth, stats) + browser client
+    server.ts, client.ts      # WebSocket rooms; useWebSocketGame()
+    stateSplitter.ts          # The hidden-info boundary: public vs per-seat private state
+    friendRoom.ts             # Friend-room rules: first player, abandons, online results
+    onlineIdentity.ts         # Session cookie on the WS upgrade → seat name/avatar
   hooks/useGameStore.ts       # Zustand store
 ```
 
@@ -86,6 +95,28 @@ A browser refresh must never lose a game.
   player's seat for `PLAYER_RECONNECT_GRACE_MS` (5 min) and keeps the room
   alive meanwhile (`src/multiplayer/roomLifecycle.ts`). Rooms live in server
   memory, so a deploy/restart still ends in-progress Cast games.
+- **Online (Play a friend)**: the invite link is `#/play/<code>` (never a
+  token). Same `jambo:lastRoom` + reconnect-token rejoin as Cast; the room's
+  kind from the server (`JOINED.kind`), not the URL, picks the board. The
+  friend sees a countdown while the seat is held; when
+  `PLAYER_RECONNECT_GRACE_MS` runs out (or someone leaves) the game ends and
+  the leaver's abandon is logged (`mode: 'online'`).
+
+## Online play (friend rooms)
+
+- The server is authoritative; `stateSplitter.ts` is the only boundary for
+  what a seat may see. Drafts are public (the pool is face up); the opponent's
+  hand, the deck order and the cancel snapshot never leave the server.
+- The online board reuses `GameBoard` with a synthesized `GameState`
+  (`toBoardState`): the opponent's hand and the deck are `HIDDEN_CARD_ID`
+  placeholders of the right length — only their `.length` may be read; never
+  `getCard()` them. Use `responderFromPublic` for "whose move", not
+  `pendingResolution` (it's null while the opponent resolves).
+- Dev preview without a server: `/?online=1&slot=0|1&stage=<scenario>`
+  (`DevOnlinePreview.tsx`, scenarios in `onlineScenarios.ts`).
+- E2E: `scripts/e2e/online-friend.py` (two browsers + server),
+  `scripts/e2e/online-preview.py` (scenarios), and the playtest driver's
+  `online` mode plays a whole game through both UIs.
 
 ## Accounts & Auth
 

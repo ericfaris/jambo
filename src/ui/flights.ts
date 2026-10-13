@@ -7,6 +7,7 @@
 
 import type { DeckCardId, GameState, WareType } from '../engine/types.ts';
 import { WARE_TYPES } from '../engine/types.ts';
+import { HIDDEN_CARD_ID } from './onlineView.ts';
 
 /** Where a flight starts or lands — each maps to a data-* anchor in the DOM. */
 export type FlightAnchor =
@@ -113,8 +114,12 @@ export function planFlights(prev: FlightSnapshot, next: FlightSnapshot, startId 
   // --- Ape / Lion pool forms: every card flies from its owner into the pool --
   if (!prev.draft && next.draft && prev.hands && prev.utilityIds) {
     const owners = next.draft.mode === 'cards' ? prev.hands : prev.utilityIds;
+    // Online, the friend's hand is placeholders: a pooled card nobody visibly
+    // held came from the one seat whose cards were hidden
+    const hiddenOwners = ([0, 1] as const).filter((p) => owners[p].includes(HIDDEN_CARD_ID));
+    const hiddenOwner: 0 | 1 | null = hiddenOwners.length === 1 ? hiddenOwners[0]! : null;
     next.draft.available.forEach((cardId, i) => {
-      const owner: 0 | 1 | null = owners[0].includes(cardId) ? 0 : owners[1].includes(cardId) ? 1 : null;
+      const owner: 0 | 1 | null = owners[0].includes(cardId) ? 0 : owners[1].includes(cardId) ? 1 : hiddenOwner;
       if (owner === null) return;
       const from: FlightAnchor = next.draft!.mode === 'cards' ? { type: 'hand', player: owner } : { type: 'utilities', player: owner };
       flights.push({ id: id++, kind: 'card', cardId, from, to: { type: 'draft-card', cardId }, delayMs: i * POOL_STAGGER_MS });

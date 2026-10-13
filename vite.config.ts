@@ -4,6 +4,8 @@ import { readFileSync } from 'fs'
 import { resolve } from 'path'
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'))
+// The game server the dev proxy talks to (JAMBO_API_PORT when 3001 is taken)
+const apiPort = process.env.JAMBO_API_PORT || '3001'
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -25,10 +27,10 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:3001',
+        target: `http://localhost:${apiPort}`,
       },
       '/ws': {
-        target: 'ws://localhost:3001',
+        target: `ws://localhost:${apiPort}`,
         ws: true,
       },
     },

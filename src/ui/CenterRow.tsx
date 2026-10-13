@@ -32,9 +32,11 @@ interface CenterRowProps {
   supplySlot?: ReactNode;
   /** Seat whose face-up plays get the big spotlight — skip the duplicate recap pill. */
   spotlitPlayer?: 0 | 1 | null;
+  /** The seat at this screen (online you may be seat 1): the other seat's moves are the strong ones. */
+  viewer?: 0 | 1;
 }
 
-export function CenterRow({ state, isLocalMode = true, showGlow = false, visualFeedback, actorLabels = ['Player 1', 'Player 2'], hiddenPlayer = null, compact = false, endTurnSlot, supplySlot, spotlitPlayer = null, heldDiscardCard = null }: CenterRowProps) {
+export function CenterRow({ state, isLocalMode = true, showGlow = false, visualFeedback, actorLabels = ['Player 1', 'Player 2'], hiddenPlayer = null, compact = false, endTurnSlot, supplySlot, spotlitPlayer = null, heldDiscardCard = null, viewer = 0 }: CenterRowProps) {
   const pileScale = compact ? 0.62 : 1;
   const pileW = Math.round(96 * pileScale);
   const pileH = Math.round(128 * pileScale);
@@ -125,7 +127,7 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
 
   const deckPulseClass = visualFeedback?.deckPulse
     ? isLocalMode
-      ? trailKind === 'draw' && trailActor === 1
+      ? trailKind === 'draw' && trailActor !== undefined && trailActor !== viewer
         ? 'pile-pulse-strong'
         : 'pile-pulse-soft'
       : 'pile-pulse'
@@ -133,14 +135,14 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
 
   const discardPulseClass = visualFeedback?.discardPulse
     ? isLocalMode
-      ? trailKind === 'discard' && trailActor === 1
+      ? trailKind === 'discard' && trailActor !== undefined && trailActor !== viewer
         ? 'pile-pulse-strong'
         : 'pile-pulse-soft'
       : 'pile-pulse'
     : undefined;
 
   const trailIntensityClass = isLocalMode
-    ? visualFeedback?.trail?.actor === 1
+    ? visualFeedback?.trail && visualFeedback.trail.actor !== viewer
       ? 'center-row-trail-strong'
       : 'center-row-trail-soft'
     : undefined;
@@ -176,7 +178,7 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
       )}
 
       {actionTag && (
-        <div className={`center-row-action-tag${visualFeedback?.trail?.actor === 1 ? ' center-row-action-tag-opponent' : ''}`}>
+        <div className={`center-row-action-tag${visualFeedback?.trail && visualFeedback.trail.actor !== viewer ? ' center-row-action-tag-opponent' : ''}`}>
           {actionTag}
         </div>
       )}

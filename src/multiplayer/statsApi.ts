@@ -72,6 +72,8 @@ export function validateRecordRequest(payload: unknown): payload is RecordGameRe
 
   const candidate = payload as Record<string, unknown>;
   if (!isValidProfileId(candidate.localProfileId)) return false;
+  // Online results are recorded by the game server only — a client can't post one
+  if (candidate.mode !== undefined && candidate.mode !== 'solo') return false;
   if (!isDifficulty(candidate.aiDifficulty)) return false;
   if (!isWinner(candidate.winner)) return false;
   if (!isNonNegativeInteger(candidate.playerGold)) return false;
@@ -127,6 +129,15 @@ async function resolveProfileId(req: IncomingMessage, clientProfileId: string): 
   const session = await getSession(sessionId);
   if (!session) return clientProfileId;
 
+  return canonicalProfileId(session, clientProfileId);
+}
+
+/**
+ * The profile a signed-in player's stats belong to — the account's linked
+ * profile, else this device's. Friend games (server.ts) key online results
+ * and abandons on the same id, so they land in the same record.
+ */
+export function canonicalProfileId(session: { user: { localProfileId?: string | null } }, clientProfileId: string): string {
   return session.user.localProfileId ?? clientProfileId;
 }
 

@@ -1,0 +1,154 @@
+/* ===========================================================================
+   Play a friend — the lobby (FriendLobby). Sits on the landing page's
+   background and framed plate (.landing / .landing-panel); everything of its
+   own is .friend-lobby-*. Fits a 390×844 phone without scrolling. Motion is
+   opacity only and stops under reduced motion.
+   =========================================================================== */
+.friend-lobby-shell {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  min-height: 100%;
+  padding: max(24px, env(safe-area-inset-top, 0px)) 16px max(24px, env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+}
+
+.friend-lobby-panel {
+  width: min(460px, 100%);
+  gap: 16px;
+  text-align: center;
+  justify-items: center;
+}
+
+.friend-lobby-eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.friend-lobby-title {
+  margin: -6px 0 0;
+  font-family: var(--font-heading);
+  font-size: clamp(26px, 6vw, 34px);
+  line-height: 1.15;
+  color: var(--landing-cream);
+  text-wrap: balance;
+}
+
+/* The room code: four gold coins of digits */
+.friend-lobby-code {
+  display: flex;
+  gap: 8px;
+}
+
+.friend-lobby-digit {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 64px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #f0cd78 0%, #d4a850 55%, #b88a38 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 245, 210, 0.7), 0 2px 0 #7a5418, 0 8px 18px rgba(0, 0, 0, 0.4);
+  color: var(--landing-ink);
+  font-family: var(--font-heading);
+  font-size: 38px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.friend-lobby-invite {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+
+.friend-lobby-invite-label {
+  justify-self: start;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.friend-lobby-invite-row {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.friend-lobby-link {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(212, 168, 80, 0.45);
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--landing-cream);
+  font: inherit;
+  font-size: 15px;
+  text-overflow: ellipsis;
+}
+
+.friend-lobby-link:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+/* The gold CTA, sized down to sit beside the link */
+.friend-lobby-copy {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 112px;
+  padding: 10px 14px;
+  font-size: 17px;
+}
+
+.friend-lobby-share,
+.friend-lobby-cancel { width: 100%; }
+
+.friend-lobby-home { font-size: 20px; }
+
+.friend-lobby-help {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--text-muted);
+  max-width: 30em;
+}
+
+.friend-lobby-note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.friend-lobby-waiting {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  color: var(--gold);
+}
+
+.friend-lobby-dots span {
+  animation: friendLobbyDot 1.4s ease-in-out infinite;
+  opacity: 0.2;
+}
+.friend-lobby-dots span:nth-child(2) { animation-delay: 0.2s; }
+.friend-lobby-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes friendLobbyDot {
+  0%, 80%, 100% { opacity: 0.2; }
+  40% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .friend-lobby-dots span { animation: none; opacity: 0.8; }
+}
+
+:root[data-contrast="high"] .friend-lobby-link,
+:root[data-contrast="high"] .friend-lobby-help,
+:root[data-contrast="high"] .friend-lobby-note { color: var(--text); }
+
+@media (max-width: 420px) {
+  .friend-lobby-digit { width: 46px; height: 58px; font-size: 34px; }
+  .friend-lobby-invite-row { flex-direction: column; }
+  .friend-lobby-copy { width: 100%; }
+}

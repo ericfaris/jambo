@@ -10,12 +10,20 @@ import type {
   PublicGameState,
   PrivateGameState,
   RoomMode,
+  RoomKind,
   ConnectionRole,
   PlayerSlot,
   AudioEvent,
+  OnlineSeatView,
 } from './types.ts';
 import type { GameAction } from '../engine/types.ts';
 import type { AIDifficulty } from '../ai/difficulties/index.ts';
+import type { GameStory } from '../ui/gameStory.ts';
+import { getLocalProfileId } from '../persistence/localProfile.ts';
+import { parseInviteHash } from '../ui/friendRoute.ts';
+
+export type SeatViews = [OnlineSeatView | null, OnlineSeatView | null];
+export interface AbandonNotice { leaver: PlayerSlot; reason: 'left' | 'timeout' }
 
 export interface WebSocketGameState {
   connected: boolean;
@@ -23,6 +31,18 @@ export interface WebSocketGameState {
   castAccessToken: string | null;
   playerSlot: PlayerSlot | null;
   roomMode: RoomMode | null;
+  /** 'friend' rooms render the full online board; 'cast' the phone controller. */
+  roomKind: RoomKind | null;
+  /** Friend rooms: who sits where, and whether they're here. */
+  seats: SeatViews | null;
+  /** When `seats` arrived — graceMsLeft counts down from here. */
+  seatsReceivedAt: number | null;
+  /** Friend rooms: the game ended because a player left or never came back. */
+  abandoned: AbandonNotice | null;
+  /** Friend rooms: the finished game's story, from the server. */
+  story: GameStory | null;
+  /** Friend rooms: which game of this room is on the table (rematches count up). */
+  gameNumber: number | null;
   publicState: PublicGameState | null;
   privateState: PrivateGameState | null;
   audioEvent: AudioEvent | null;
@@ -33,8 +53,10 @@ export interface WebSocketGameState {
   playerDisconnected: PlayerSlot | null;
   rematchVotes: PlayerSlot[];
   rematchRequired: PlayerSlot[];
-  createRoom: (mode: RoomMode, aiDifficulty?: AIDifficulty) => void;
+  createRoom: (mode: RoomMode, aiDifficulty?: AIDifficulty, kind?: RoomKind) => void;
   joinRoom: (code: string, role: ConnectionRole) => void;
+  /** Leave for good (friend lobby Cancel, Leave game, Main menu after the game). */
+  leaveRoom: () => Promise<void>;
   resetRoomState: () => void;
   sendAction: (action: GameAction) => void;
   requestRematch: () => void;
@@ -80,6 +102,14 @@ export function useWebSocketGame(): WebSocketGameState {
   const [castAccessToken, setCastAccessToken] = useState<string | null>(null);
   const [playerSlot, setPlayerSlot] = useState<PlayerSlot | null>(null);
   const [roomMode, setRoomMode] = useState<RoomMode | null>(null);
+  const [roomKind, setRoomKind] = useState<RoomKind | null>(null);
+  const [seats, setSeats] = useState<SeatViews | null>(null);
+  const [seatsReceivedAt, setSeatsReceivedAt] = useState<number | null>(null);
+  const [abandoned, setAbandoned] = useState<AbandonNotice | null>(null);
+  const [story, setStory] = useState<GameStory | null>(null);
+  const [gameNumber, setGameNumber] = useState<number | null>(null);
+  // After GAME_ABANDONED the room is gone; the next "Room not found" is expected
+  const suppressRoomNotFound = useRef(false);
   const [publicState, setPublicState] = useState<PublicGameState | null>(null);
   const [privateState, setPrivateState] = useState<PrivateGameState | null>(null);
   const [audioEvent, setAudioEvent] = useState<AudioEvent | null>(null);
@@ -114,6 +144,13 @@ export function useWebSocketGame(): WebSocketGameState {
     setCastAccessToken(null);
     setPlayerSlot(null);
     setRoomMode(null);
+    setRoomKind(null);
+    setSeats(null);
+    setSeatsReceivedAt(null);
+    setAbandoned(null);
+    setStory(null);
+    setGameNumber(null);
+    suppressRoomNotFound.current = false;
     setPublicState(null);
     setPrivateState(null);
     setAudioEvent(null);
@@ -139,6 +176,7 @@ export function useWebSocketGame(): WebSocketGameState {
       case 'JOINED':
         setPlayerSlot(msg.playerSlot);
         setRoomMode(msg.mode);
+        setRoomKind(msg.kind ?? 'cast');
         if (msg.castAccessToken) {
           setCastAccessToken(msg.castAccessToken);
         }
@@ -159,11 +197,24 @@ export function useWebSocketGame(): WebSocketGameState {
         setPrivateState(msg.private);
         setAudioEvent(msg.audioEvent);
         setAiMessage(msg.aiMessage);
+        if (msg.gameNumber !== undefined) setGameNumber(msg.gameNumber);
         if (msg.public.phase !== 'GAME_OVER') {
           setGameOver(false);
+          setStory(null);
           setRematchVotes([]);
           setRematchRequired([]);
         }
+        break;
+      case 'ROOM_PLAYERS':
+        setSeats(msg.seats);
+        setSeatsReceivedAt(Date.now());
+        break;
+      case 'GAME_ABANDONED':
+        // The room is closed: never try to rejoin it
+        writeLastRoom(null);
+        pendingJoin.current = null;
+        suppressRoomNotFound.current = true;
+        setAbandoned({ leaver: msg.leaver, reason: msg.reason });
         break;
       case 'PLAYER_JOINED':
         setPlayerJoined(msg.playerSlot);
@@ -172,6 +223,7 @@ export function useWebSocketGame(): WebSocketGameState {
         setPlayerDisconnected(msg.playerSlot);
         break;
       case 'ERROR':
+        if (msg.message === 'Room not found' && suppressRoomNotFound.current) break;
         if (msg.message === 'Room not found' || msg.message.startsWith('Room is full')) {
           // The remembered room is gone (expired, server restarted) or our
           // seat was given up after the reconnect window — stop retrying it
@@ -188,6 +240,7 @@ export function useWebSocketGame(): WebSocketGameState {
       case 'GAME_OVER':
         setPublicState(msg.public);
         setGameOver(true);
+        if (msg.story !== undefined) setStory(msg.story);
         break;
     }
   }, [getReconnectStorageKey]);
@@ -199,8 +252,13 @@ export function useWebSocketGame(): WebSocketGameState {
 
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
+    // Only the newest socket may touch state. A replaced one (StrictMode's
+    // remount, a reconnect) must not flip `connected` while wsRef points at a
+    // socket still connecting — sends would be dropped and never retried.
+    const isCurrent = () => wsRef.current === ws;
 
     ws.onopen = () => {
+      if (!isCurrent()) return;
       setConnected(true);
       reconnectAttempt.current = 0;
 
@@ -208,7 +266,9 @@ export function useWebSocketGame(): WebSocketGameState {
       // tab was in, with its stored reconnect token (keeps the same seat).
       if (!pendingJoin.current) {
         const last = readLastRoom();
-        if (last) {
+        // An invite link to a different room wins: its screen joins that one
+        const invited = parseInviteHash(window.location.hash);
+        if (last && (!invited || invited === last.code)) {
           const reconnectToken = window.sessionStorage.getItem(getReconnectStorageKey(last.code, last.role)) ?? undefined;
           const cachedCastToken = window.sessionStorage.getItem(getCastTokenStorageKey(last.code));
           if (cachedCastToken) setCastAccessToken((current) => current ?? cachedCastToken);
@@ -224,11 +284,13 @@ export function useWebSocketGame(): WebSocketGameState {
           code: pendingJoin.current.code,
           role: pendingJoin.current.role,
           reconnectToken: pendingJoin.current.reconnectToken,
+          localProfileId: getLocalProfileId(),
         });
       }
     };
 
     ws.onmessage = (event) => {
+      if (!isCurrent()) return;
       try {
         const msg = JSON.parse(event.data as string) as ServerMessage;
         handleMessage(msg);
@@ -238,6 +300,8 @@ export function useWebSocketGame(): WebSocketGameState {
     };
 
     ws.onclose = () => {
+      // A socket closed on purpose (unmount) or already replaced: no reconnect
+      if (!isCurrent()) return;
       setConnected(false);
       wsRef.current = null;
 
@@ -256,13 +320,15 @@ export function useWebSocketGame(): WebSocketGameState {
     connect();
     return () => {
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-      wsRef.current?.close();
+      const ws = wsRef.current;
+      wsRef.current = null;
+      ws?.close();
     };
   }, [connect]);
 
-  const createRoom = useCallback((mode: RoomMode, aiDifficulty?: AIDifficulty) => {
+  const createRoom = useCallback((mode: RoomMode, aiDifficulty?: AIDifficulty, kind?: RoomKind) => {
     resetRoomState();
-    sendRaw({ type: 'CREATE_ROOM', mode, aiDifficulty });
+    sendRaw(kind ? { type: 'CREATE_ROOM', mode, aiDifficulty, kind } : { type: 'CREATE_ROOM', mode, aiDifficulty });
   }, [resetRoomState, sendRaw]);
 
   const joinRoom = useCallback((code: string, role: ConnectionRole) => {
@@ -275,9 +341,24 @@ export function useWebSocketGame(): WebSocketGameState {
       setCastAccessToken((current) => current ?? cachedCastToken);
     }
     pendingJoin.current = { code, role, reconnectToken };
+    suppressRoomNotFound.current = false;
     setRoomCode(code);
-    sendRaw({ type: 'JOIN_ROOM', code, role, reconnectToken });
+    sendRaw({ type: 'JOIN_ROOM', code, role, reconnectToken, localProfileId: getLocalProfileId() });
   }, [getReconnectStorageKey, getCastTokenStorageKey, sendRaw]);
+
+  const leaveRoom = useCallback(async () => {
+    writeLastRoom(null);
+    pendingJoin.current = null;
+    suppressRoomNotFound.current = true;
+    sendRaw({ type: 'LEAVE_ROOM' });
+    // Let the message leave before the caller navigates away; if it's lost
+    // anyway, the seat's reconnect window runs out to the same end.
+    const ws = wsRef.current;
+    const deadline = Date.now() + 500;
+    while (ws && ws.readyState === WebSocket.OPEN && ws.bufferedAmount > 0 && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+  }, [sendRaw]);
 
   const sendAction = useCallback((action: GameAction) => {
     sendRaw({ type: 'GAME_ACTION', action });
@@ -296,6 +377,12 @@ export function useWebSocketGame(): WebSocketGameState {
     castAccessToken,
     playerSlot,
     roomMode,
+    roomKind,
+    seats,
+    seatsReceivedAt,
+    abandoned,
+    story,
+    gameNumber,
     publicState,
     privateState,
     audioEvent,
@@ -308,6 +395,7 @@ export function useWebSocketGame(): WebSocketGameState {
     rematchRequired,
     createRoom,
     joinRoom,
+    leaveRoom,
     resetRoomState,
     sendAction,
     requestRematch,

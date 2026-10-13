@@ -2224,6 +2224,8 @@ button.brown:hover:not(:disabled) {
 .endgame-record { font-size: 13px; color: var(--text-muted); margin-bottom: 12px; }
 .endgame-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
 .endgame-actions button { font-size: 17px; padding: 11px 26px; }
+/* Online rematch: "Waiting for Sam…" under the buttons, or why there's no rematch */
+.endgame-rematch-status { margin-top: 10px; font-size: 13px; color: var(--text-muted); font-style: italic; min-height: 1.2em; }
 @media (max-width: 420px) {
   .endgame-card { padding: 16px 12px 14px; }
   .endgame-title { margin-bottom: 6px; }
@@ -2238,6 +2240,92 @@ button.brown:hover:not(:disabled) {
   .endgame-actions { gap: 8px; }
   .endgame-actions button { font-size: 15px; padding: 10px 18px; }
 }
+/* --- Play a friend: presence, the friend's seat, leaving (2026-10-12) ----- */
+/* The dot on the friend's portrait: here / reconnecting / gone */
+.human-seat-portrait { position: relative; display: inline-flex; flex-shrink: 0; }
+.presence-dot {
+  position: absolute;
+  right: 2%;
+  bottom: 2%;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--bg);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.6);
+}
+.presence-dot-large { width: 14px; height: 14px; }
+.presence-dot-small { width: 10px; height: 10px; border-width: 1.5px; right: -1px; bottom: -1px; }
+.presence-dot-online { background: radial-gradient(circle at 35% 30%, #b8e08a, #6a8a40 70%); }
+.presence-dot-away {
+  background: radial-gradient(circle at 35% 30%, #fff1c4, var(--gold) 70%);
+  animation: presenceAway 1.4s ease-in-out infinite;
+}
+.presence-dot-gone { background: #5a4030; box-shadow: inset 0 0 0 2px #2d1c12; }
+@keyframes presenceAway { 50% { opacity: 0.35; } }
+
+/* Fixed top-center notice — never takes layout space on the board */
+.presence-banner {
+  position: fixed;
+  top: max(10px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 180;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(92vw, 520px);
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgba(20,10,5,0.94);
+  border: 1px solid var(--gold-dim);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+  animation: presenceBannerIn 260ms var(--anim-ease-standard) both;
+  pointer-events: none;
+}
+.presence-banner-away { border-color: var(--gold-dim); }
+.presence-banner-back { border-color: #6a8a40; }
+.presence-banner-self { border-color: var(--accent-red); }
+.presence-banner-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; background: var(--gold); animation: presenceAway 1.4s ease-in-out infinite; }
+.presence-banner-dot-away { background: var(--gold); }
+.presence-banner-dot-back { background: #8ab65a; animation: none; }
+.presence-banner-dot-self { background: var(--accent-red); }
+@keyframes presenceBannerIn { from { opacity: 0; transform: translate(-50%, -8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@media (max-width: 640px) {
+  /* clear of the phone topbar's gold and buttons: sits just under it */
+  .presence-banner { top: 54px; font-size: 13px; padding: 6px 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .presence-dot-away, .presence-banner-dot { animation: none; }
+  .presence-banner { animation: none; }
+}
+:root[data-contrast='high'] .presence-banner { background: #120a05; border-width: 2px; }
+:root[data-contrast='high'] .presence-dot { border-color: #000; }
+
+/* The friend's move: "Sam is choosing wares…" in place of the disabled hint */
+.waiting-hint { color: var(--gold); font-style: italic; }
+.waiting-hint::after { content: ''; display: inline-block; width: 1.1em; text-align: left; animation: waitingDots 1.4s steps(4, end) infinite; }
+@keyframes waitingDots { 0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; } }
+@media (prefers-reduced-motion: reduce) { .waiting-hint::after { animation: none; } }
+
+/* Server errors on the desktop board use the phone toast */
+.board-toast { z-index: 120; }
+
+/* The friend left / never came back: the endgame card, with one way home */
+.opponent-left-card { border-color: var(--gold-dim); width: min(440px, 100%); }
+.opponent-left-title { color: var(--gold); }
+.opponent-left-body { color: var(--text-muted); font-size: 15px; margin: 0 auto 16px; max-width: 26em; }
+.opponent-left-card .endgame-actions .primary {
+  background: linear-gradient(180deg, #f0cd78 0%, #d4a850 55%, #b88a38 100%);
+  border: none;
+  color: #2a1a0c;
+  box-shadow: inset 0 1px 0 rgba(255,245,210,0.7), 0 2px 0 #7a5418, 0 8px 20px rgba(0,0,0,0.4);
+}
+.opponent-left-card .endgame-actions .primary:hover { filter: brightness(1.06); }
+
 /* A win rains coins */
 .coin-shower { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
 .coin-shower-coin {
@@ -3114,3 +3202,6 @@ button.menu-abandon-link:hover:not(:disabled) { background: none; border: 0; col
   .linen-texture button.ware-pick:not(.primary):not(.danger):not(.brown) { transition: none; }
   .linen-texture button.ware-pick:not(.primary):not(.danger):not(.brown):hover:not(:disabled) { transform: none; }
 }
+
+/* Desktop: the turn hint sits in the "Your Hand" heading row, so it never adds height */
+.hand-head-hint { margin: 0 0 0 auto; text-align: right; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

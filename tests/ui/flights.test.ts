@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { createElement } from 'react';
 import { planFlights, snapshotForFlights, coinCount, anchorSelector, MAX_COINS_PER_FLIGHT } from '../../src/ui/flights.ts';
 import type { FlightSnapshot } from '../../src/ui/flights.ts';
+import { HIDDEN_CARD_ID } from '../../src/ui/onlineView.ts';
 import { CenterRow } from '../../src/ui/CenterRow.tsx';
 import { createTestState, toPlayPhase, act, withHand, withMarket, withGold, removeFromDeck } from '../helpers/testHelpers.ts';
 import type { GameAction } from '../../src/engine/types.ts';
@@ -217,6 +218,25 @@ describe('Ape / Lion: every pooled card flies from its owner into the draft pane
     expect(flights.every((f) => f.kind === 'card' && f.to.type === 'draft-card')).toBe(true);
     expect(flights.filter((f) => f.from.type === 'hand' && f.from.player === 1).map((f) => f.cardId)).toEqual(['drums_1', 'ware_3k_1', 'parrot_1']);
     expect(flights.find((f) => f.cardId === 'guard_1')?.from).toEqual({ type: 'hand', player: 0 });
+  });
+
+  it('online Ape: the friend\'s hidden cards still fly in from their hand, face up', () => {
+    // seat 1's hand is placeholders on seat 0's board (onlineView.toBoardState)
+    const prev = snap({ hands: [['guard_1', 'well_1'], [HIDDEN_CARD_ID, HIDDEN_CARD_ID, HIDDEN_CARD_ID]], utilityIds: [[], []], handCounts: [2, 3] });
+    const next = snap({
+      handCounts: [0, 0], logLength: 11, hands: [[], []], utilityIds: [[], []],
+      draft: { mode: 'cards', available: ['guard_1', 'well_1', 'drums_1', 'ware_3k_1', 'parrot_1'], picker: 0 },
+    });
+    const flights = planFlights(prev, next);
+    expect(flights).toHaveLength(5);
+    expect(flights.filter((f) => f.from.type === 'hand' && f.from.player === 1).map((f) => f.cardId)).toEqual(['drums_1', 'ware_3k_1', 'parrot_1']);
+    expect(flights.some((f) => f.cardId === HIDDEN_CARD_ID)).toBe(false);
+  });
+
+  it('an unknown card is not guessed when both seats (or neither) are hidden', () => {
+    const prev = snap({ hands: [[HIDDEN_CARD_ID], [HIDDEN_CARD_ID]], utilityIds: [[], []], handCounts: [1, 1] });
+    const next = snap({ handCounts: [0, 0], logLength: 11, hands: [[], []], utilityIds: [[], []], draft: { mode: 'cards', available: ['guard_1', 'well_1'], picker: 0 } });
+    expect(planFlights(prev, next).filter((f) => f.to.type === 'draft-card')).toEqual([]);
   });
 
   it('Lion: utilities fly in from each utility row', () => {

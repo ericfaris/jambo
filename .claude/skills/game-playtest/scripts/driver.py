@@ -229,6 +229,10 @@ class Game:
             self.stats['utilities'] += 1
         elif t == 'RESOLVE_INTERACTION':
             return self.realize_resolution(action['response'], before)
+        elif t == 'CANCEL_ACTION':
+            # The resolve panel's ✕ (only online seats decide to cancel)
+            x = self.ev("() => { const e = document.querySelector('.panel-cancel-x'); if (!e) return null; e.setAttribute('data-pt', 'pt-cancel-x'); const r = e.getBoundingClientRect(); return r.width ? 'pt-cancel-x' : null; }")
+            target = {'id': x, 'text': 'Cancel ✕', 'comps': 'PanelCancel'} if x else None
         if not target:
             return False
         self.click(target)
@@ -358,6 +362,55 @@ class Game:
         return False
 
     # ---------- main loop ----------
+    def act(self):
+        """The human seat's move: decide it, then do it through the UI."""
+        # human decision — let React effects (modals, panels) settle first
+        self.tick(300)
+        s = self.summary()
+        if s['responder'] not in self.human_seats or s['phase'] == 'GAME_OVER':
+            return
+        self.close_megaview()
+        if s['guard']:
+            self.stats['guard_prompts'] += 1
+        if s['rain']:
+            self.stats['rain_prompts'] += 1
+        action = self.ev(f'() => window.__ptDecide("{self.human_policy}", {self.eps})')
+        if action is None:
+            self.finding('AI_NULL', f'AI policy returned null for human seat at {s["pr"]}')
+            self.tick(1000)
+            return
+        at = self.stats.setdefault('action_types', {})
+        at[action['type']] = at.get(action['type'], 0) + 1
+        if action['type'] == 'PLAY_CARD':
+            nm = self.ev('(id) => window.__ptCardName(id)', action['cardId'])
+            self.stats['cards_played'][nm] = self.stats['cards_played'].get(nm, 0) + 1
+        if s['pr']:
+            k = s['pr']['type']
+            self.stats['res_types'][k] = self.stats['res_types'].get(k, 0) + 1
+            if self.stats['res_types'][k] == 1:
+                self.shot(f'res-{k}')
+        ok = False
+        try:
+            ok = self.realize(action, s)
+        except Exception as e:
+            self.log(f'  realize exception: {e}')
+        if ok:
+            self.stats['ui_actions'] += 1
+            return
+        # try exploring the panel for resolutions
+        if s['pr'] and action['type'] == 'RESOLVE_INTERACTION':
+            if self.explore_resolution(s):
+                self.stats['ui_actions'] += 1
+                return
+        ch, ns = self.changed(s)
+        if ch:
+            return
+        self.finding('UI_GAP', f'Could not perform {json.dumps(action)[:200]} via UI (pr={s["pr"]}, guard={s["guard"]}, rain={s["rain"]}, viewer-responder={s["responder"]}, cp={s["cp"]})',
+                     key=('gap', action['type'], (s['pr'] or {}).get('type'), (action.get('response') or {}).get('type'), s['guard'], s['rain']))
+        self.ev('(a) => window.__ptDispatch(a)', action)
+        self.stats['fallbacks'] += 1
+        self.tick(300)
+
     def play(self, max_steps=4000):
         stagnant = 0
         last_n = -1
@@ -409,51 +462,202 @@ class Game:
                     stagnant = 0
                 continue
             stagnant = 0
-            # human decision — let React effects (modals, panels) settle first
-            self.tick(300)
-            s = self.summary()
-            if s['responder'] not in self.human_seats or s['phase'] == 'GAME_OVER':
-                continue
-            self.close_megaview()
-            if s['guard']:
-                self.stats['guard_prompts'] += 1
-            if s['rain']:
-                self.stats['rain_prompts'] += 1
-            action = self.ev(f'() => window.__ptDecide("{self.human_policy}", {self.eps})')
-            if action is None:
-                self.finding('AI_NULL', f'AI policy returned null for human seat at {s["pr"]}')
-                self.tick(1000)
-                continue
-            if action['type'] == 'PLAY_CARD':
-                nm = self.ev('(id) => window.__ptCardName(id)', action['cardId'])
-                self.stats['cards_played'][nm] = self.stats['cards_played'].get(nm, 0) + 1
-            if s['pr']:
-                k = s['pr']['type']
-                self.stats['res_types'][k] = self.stats['res_types'].get(k, 0) + 1
-                if self.stats['res_types'][k] == 1:
-                    self.shot(f'res-{k}')
-            ok = False
-            try:
-                ok = self.realize(action, s)
-            except Exception as e:
-                self.log(f'  realize exception: {e}')
-            if ok:
-                self.stats['ui_actions'] += 1
-                continue
-            # try exploring the panel for resolutions
-            if s['pr'] and action['type'] == 'RESOLVE_INTERACTION':
-                if self.explore_resolution(s):
-                    self.stats['ui_actions'] += 1
-                    continue
-            ch, ns = self.changed(s)
-            if ch:
-                continue
-            self.finding('UI_GAP', f'Could not perform {json.dumps(action)[:200]} via UI (pr={s["pr"]}, guard={s["guard"]}, rain={s["rain"]}, viewer-responder={s["responder"]}, cp={s["cp"]})',
-                         key=('gap', action['type'], (s['pr'] or {}).get('type'), (action.get('response') or {}).get('type'), s['guard'], s['rain']))
-            self.ev('(a) => window.__ptDispatch(a)', action)
-            self.stats['fallbacks'] += 1
-            self.tick(300)
+            self.act()
         return self.summary()
+
+
+
+# ---------------------------------------------------------------------------
+# Online (Play a friend): two browsers against the real server. The same
+# Game loop and click realizers, but each page reads its own seat's view
+# (window.__jamboOnline, dev builds only) and decides with the phone policy
+# (scripts/lib/phonePolicy.ts) — it never sees the friend's hand or the deck.
+# ---------------------------------------------------------------------------
+
+JS_ONLINE = r"""
+window.__pt = window.__pt || {};
+window.__ptOnline = { n: 0, pub: null, priv: null };
+window.__ptLoad = async () => {
+  if (window.__pt.pp) return true;
+  const pp = await import('/scripts/lib/phonePolicy.ts');
+  const ov = await import('/src/ui/onlineView.ts');
+  const cd = await import('/src/engine/cards/CardDatabase.ts');
+  Object.assign(window.__pt, { pp, ov, cd });
+  return true;
+};
+window.__ptView = () => {
+  const o = window.__jamboOnline;
+  const v = o.view();
+  const t = window.__ptOnline;
+  if (v.pub !== t.pub || v.priv !== t.priv) { t.n++; t.pub = v.pub; t.priv = v.priv; }
+  return { o, pub: v.pub, priv: v.priv };
+};
+window.__ptSummary = () => {
+  const { o, pub, priv } = window.__ptView();
+  const pr = priv.pendingResolution
+    ? { type: priv.pendingResolution.type, step: priv.pendingResolution.step ?? null, source: priv.pendingResolution.sourceCard ?? null }
+    : (pub.pendingResolutionType ? { type: pub.pendingResolutionType, step: null, source: null } : null);
+  return {
+    slot: o.slot, turn: pub.turn, phase: pub.phase, cp: pub.currentPlayer, actionsLeft: pub.actionsLeft,
+    responder: window.__pt.ov.responderFromPublic(pub), pr,
+    guard: !!pub.pendingGuardReaction, rain: !!pub.pendingWareCardReaction,
+    gold: [pub.players[0].gold, pub.players[1].gold],
+    hand: [pub.players[0].handCount, pub.players[1].handCount],
+    deck: pub.deckCount, discard: pub.discardPile.length,
+    endgame: pub.endgame, error: null, nActions: window.__ptOnline.n,
+    drawnCard: priv.drawnCard, violations: [],
+    lastLog: pub.log.length ? pub.log[pub.log.length - 1] : null,
+  };
+};
+window.__ptDecide = () => {
+  const { o, pub, priv } = window.__ptView();
+  return window.__pt.pp.chooseAction(pub, priv, o.slot, Math.random, { cancelRate: 0.08, endTurnRate: 0.15 });
+};
+window.__ptDispatch = (a) => window.__jamboOnline.send(a);
+window.__ptCardName = (id) => { try { return window.__pt.cd.getCard(id).name; } catch { return id; } };
+window.__ptFull = () => window.__jamboOnline.boardState();
+"""
+
+
+class OnlineGame(Game):
+    """One seat of a friend game, played in its own browser page."""
+
+    def __init__(self, pg, gid, slot, eps, log):
+        super().__init__(pg, gid, 'online', 'phone-policy', 'phone-policy', eps, log)
+        self.slot = slot
+        self.human_seats = [slot]
+
+    def tick(self, ms=400):
+        # Real time: the server, not a fake clock, drives the game
+        self.pg.wait_for_timeout(ms)
+
+    def shot(self, tag):
+        return super().shot(f's{self.slot}-{tag}')
+
+
+def _online_page(browser, viewport, errs, label):
+    vw, vh = viewport
+    phone = vw <= 640
+    ctx = browser.new_context(viewport={'width': vw, 'height': vh}, is_mobile=phone, has_touch=phone, reduced_motion='reduce')
+    ctx.add_init_script("try { localStorage.setItem('jambo.tutorialSeen','true'); localStorage.setItem('jambo.uxDebugCounters','false'); localStorage.setItem('jambo.ambientMotion','false'); } catch (e) {}")
+    pg = ctx.new_page()
+    pg.on('pageerror', lambda e: errs.append(f'{label} PAGEERROR {e}'))
+    pg.on('console', lambda m: errs.append(f'{label} console.{m.type}: {m.text}') if m.type == 'error' else None)
+    return ctx, pg
+
+
+def _goto(pg, url):
+    for attempt in range(4):
+        try:
+            pg.goto(url)
+            return
+        except Exception:
+            if attempt == 3:
+                raise
+            time.sleep(2)
+
+
+def run_online(gid, eps, seed, max_steps=3000):
+    random.seed(seed)
+    logf = open(f'{S}/game{gid}.log', 'w')
+    def log(m):
+        print(m, flush=True); logf.write(m + '\n'); logf.flush()
+    os.makedirs(f'{S}/shots', exist_ok=True)
+    errs = []
+    with sync_playwright() as p:
+        b = p.chromium.launch(headless=True)
+        vb = tuple(int(x) for x in os.environ.get('PT_VIEWPORT', '1400x900').split('x'))
+        _, pa = _online_page(b, (1400, 900), errs, 'A')
+        _, pb = _online_page(b, vb, errs, 'B')
+        log(f'=== Game {gid}: online (friend room), B at {vb[0]}x{vb[1]}')
+        _goto(pa, BASE)
+        pa.get_by_role('button', name='Play a friend').click()
+        pa.wait_for_selector('.friend-lobby-link', timeout=40000)
+        link = pa.locator('.friend-lobby-link').input_value()
+        log(f'  invite {link}')
+        _goto(pb, link)
+        for pg in (pa, pb):
+            pg.wait_for_function('() => !!window.__jamboOnline', timeout=30000)
+            pg.add_script_tag(content=JS_ONLINE)
+            pg.evaluate('() => window.__ptLoad()')
+        ga = OnlineGame(pa, gid, pa.evaluate('() => window.__jamboOnline.slot'), eps, log)
+        gb = OnlineGame(pb, gid, pb.evaluate('() => window.__jamboOnline.slot'), eps, log)
+        if {ga.slot, gb.slot} != {0, 1}:
+            raise SystemExit(f'seats {ga.slot}/{gb.slot}')
+        by_slot = {ga.slot: ga, gb.slot: gb}
+        # the coin toss covers the board for a few seconds
+        for pg in (pa, pb):
+            pg.wait_for_function("() => !document.querySelector('.coin-toss')", timeout=20000)
+        ga.shot('start'); gb.shot('start')
+        t0 = time.time()
+        stagnant, last_n, turn_seen = 0, None, -1
+        final = None
+        for step in range(max_steps):
+            s = ga.summary()
+            if s['phase'] == 'GAME_OVER':
+                final = s
+                break
+            if s['turn'] != turn_seen:
+                turn_seen = s['turn']
+                if s['turn'] % 5 == 0:
+                    log(f'  turn {s["turn"]} gold {s["gold"]} deck {s["deck"]}')
+                if s['turn'] > 200:
+                    ga.finding('LONG_GAME', 'turn > 200, aborting')
+                    break
+            g = by_slot[s['responder']]
+            before = (s['nActions'], gb.summary()['nActions'])
+            g.act()
+            g.tick(150)
+            after = (ga.summary()['nActions'], gb.summary()['nActions'])
+            if after == before:
+                stagnant += 1
+                if stagnant >= 8:
+                    g.finding('STALL', f'no state change after 8 attempts (pr={s["pr"]}, guard={s["guard"]}, rain={s["rain"]}, responder={s["responder"]})')
+                    a = g.ev('() => window.__ptDecide()')
+                    if a:
+                        g.ev('(a) => window.__ptDispatch(a)', a)
+                        g.stats['fallbacks'] += 1
+                    stagnant = 0
+            else:
+                stagnant = 0
+        final = final or ga.summary()
+        log(f'  game over: turn {final["turn"]} gold {final["gold"]} wall {round(time.time() - t0)}s')
+        # endgame card + story on both, then a rematch
+        rematch = {}
+        if final['phase'] == 'GAME_OVER':
+            ga.tick(6000)
+            ga.shot('endgame'); gb.shot('endgame')
+            for g in (ga, gb):
+                ga.close_megaview(); gb.close_megaview()
+            pa.get_by_role('button', name='Rematch').first.click()
+            pa.wait_for_timeout(800)
+            rematch['waiting_line'] = pa.locator('.endgame-rematch-status').inner_text() if pa.locator('.endgame-rematch-status').count() else None
+            pb.get_by_role('button', name='Rematch').first.click()
+            try:
+                pa.wait_for_selector('.coin-toss', timeout=15000)
+                rematch['coin_toss'] = True
+            except Exception:
+                rematch['coin_toss'] = False
+            pa.wait_for_timeout(1000)
+            v = pa.evaluate('() => { const v = window.__jamboOnline.view(); return { phase: v.pub.phase, log: v.pub.log.length }; }')
+            rematch['new_game'] = v['phase'] != 'GAME_OVER' and v['log'] <= 1
+            ga.shot('rematch')
+            log(f'  rematch: {rematch}')
+        stats = {}
+        for g in (ga, gb):
+            for k, v in g.stats.items():
+                if isinstance(v, dict):
+                    d = stats.setdefault(k, {})
+                    for kk, vv in v.items():
+                        d[kk] = d.get(kk, 0) + vv
+                else:
+                    stats[k] = stats.get(k, 0) + v
+        res = {'gid': gid, 'mode': 'online', 'final': final, 'stats': stats, 'findings': ga.findings + gb.findings,
+               'console_errors': errs[:50], 'wall_s': round(time.time() - t0), 'rematch': rematch}
+        json.dump(res, open(f'{S}/game{gid}.json', 'w'), indent=1, default=str)
+        log(f'=== Game {gid} done: phase={final["phase"]} turn={final["turn"]} gold={final["gold"]} findings={len(res["findings"])} console_errors={len(errs)} fallbacks={stats.get("fallbacks", 0)}')
+        log(f'  coverage: actions {stats.get("action_types")} resolutions {stats.get("res_types")} guard prompts {stats.get("guard_prompts")} rain prompts {stats.get("rain_prompts")}')
+        b.close()
 
 
 def run_game(gid, mode, difficulty, human_policy, eps, seed):
@@ -483,12 +687,16 @@ def run_game(gid, mode, difficulty, human_policy, eps, seed):
         pg.evaluate('() => window.__ptLoad()')
         g = Game(pg, gid, mode, difficulty, human_policy, eps, log)
         log(f'=== Game {gid}: mode={mode} ai={difficulty} human-policy={human_policy} eps={eps}')
-        pg.get_by_role('button', name='Play Solo' if mode == 'solo' else 'Multiplayer').click()
-        pg.clock.run_for(300)
-        g.shot('setup')
+        # Landing page (2026-10-12 redesign): pick a trader, then the big CTA;
+        # pass and play is in the modes row
         if mode == 'solo':
-            pg.get_by_role('button', name=difficulty.capitalize()).click()
-        pg.get_by_role('button', name='Start Game').click()
+            pg.locator('.landing-trader', has_text=difficulty).first.click()
+            pg.clock.run_for(300)
+            g.shot('setup')
+            pg.locator('.landing-cta').first.click()
+        else:
+            g.shot('setup')
+            pg.get_by_role('button', name='Pass & play').click()
         # first player reveal
         for _ in range(20):
             pg.clock.run_for(500)
@@ -539,7 +747,10 @@ def run_game(gid, mode, difficulty, human_policy, eps, seed):
 
 
 USAGE = """usage: driver.py GAME_ID MODE AI_DIFFICULTY HUMAN_POLICY EPSILON SEED
-  MODE           solo | hotseat
+  MODE           solo | hotseat | online
+                 online: two browsers play a Play-a-friend game against the
+                 real server (start it + Vite proxied to it first); both seats
+                 use the phone policy, AI_DIFFICULTY/HUMAN_POLICY are ignored
   AI_DIFFICULTY  easy | medium | hard | expert  (opponent; ignored for hotseat)
   HUMAN_POLICY   difficulty used to choose the human seat's moves
   EPSILON        0..1 chance of a random valid action instead (exploration)
@@ -551,4 +762,7 @@ if __name__ == '__main__':
     if len(sys.argv) != 7:
         sys.exit(USAGE)
     gid, mode, diff, pol, eps, seed = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], float(sys.argv[5]), int(sys.argv[6])
-    run_game(int(gid), mode, diff, pol, eps, seed)
+    if mode == 'online':
+        run_online(int(gid), eps, seed)
+    else:
+        run_game(int(gid), mode, diff, pol, eps, seed)

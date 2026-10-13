@@ -584,3 +584,40 @@ overwrites tracked files.)
   (verify and reset links) print to the server log as `[mail:dev]`.
 - **Don't `pkill -f` a pattern that appears in your own command line.** It
   kills the shell running it (exit 144). Kill by the PID listening on the port.
+
+## 2026-10-13 — Play a friend online (v1.23.0)
+- **One board, two feeds.** GameScreen's table became `GameBoard` (state +
+  dispatch + viewer seat); solo/hotseat feed it the local store, online feeds
+  it `toBoardState(public, private)`. Tutorial and pass-device screens became
+  a `cover` prop instead of an early return, so board state survives a handoff.
+- **Hidden cards are placeholders, not `[]`.** Hyena/Ape/Tribal Elder
+  validation and the card-back fan read the opponent's hand *length*; an empty
+  array silently changed verdicts. `HIDDEN_CARD_ID` × count keeps lengths right;
+  never `getCard()` one.
+- **"Whose move" comes from the public view.** The synthesized
+  `pendingResolution` is null while the opponent resolves; use
+  `responderFromPublic`. A property test pins it to the engine's `getResponder`.
+- **A replaced WebSocket must go quiet.** StrictMode's remount left the old
+  socket's handlers live: its `onopen` set `connected` while `wsRef` pointed at
+  a socket still connecting, so a send right then (CREATE_ROOM) was dropped and
+  the lobby hung on "Setting the table". Handlers now check
+  `wsRef.current === ws`; the E2E clicks "Play a friend" immediately to catch it.
+- **Overlays that start on a fresh game must latch.** The coin toss showed
+  while `log.length === 0`; a friend who went first and moved at once made it
+  vanish mid-spin. Latch it once started.
+- **A row of its own for a hint makes a fitted board scroll.** The desktop
+  "wait for your turn" line pushed the board 10px past 900px (solo too, since
+  the tableau polish). It now sits in the Your Hand heading row.
+- **React warns when `margin` and `marginBottom` trade places on one div** —
+  a draft pool crossing 8 cards switches layouts on the same element. Use
+  longhands in style helpers that share an element.
+- **Driver online mode:** two pages, real time (no fake clock: the server
+  drives the game), each deciding with `scripts/lib/phonePolicy.ts` from its
+  own seat's view via `window.__jamboOnline` (dev builds only). The click
+  realizers are reused unchanged; it needed a `CANCEL_ACTION` realizer (the ✕),
+  since solo AIs never cancel.
+- **Port 3001 is taken on the lab box** (another container). Run the dev
+  server on 3031 and start Vite with `JAMBO_API_PORT=3031`.
+- **Showcase page on a phone:** the app's `body` is a flex row, so a page
+  dropped into it sizes to its widest child. Give the page wrapper
+  `width: 100%; min-width: 0`.
