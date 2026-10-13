@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { onlineLabels, rematchStatusLine, revealedGameKey, friendServerError } from '../../src/ui/onlineScreenLogic.ts';
+import { onlineLabels, rematchStatusLine, revealedGameKey, friendServerError, nameTheOpponent } from '../../src/ui/onlineScreenLogic.ts';
 import { friendlyPlayError } from '../../src/ui/uiHints.ts';
 
 describe('onlineLabels', () => {
@@ -51,5 +51,17 @@ describe('friendServerError', () => {
   });
   it('turns a malformed message into a retry hint', () => {
     expect(friendServerError('Invalid message', 'Sam', friendlyPlayError)).toMatch(/try again/);
+  });
+});
+
+describe('nameTheOpponent', () => {
+  it('names the friend in engine copy', () => {
+    expect(nameTheOpponent('Give 2g to opponent', 'Sam')).toBe('Give 2g to Sam');
+    expect(nameTheOpponent('Let opponent draw 2 cards', 'Sam')).toBe('Let Sam draw 2 cards');
+    expect(nameTheOpponent("pick 1 of your opponent's wares", 'Sam')).toBe("pick 1 of Sam's wares");
+    expect(nameTheOpponent("Opponent's hand", 'Sam')).toBe("Sam's hand");
+  });
+  it('leaves solo / hotseat / Cast copy alone', () => {
+    expect(nameTheOpponent('Give 2g to opponent', null)).toBe('Give 2g to opponent');
   });
 });

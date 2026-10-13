@@ -57,16 +57,24 @@ export function OnlineGameScreen({ ws, onLeftToMenu }: { ws: WebSocketGameState;
     clearError();
   }, [error, clearError, name]);
 
-  // Coin toss: once per game per tab (a refresh doesn't replay it)
+  // Coin toss: once per game per tab (a refresh doesn't replay it). It
+  // starts on a fresh game and then plays out even if the friend, going
+  // first, moves while it spins.
   const [revealDone, setRevealDone] = useState<number | null>(() => readRevealed(ws.roomCode));
-  const showReveal = !!pub && ws.gameNumber !== null && ws.gameNumber !== revealDone && pub.log.length === 0 && pub.phase !== 'GAME_OVER';
+  const [revealing, setRevealing] = useState<number | null>(null);
+  const pending = ws.gameNumber !== null && ws.gameNumber !== revealDone;
+  const freshGame = !!pub && pub.log.length === 0 && pub.phase !== 'GAME_OVER';
+  const showReveal = pending && (freshGame || revealing === ws.gameNumber);
   useEffect(() => {
-    // Joined mid-game: there's nothing to toss for
-    if (pub && ws.gameNumber !== null && ws.gameNumber !== revealDone && pub.log.length > 0) {
+    if (!pub || !pending || ws.gameNumber === null) return;
+    if (freshGame) {
+      if (revealing !== ws.gameNumber) setRevealing(ws.gameNumber);
+    } else if (revealing !== ws.gameNumber) {
+      // Joined mid-game: there's nothing to toss for
       writeRevealed(ws.roomCode, ws.gameNumber);
       setRevealDone(ws.gameNumber);
     }
-  }, [pub, ws.gameNumber, ws.roomCode, revealDone]);
+  }, [pub, pending, freshGame, revealing, ws.gameNumber, ws.roomCode]);
   const handleRevealDone = useCallback(() => {
     if (ws.gameNumber === null) return;
     writeRevealed(ws.roomCode, ws.gameNumber);

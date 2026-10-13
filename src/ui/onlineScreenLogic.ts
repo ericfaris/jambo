@@ -37,3 +37,17 @@ export function friendServerError(message: string, friendName: string, friendly:
   if (message === 'Invalid message') return 'That move didn’t go through — try again.';
   return friendly(message.replace(/^Invalid action [A-Z_]+:\s*/, ''));
 }
+
+/**
+ * Engine copy says "opponent" ("Give 2g to opponent"); online it should be
+ * the friend's name. Null name (solo, hotseat, Cast) leaves the text alone.
+ */
+export function nameTheOpponent(text: string, friendName: string | null): string {
+  if (!friendName) return text;
+  return text
+    .replace(/\byour opponent's\b/g, `${friendName}'s`)
+    .replace(/\bopponent's\b/g, `${friendName}'s`)
+    .replace(/\bOpponent's\b/g, `${friendName}'s`)
+    .replace(/\byour opponent\b/g, friendName)
+    .replace(/\b[Oo]pponent\b/g, friendName);
+}

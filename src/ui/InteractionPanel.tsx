@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
+import { nameTheOpponent } from './onlineScreenLogic.ts';
 import { throneGiveOptions, throneStealOptions } from '../engine/market/throneSwap.ts';
 import type { GameState, PendingResolution, InteractionResponse, WareType, DeckCardId } from '../engine/types.ts';
 import { WARE_TYPES } from '../engine/types.ts';
@@ -43,7 +44,9 @@ export function getCardGridStyle(cardCount: number) {
       justifyContent: 'center',
       justifyItems: 'center',
       alignContent: 'start',
-      margin: '0 auto',
+      // longhands: one div swaps between these styles as a pool shrinks, and
+      // React warns when a shorthand and its longhand trade places
+      marginTop: 0, marginRight: 'auto', marginLeft: 'auto',
       maxHeight: 'min(42vh, 360px)',
       overflowY: 'auto',
       overflowX: 'hidden',
@@ -62,13 +65,13 @@ export function getCardGridStyle(cardCount: number) {
     alignItems: 'start',
     justifyItems: 'center',
     alignContent: 'start',
-    margin: '0 auto',
+    marginTop: 0, marginRight: 'auto', marginLeft: 'auto',
     maxHeight: 'min(42vh, 360px)',
     overflowY: 'auto',
     overflowX: 'hidden',
     // room for a card's hover lift (8px up, a little scale, its shadow) inside the scroller
     padding: `${CARD_HOVER_ROOM_PX}px ${CARD_HOVER_ROOM_PX - 4}px ${CARD_HOVER_ROOM_PX * 3}px`,
-      marginBottom: -20, // the shadow room overlaps what follows instead of adding a gap
+    marginBottom: -20, // the shadow room overlaps what follows instead of adding a gap
   } as const;
 }
 
@@ -86,7 +89,7 @@ function getWareGridStyle(wareCount: number) {
       justifyContent: 'center',
       justifyItems: 'center',
       alignContent: 'start',
-      margin: '0 auto',
+      marginTop: 0, marginRight: 'auto', marginBottom: 0, marginLeft: 'auto',
     } as const;
   }
   return {
@@ -97,7 +100,7 @@ function getWareGridStyle(wareCount: number) {
     maxWidth: '100%',
     justifyItems: 'center',
     alignContent: 'start',
-    margin: '0 auto',
+    marginTop: 0, marginRight: 'auto', marginBottom: 0, marginLeft: 'auto',
   } as const;
 }
 
@@ -182,9 +185,10 @@ function SelectableCardArea({
 /** Online: who "the opponent" is. Solo/hotseat/Cast keep the generic copy. */
 const OpponentNameContext = createContext<string | null>(null);
 
-function useOpponentName(): { Name: string; name: string } {
+function useOpponentName(): { Name: string; name: string; say: (text: string) => string } {
   const named = useContext(OpponentNameContext);
-  return named ? { Name: named, name: named } : { Name: 'Opponent', name: 'opponent' };
+  const say = (text: string) => nameTheOpponent(text, named);
+  return named ? { Name: named, name: named, say } : { Name: 'Opponent', name: 'opponent', say };
 }
 
 export function InteractionPanel(props: InteractionPanelProps) {
@@ -590,13 +594,14 @@ function WareTypePicker({ prompt, onPick, exclude, blocked }: { prompt: string; 
 }
 
 function BinaryChoicePanel({ options, onChoice, blocked }: { options: [string, string]; onChoice: (c: 0 | 1) => void; blocked?: (c: 0 | 1) => string | null }) {
+  const { say } = useOpponentName();
   return (
     <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
       {([0, 1] as const).map((c) => {
         const reason = blocked?.(c) ?? null;
         return (
           <button key={c} className="primary" disabled={reason !== null} title={reason ?? undefined} onClick={() => onChoice(c)}>
-            {options[c]}{reason ? ` (${reason})` : ''}
+            {say(options[c])}{reason ? ` (${say(reason)})` : ''}
           </button>
         );
       })}
@@ -900,6 +905,7 @@ function WareTheftSinglePanel({ state, dispatch }: { state: GameState; dispatch:
 }
 
 function WareTheftSwapPanel({ state, pr, dispatch }: { state: GameState; pr: Extract<PendingResolution, { type: 'WARE_THEFT_SWAP' }>; dispatch: InteractionPanelProps['dispatch'] }) {
+  const { say } = useOpponentName();
   const cp = state.currentPlayer;
   const opponent: 0 | 1 = cp === 0 ? 1 : 0;
   const giving = pr.step === 'GIVE' || !pr.givenWare;
@@ -935,7 +941,7 @@ function WareTheftSwapPanel({ state, pr, dispatch }: { state: GameState; pr: Ext
   return (
     <div>
       <div className="ui-prompt-text" style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-        Step 2/2: pick 1 of your opponent's wares ({options.length} available) to take for
+        Step 2/2: pick 1 of {say("your opponent's")} wares ({options.length} available) to take for
         {pr.givenWare && <WareToken type={pr.givenWare} size={28} />}
       </div>
       <MarketDisplay
@@ -950,7 +956,7 @@ function WareTheftSwapPanel({ state, pr, dispatch }: { state: GameState; pr: Ext
 
 
 function HandSwapPanel({ state, pr, dispatch, onMegaView }: { state: GameState; pr: Extract<PendingResolution, { type: 'HAND_SWAP' }>; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
-  const { Name } = useOpponentName();
+  const { Name, say } = useOpponentName();
   const cp = state.currentPlayer;
   if (pr.step === 'TAKE') {
     if (pr.revealedHand.length === 0) {
@@ -966,7 +972,7 @@ function HandSwapPanel({ state, pr, dispatch, onMegaView }: { state: GameState; 
     return (
       <div>
         <div className="ui-prompt-text">
-          Step 1/2: take 1 card from opponent's hand ({pr.revealedHand.length} available).
+          Step 1/2: take 1 card from {say("opponent's")} hand ({pr.revealedHand.length} available).
         </div>
         <SelectableCardArea
           cards={pr.revealedHand}
@@ -980,7 +986,7 @@ function HandSwapPanel({ state, pr, dispatch, onMegaView }: { state: GameState; 
   return (
     <div>
       <div className="ui-prompt-text">
-        Step 2/2: give 1 card to opponent ({giveOptions.length} valid choices).
+        Step 2/2: give 1 card to {say('opponent')} ({giveOptions.length} valid choices).
       </div>
       <div className="ui-helper-text" style={{ marginBottom: 8, opacity: 0.9 }}>
         You cannot give back the card you just took.
