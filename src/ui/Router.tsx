@@ -9,6 +9,7 @@ import { CastLobby } from './CastLobby.tsx';
 import { PlayerScreen } from './PlayerScreen.tsx';
 import { TVScreen } from './TVScreen.tsx';
 import { DevPlayerPreview, isDevPlayerMode } from './DevPlayerPreview.tsx';
+import { DevOnlinePreview, isDevOnlineMode } from './DevOnlinePreview.tsx';
 import { MainMenu } from './screens/MainMenu.tsx';
 import { SettingsScreen } from './screens/SettingsScreen.tsx';
 import { applyDocumentPreferences, readPreferences } from './preferences.ts';
@@ -119,6 +120,11 @@ export function Router() {
   // Dev mode: ?player=1 renders the phone PlayerScreen with local game state
   if (isDevPlayerMode()) {
     return <DevPlayerPreview />;
+  }
+
+  // Dev mode: ?online=1 renders the online (friend) board with local game state
+  if (isDevOnlineMode()) {
+    return <DevOnlinePreview />;
   }
 
   return <RouterInner />;

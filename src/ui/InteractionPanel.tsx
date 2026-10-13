@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { throneGiveOptions, throneStealOptions } from '../engine/market/throneSwap.ts';
 import type { GameState, PendingResolution, InteractionResponse, WareType, DeckCardId } from '../engine/types.ts';
 import { WARE_TYPES } from '../engine/types.ts';
@@ -17,6 +17,8 @@ interface InteractionPanelProps {
   onMegaView?: (cardId: DeckCardId) => void;
   /** Cast clients pass this from PublicGameState; local play derives it from state. */
   canCancel?: boolean;
+  /** Online: the friend's name, so waiting copy says who ("Sam is picking…"). */
+  opponentName?: string;
 }
 
 function resolve(dispatch: InteractionPanelProps['dispatch'], response: InteractionResponse) {
@@ -177,12 +179,28 @@ function SelectableCardArea({
   );
 }
 
-export function InteractionPanel({ state, dispatch, viewerPlayer = 0, onMegaView, canCancel }: InteractionPanelProps) {
+/** Online: who "the opponent" is. Solo/hotseat/Cast keep the generic copy. */
+const OpponentNameContext = createContext<string | null>(null);
+
+function useOpponentName(): { Name: string; name: string } {
+  const named = useContext(OpponentNameContext);
+  return named ? { Name: named, name: named } : { Name: 'Opponent', name: 'opponent' };
+}
+
+export function InteractionPanel(props: InteractionPanelProps) {
+  const body = <InteractionPanelBody {...props} />;
+  return props.opponentName
+    ? <OpponentNameContext.Provider value={props.opponentName}>{body}</OpponentNameContext.Provider>
+    : body;
+}
+
+function InteractionPanelBody({ state, dispatch, viewerPlayer = 0, onMegaView, canCancel }: InteractionPanelProps) {
+  const { Name, name } = useOpponentName();
   // Guard reaction
   if (state.pendingGuardReaction) {
     const animalCard = getCard(state.pendingGuardReaction.animalCard);
     const isMyReaction = state.pendingGuardReaction.targetPlayer === viewerPlayer;
-    if (!isMyReaction) return <PanelShell title="Waiting: opponent deciding Guard reaction" />;
+    if (!isMyReaction) return <PanelShell title={`Waiting: ${name} deciding Guard reaction`} />;
     const guardCardId = findHandCardByDesign(state, viewerPlayer, 'guard');
     return (
       <PanelShell title={`${animalCard.name} played! Play Guard to cancel?`} sourceCardId={state.pendingGuardReaction.animalCard} onMegaView={onMegaView}>
@@ -201,12 +219,12 @@ export function InteractionPanel({ state, dispatch, viewerPlayer = 0, onMegaView
   // Ware card reaction
   if (state.pendingWareCardReaction) {
     const isMyReaction = state.pendingWareCardReaction.targetPlayer === viewerPlayer;
-    if (!isMyReaction) return <PanelShell title="Waiting: opponent deciding Rain Maker reaction" />;
+    if (!isMyReaction) return <PanelShell title={`Waiting: ${name} deciding Rain Maker reaction`} />;
     const rainMakerCardId = findHandCardByDesign(state, viewerPlayer, 'rain_maker');
     const opponentWareCard = getCard(state.pendingWareCardReaction.wareCardId);
     return (
       <PanelShell
-        title="Opponent used a ware card! Play Rain Maker to take it?"
+        title={`${Name} used a ware card! Play Rain Maker to take it?`}
         sourceCardId={state.pendingWareCardReaction.wareCardId}
         onMegaView={onMegaView}
         sourceCardOverlay={opponentWareCard.wares ? (
@@ -662,6 +680,7 @@ function AuctionBidBoard({ pr, viewerPlayer, myGold, onBid, onPass, canAfford, i
   canAfford: boolean;
   isMyBid: boolean;
 }) {
+  const { Name, name } = useOpponentName();
   const nextBid = pr.currentBid + 1;
   const leading = pr.currentBid > 0 ? (pr.currentBidder === viewerPlayer ? 'mine' : 'theirs') : 'none';
   return (
@@ -673,7 +692,7 @@ function AuctionBidBoard({ pr, viewerPlayer, myGold, onBid, onPass, canAfford, i
             {pr.currentBid > 0 ? pr.currentBid : '–'}
           </span>
           <span className={`auction-leader auction-leader-${leading}`}>
-            {leading === 'mine' ? 'You lead' : leading === 'theirs' ? 'Opponent leads' : 'No bids yet'}
+            {leading === 'mine' ? 'You lead' : leading === 'theirs' ? `${Name} leads` : 'No bids yet'}
           </span>
         </div>
         <div className="auction-purse">
@@ -695,7 +714,7 @@ function AuctionBidBoard({ pr, viewerPlayer, myGold, onBid, onPass, canAfford, i
         </>
       ) : (
         <div className="auction-waiting" role="status">
-          Waiting for opponent bid<span className="auction-waiting-dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span>
+          Waiting for {name === 'opponent' ? 'opponent bid' : `${name}'s bid`}<span className="auction-waiting-dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span>
         </div>
       )}
     </div>
@@ -931,12 +950,13 @@ function WareTheftSwapPanel({ state, pr, dispatch }: { state: GameState; pr: Ext
 
 
 function HandSwapPanel({ state, pr, dispatch, onMegaView }: { state: GameState; pr: Extract<PendingResolution, { type: 'HAND_SWAP' }>; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
+  const { Name } = useOpponentName();
   const cp = state.currentPlayer;
   if (pr.step === 'TAKE') {
     if (pr.revealedHand.length === 0) {
       return (
         <div>
-          <div className="ui-prompt-text">Opponent has no cards to take.</div>
+          <div className="ui-prompt-text">{Name} has no cards to take.</div>
           <button className="primary" onClick={() => resolve(dispatch, { type: 'SELECT_CARD', cardId: '' })} style={{ margin: '8px auto 0', display: 'block' }}>
             Continue
           </button>
@@ -975,6 +995,7 @@ function HandSwapPanel({ state, pr, dispatch, onMegaView }: { state: GameState; 
 }
 
 function OpponentDiscardPanel({ state, pr, viewerPlayer, dispatch, onMegaView }: { state: GameState; pr: Extract<PendingResolution, { type: 'OPPONENT_DISCARD' }>; viewerPlayer: 0 | 1; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
+  const { Name } = useOpponentName();
   const [selected, setSelected] = useState<number[]>([]);
   const target = state.players[pr.targetPlayer];
   const discardCount = target.hand.length - pr.discardTo;
@@ -984,7 +1005,7 @@ function OpponentDiscardPanel({ state, pr, viewerPlayer, dispatch, onMegaView }:
     return (
       <div>
         <div className="ui-prompt-text">
-          Opponent has {target.hand.length} card(s); discard target is {pr.discardTo}. No cards need to be discarded.
+          {Name} has {target.hand.length} card(s); discard target is {pr.discardTo}. No cards need to be discarded.
         </div>
         <button className="primary" onClick={() => resolve(dispatch, { type: 'OPPONENT_DISCARD_SELECTION', cardIndices: [] })} style={{ margin: '8px auto 0', display: 'block' }}>
           Continue
@@ -994,7 +1015,7 @@ function OpponentDiscardPanel({ state, pr, viewerPlayer, dispatch, onMegaView }:
   }
 
   if (pr.targetPlayer !== viewerPlayer) {
-    return <div className="ui-helper-text">Opponent is choosing cards to discard...</div>;
+    return <div className="ui-helper-text">{Name} is choosing cards to discard...</div>;
   }
 
   const toggleCard = (i: number) => {
@@ -1020,6 +1041,7 @@ function OpponentDiscardPanel({ state, pr, viewerPlayer, dispatch, onMegaView }:
 }
 
 function DraftPanel({ pr, viewerPlayer, dispatch, onMegaView }: { pr: Extract<PendingResolution, { type: 'DRAFT' }>; viewerPlayer: 0 | 1; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
+  const { Name } = useOpponentName();
   const isMyPick = pr.currentPicker === viewerPlayer;
 
   if (pr.draftMode === 'wares') {
@@ -1028,7 +1050,7 @@ function DraftPanel({ pr, viewerPlayer, dispatch, onMegaView }: { pr: Extract<Pe
         <div className="ui-prompt-text">
           {isMyPick
             ? `Pick 1 ware to keep — you and your opponent alternate. (${pr.availableWares.length} in pool)`
-            : `Opponent is picking... (${pr.availableWares.length} in pool)`}
+            : `${Name} is picking... (${pr.availableWares.length} in pool)`}
         </div>
         <div style={getWareGridStyle(pr.availableWares.length)}>
           {pr.availableWares.map((wt, i) => (
@@ -1053,7 +1075,7 @@ function DraftPanel({ pr, viewerPlayer, dispatch, onMegaView }: { pr: Extract<Pe
       <div className="ui-prompt-text">
         {isMyPick
           ? `Pick 1 ${pr.draftMode === 'cards' ? 'card' : 'utility'} to keep — you and your opponent alternate. (${cards.length} in pool)`
-          : `Opponent is picking a ${pr.draftMode === 'cards' ? 'card' : 'utility'}... (${cards.length} in pool)`}
+          : `${Name} is picking a ${pr.draftMode === 'cards' ? 'card' : 'utility'}... (${cards.length} in pool)`}
       </div>
       {isMyPick ? (
         <SelectableCardArea
@@ -1133,11 +1155,12 @@ function UtilityReplacePanel({ state, pr: _pr, dispatch, onMegaView }: { state: 
 }
 
 function UtilityKeepPanel({ state, pr, viewerPlayer, dispatch, onMegaView }: { state: GameState; pr: Extract<PendingResolution, { type: 'UTILITY_KEEP' }>; viewerPlayer: 0 | 1; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
+  const { Name } = useOpponentName();
   const cp = state.currentPlayer;
   const responder = pr.step === 'ACTIVE_CHOOSE' ? cp : (cp === 0 ? 1 : 0);
 
   if (responder !== viewerPlayer) {
-    return <div className="ui-helper-text">Waiting: opponent chooses utility to keep.</div>;
+    return <div className="ui-helper-text">Waiting: {Name === 'Opponent' ? 'opponent' : Name} chooses utility to keep.</div>;
   }
 
   const utils = state.players[responder].utilities;
@@ -1168,12 +1191,13 @@ function UtilityKeepPanel({ state, pr, viewerPlayer, dispatch, onMegaView }: { s
 }
 
 function CrocodilePanel({ state, pr, dispatch, onMegaView }: { state: GameState; pr: Extract<PendingResolution, { type: 'CROCODILE_USE' }>; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
+  const { Name } = useOpponentName();
   if (pr.step === 'SELECT_UTILITY') {
     const opUtils = state.players[pr.opponentPlayer].utilities;
     if (opUtils.length === 0) {
       return (
         <div>
-          <div className="ui-prompt-text">Opponent has no utilities to use.</div>
+          <div className="ui-prompt-text">{Name} has no utilities to use.</div>
           <button className="primary" onClick={() => resolve(dispatch, { type: 'SELECT_UTILITY', utilityIndex: 0 })} style={{ margin: '8px auto 0', display: 'block' }}>
             Continue
           </button>

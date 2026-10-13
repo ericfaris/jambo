@@ -53,6 +53,14 @@ describe('GameBoard — one table for solo, pass and play, and online', () => {
     expect(html).not.toContain('Your Market');
   });
 
+  it("the opponent's-turn hint sits in the hand heading row (a row of its own made the desktop board scroll)", () => {
+    const theirTurn: GameState = { ...state, currentPlayer: 1 };
+    const html = render(theirTurn, { opponent: { kind: 'hotseat' }, labels: ['You', 'Amara'] });
+    const hint = html.match(/<div class="disabled-hint hand-head-hint"[^>]*>([^<]*)</);
+    expect(hint?.[1]).toMatch(/turn/i);
+    expect(html.indexOf('hand-head-hint')).toBeGreaterThan(html.indexOf('Your Hand'));
+  });
+
   it('online from seat 1: the friend by name, their hand as backs only — no card of theirs in the page', () => {
     const real = state;
     const viewer = 1 as const;
@@ -63,7 +71,7 @@ describe('GameBoard — one table for solo, pass and play, and online', () => {
       mode: 'online',
       responder: pub.waitingOnPlayer ?? pub.currentPlayer,
       labels: ['sam_trader', 'You'],
-      opponent: { kind: 'human', name: 'sam_trader', avatarUrl: null, presence: null, presenceNow: 0 },
+      opponent: { kind: 'human', name: 'sam_trader', avatarUrl: null, presence: null, presenceElapsedMs: 0 },
     });
     expect(html).toContain('sam_trader');
     expect(html).toContain('Your Hand');

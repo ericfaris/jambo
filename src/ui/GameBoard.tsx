@@ -48,6 +48,8 @@ import { useElementSize } from './useElementSize.ts';
 import { fitCardsToBox, fitMarketSlots } from './fitLayout.ts';
 import { useCornerButtonInset } from './cornerClearance.ts';
 import { viewerPriceModifiers } from './WareCoin.tsx';
+import { PresenceDot } from './OnlinePresence.tsx';
+import { opponentPresenceLine } from './presence.ts';
 
 /** Who sits across the table. */
 export type OpponentSeat =
@@ -68,7 +70,14 @@ export type OpponentSeat =
       endQuote: string | null;
     }
   /** Online: a friend — their name and avatar, and whether they're still here. */
-  | { kind: 'human'; name: string; avatarUrl: string | null; presence: OnlineSeatView | null; presenceNow: number }
+  | {
+      kind: 'human';
+      name: string;
+      avatarUrl: string | null;
+      presence: OnlineSeatView | null;
+      /** Time since `presence` arrived — its reconnect countdown runs from there. */
+      presenceElapsedMs: number;
+    }
   /** Pass and play: the other player is on this device. */
   | { kind: 'hotseat' };
 
@@ -118,7 +127,14 @@ export interface GameBoardProps {
 
 function opponentPortraitFor(opponent: OpponentSeat, size: number, isActive = false): ReactNode {
   if (opponent.kind === 'trader') return <TraderPortrait trader={opponent.trader} mood={opponent.mood} speaking={opponent.speaking} size={size} />;
-  if (opponent.kind === 'human') return <PlayerAvatar avatarUrl={opponent.avatarUrl} size={size} active={isActive} label={opponent.name} />;
+  if (opponent.kind === 'human') {
+    return (
+      <span className="human-seat-portrait">
+        <PlayerAvatar avatarUrl={opponent.avatarUrl} size={size} active={isActive} label={opponent.name} />
+        {opponent.presence && <PresenceDot seat={opponent.presence} size={size >= 56 ? 'large' : 'small'} />}
+      </span>
+    );
+  }
   return undefined;
 }
 
@@ -418,7 +434,11 @@ export function GameBoard({
   const seatTitle = (seat: 0 | 1) => (localMultiplayer ? `Player ${seat + 1}` : 'You');
   const opponentBubble = opponent.kind === 'trader' && !isGameOver && !spotlightActive ? opponent.bubble : '';
   const onOpponentBubbleHide = opponent.kind === 'trader' ? opponent.onBubbleHide : undefined;
-  const opponentSubtitle = opponent.kind === 'trader' ? opponent.subtitle : undefined;
+  const opponentSubtitle = opponent.kind === 'trader'
+    ? opponent.subtitle
+    : opponent.kind === 'human' && opponent.presence
+      ? (opponentPresenceLine(opponent.presence, opponent.presenceElapsedMs) ?? 'Playing online')
+      : undefined;
   const hintText = waitingHint ?? (playActionsDisabled && state.phase === 'PLAY' ? playDisabledReason : null);
   const toast = shownExternalError ?? null;
 
@@ -734,12 +754,6 @@ export function GameBoard({
           state={state}
         />
 
-        {hintText && (
-          <div className={`disabled-hint${waitingHint ? ' waiting-hint' : ''}`} role={waitingHint ? 'status' : undefined}>
-            {hintText}
-          </div>
-        )}
-
           {/* Player hand */}
           <div style={{
             marginBottom: 10,
@@ -749,6 +763,12 @@ export function GameBoard({
               {localMultiplayer ? `Player ${viewerPlayer + 1} Hand` : 'Your Hand'}
               <span className="tableau-count">{state.players[viewerPlayer].hand.length}</span>
             </div>
+            {/* In the heading row, not a row of its own: a hint mustn't make the board scroll */}
+            {hintText && (
+              <div className={`disabled-hint hand-head-hint${waitingHint ? ' waiting-hint' : ''}`} role={waitingHint ? 'status' : undefined}>
+                {hintText}
+              </div>
+            )}
           </div>
           <HandDisplay
             priceModifiers={priceModifiers}
@@ -922,7 +942,7 @@ export function GameBoard({
           hideHandStrip={isHandInteraction(state.pendingResolution, viewerPlayer)}
           market={state.players[viewerPlayer].market}
         >
-          <InteractionPanel state={state} dispatch={dispatch} viewerPlayer={viewerPlayer} onMegaView={setMegaCardId} canCancel={canCancel} />
+          <InteractionPanel state={state} dispatch={dispatch} viewerPlayer={viewerPlayer} onMegaView={setMegaCardId} canCancel={canCancel} opponentName={mode === 'online' ? labels[opponentPlayer] : undefined} />
         </ResolveMegaView>
       )}
 
