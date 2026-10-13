@@ -21,6 +21,8 @@ interface MainMenuProps {
   onPlayTrader: (difficulty: AIDifficulty) => void;
   /** Two players taking turns on this device. */
   onPassAndPlay: () => void;
+  /** Play someone on another device: make a room and send them a link. */
+  onPlayFriend: () => void;
   /** Host a Chromecast game — only offered when Cast is configured. */
   onPlayOnTv?: () => void;
   /** Go to the phone's join-a-room screen. */
@@ -38,7 +40,7 @@ interface MainMenuProps {
 
 
 export function MainMenu({
-  onSelectOption, onPlayTrader, onPassAndPlay, onPlayOnTv, onJoinTv, onTutorial,
+  onSelectOption, onPlayTrader, onPassAndPlay, onPlayFriend, onPlayOnTv, onJoinTv, onTutorial,
   auth, resumeLabel, onResume, onAbandon, dimmed = false,
 }: MainMenuProps) {
   const [statsSummary, setStatsSummary] = useState<UserStatsSummary | null>(null);
@@ -207,6 +209,8 @@ export function MainMenu({
 
           <div className="landing-modes">
             {startOver(onPassAndPlay, 'Pass & play', 'landing-secondary')}
+            {/* Never behind the save confirm: a friend game doesn't touch the local save */}
+            <button type="button" className="landing-secondary" onClick={onPlayFriend}>Play a friend</button>
             {onPlayOnTv && <button type="button" className="landing-secondary" onClick={onPlayOnTv}>Play on TV</button>}
             <button type="button" className="landing-secondary" onClick={onJoinTv}>Join a TV game</button>
           </div>

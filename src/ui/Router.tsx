@@ -7,6 +7,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { GameScreen } from './GameScreen.tsx';
 import { CastLobby } from './CastLobby.tsx';
 import { PlayerScreen } from './PlayerScreen.tsx';
+import { OnlineGameScreen } from './OnlineGameScreen.tsx';
+import { FriendLobby } from './FriendLobby.tsx';
+import { parseInviteHash, homeUrl } from './friendRoute.ts';
 import { TVScreen } from './TVScreen.tsx';
 import { DevPlayerPreview, isDevPlayerMode } from './DevPlayerPreview.tsx';
 import { DevOnlinePreview, isDevOnlineMode } from './DevOnlinePreview.tsx';
@@ -36,13 +39,20 @@ import { loadLocalGame, isGameActiveInTab, setGameActiveInTab, describeSavedGame
 import type { SavedGame } from '../persistence/savedGame.ts';
 import { abandonSavedGame } from '../persistence/userStatsApi.ts';
 
-type Route = 'local' | 'play';
-type Screen = 'menu' | 'solo' | 'multiplayer' | 'login' | 'settings' | 'castHost';
+type Route = 'local' | 'play' | 'invite';
+type Screen = 'menu' | 'solo' | 'multiplayer' | 'login' | 'settings' | 'castHost' | 'friendHost';
 
 function getRoute(): Route {
   const hash = window.location.hash;
   if (hash === '#/play' || hash === '#/play/') return 'play';
+  if (parseInviteHash(hash)) return 'invite';
   return 'local';
+}
+
+/** Leave every room behind and load the landing page fresh (no hash). */
+function goHome(): void {
+  forgetLastRoom();
+  window.location.href = homeUrl(window.location);
 }
 
 function getRandomFirstPlayer(): 0 | 1 {
@@ -136,6 +146,7 @@ function RouterInner() {
   // High contrast, motion and pace apply from the first screen, not just in-game
   useEffect(() => { applyDocumentPreferences(readPreferences()); }, []);
   const [route, setRoute] = useState<Route>(getRoute);
+  const [inviteCode, setInviteCode] = useState<string | null>(() => parseInviteHash(window.location.hash));
   // A refresh mid-game in this tab drops straight back into the autosaved
   // game; a fresh visit offers "Resume game" on the menu instead.
   const [autoResume] = useState<SavedGame | null>(() => {
@@ -211,7 +222,10 @@ function RouterInner() {
   }, [refreshAuth]);
 
   useEffect(() => {
-    const onHashChange = () => setRoute(getRoute());
+    const onHashChange = () => {
+      setRoute(getRoute());
+      setInviteCode(parseInviteHash(window.location.hash));
+    };
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
@@ -229,6 +243,11 @@ function RouterInner() {
     newGame(undefined, firstPlayer);
     setRevealFirstPlayer(firstPlayer);
     setPendingScreen(mode);
+  };
+
+  const handlePlayFriend = () => {
+    ws.resetRoomState();
+    setScreen('friendHost');
   };
 
   const handleOpenTvSetup = () => {
@@ -279,7 +298,7 @@ function RouterInner() {
   // While the remembered Cast room is being rejoined, say so instead of
   // flashing the menu / code entry (and invite a mid-rejoin click elsewhere).
   const rejoining = ws.roomCode !== null && ws.playerSlot === null && !ws.error && readLastRoom() !== null
-    && (route === 'play' || screen === 'menu');
+    && (route === 'play' || route === 'invite' || screen === 'menu');
   if (rejoining) {
     return (
       <div className="main-menu-root">
@@ -299,16 +318,36 @@ function RouterInner() {
     );
   }
 
-  // A refreshed Cast host (or player) tab rejoins its room automatically
-  // (multiplayer/client.ts); show the game as soon as its state arrives.
-  if (route === 'local' && screen === 'menu' && ws.playerSlot !== null && ws.publicState && ws.privateState) {
-    return <PlayerScreen ws={ws} />;
+  // The room's kind (from the server), not the URL, picks the board: a
+  // friend game gets the full table, a Cast game the phone controller.
+  const inRoomGame = ws.playerSlot !== null && !!ws.publicState && !!ws.privateState;
+  const renderRoomBoard = () => (ws.roomKind === 'friend'
+    ? <OnlineGameScreen ws={ws} onLeftToMenu={goHome} />
+    : <PlayerScreen ws={ws} />);
+  const signedIn = !!auth.authUser;
+
+  // A refreshed host (Cast or friend) or player tab rejoins its room
+  // automatically (multiplayer/client.ts); show the game as soon as its
+  // state arrives — or, for a friend room still waiting, the lobby again.
+  if (route === 'local' && screen === 'menu') {
+    if (inRoomGame) return renderRoomBoard();
+    if (ws.roomKind === 'friend' && ws.playerSlot !== null) {
+      return <FriendLobby ws={ws} mode="host" signedIn={signedIn} onExit={goHome} />;
+    }
+  }
+
+  if (route === 'invite') {
+    if (inRoomGame) return renderRoomBoard();
+    return (
+      <>
+        <FriendLobby ws={ws} mode="join" inviteCode={inviteCode} signedIn={signedIn} onExit={goHome} />
+        <AvatarBadge avatarUrl={auth.avatarUrl} />
+      </>
+    );
   }
 
   if (route === 'play') {
-    if (ws.playerSlot !== null && ws.publicState && ws.privateState) {
-      return <PlayerScreen ws={ws} />;
-    }
+    if (inRoomGame) return renderRoomBoard();
     return (
       <>
         <CastLobby ws={ws} mode="join" aiDifficulty={aiDifficulty} roomMode={null} />
@@ -326,6 +365,7 @@ function RouterInner() {
           onSelectOption={handleMenuSelect}
           onPlayTrader={(difficulty) => startLocalGame('solo', difficulty)}
           onPassAndPlay={() => startLocalGame('multiplayer', aiDifficulty)}
+          onPlayFriend={handlePlayFriend}
           onPlayOnTv={isCastSdkEnabled() ? handleOpenTvSetup : undefined}
           onJoinTv={() => { window.location.hash = JOIN_TV_HASH; }}
           onTutorial={() => setShowTutorial(true)}
@@ -387,10 +427,18 @@ function RouterInner() {
     return <GameScreen onBackToMenu={handleBackToMenu} aiDifficulty={aiDifficulty} localMultiplayer />;
   }
 
+  if (screen === 'friendHost') {
+    if (inRoomGame) return renderRoomBoard();
+    return (
+      <>
+        <FriendLobby ws={ws} mode="host" signedIn={signedIn} onExit={goHome} />
+        <AvatarBadge avatarUrl={auth.avatarUrl} />
+      </>
+    );
+  }
+
   if (screen === 'castHost' && castRoomMode) {
-    if (ws.playerSlot !== null && ws.publicState && ws.privateState) {
-      return <PlayerScreen ws={ws} />;
-    }
+    if (inRoomGame) return renderRoomBoard();
     return (
       <>
         <CastLobby ws={ws} mode="host" aiDifficulty={aiDifficulty} roomMode={castRoomMode} />

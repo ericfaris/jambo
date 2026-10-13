@@ -21,7 +21,7 @@ function memoryStorage() {
 
 function menu(overrides: Record<string, unknown> = {}) {
   return renderToStaticMarkup(createElement(MainMenu, {
-    onSelectOption: noop, onPlayTrader: noop, onPassAndPlay: noop, onJoinTv: noop, onTutorial: noop,
+    onSelectOption: noop, onPlayTrader: noop, onPassAndPlay: noop, onPlayFriend: noop, onJoinTv: noop, onTutorial: noop,
     auth: signedOut, resumeLabel: null, onResume: noop, onAbandon: noop,
     ...overrides,
   }));
@@ -84,6 +84,14 @@ describe('landing page', () => {
     expect(without).not.toContain('Play on TV');
     expect(without).not.toContain('Multiplayer');
     expect(menu({ onPlayOnTv: noop })).toContain('Play on TV');
+  });
+
+  it('offers Play a friend next to pass & play, even with a saved game (it never touches the save)', () => {
+    for (const html of [menu(), menu({ resumeLabel: 'vs Baraka (Hard) · turn 12' })]) {
+      const modes = html.slice(html.indexOf('landing-modes'));
+      expect(modes).toContain('>Play a friend</button>');
+      expect(modes.indexOf('Pass &amp; play')).toBeLessThan(modes.indexOf('Play a friend'));
+    }
   });
 
   it('has one place to sign in, and greets a signed-in player by first name', () => {
