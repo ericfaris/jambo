@@ -1,12 +1,19 @@
 # Roadmap
 
-Last reviewed: 2026-03-01
+Last reviewed: 2026-10-13
 
 ## Now
 
-- Expand multiplayer robustness and reconnect behavior
+- Leaderboards that weigh abandons (online abandons are logged per user)
 
 ## Done (this cycle)
+
+- **Play a friend online** — invite link, the full solo board for both
+  players over the server, presence + reconnect countdown, abandons,
+  online results recorded per signed-in player
+- **Multiplayer robustness and reconnect** — seat held for 5 minutes with a
+  countdown, refresh rejoins, WS heartbeat, a replaced socket can't swallow
+  messages
 
 - **Harden docs** — CARD_REFERENCE.md, CLAUDE.md, and CardDatabase.ts fully cross-checked; all three sources consistent
 - **Rules audit** — every card's gold values, ware counts, and interaction timing verified; Traveling Merchant corrected to match digital implementation

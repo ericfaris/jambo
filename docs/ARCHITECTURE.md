@@ -1,6 +1,6 @@
 # Architecture
 
-Last reviewed: 2026-02-15
+Last reviewed: 2026-10-13
 
 ## Layers
 
@@ -9,6 +9,11 @@ Last reviewed: 2026-02-15
 - `src/ui/`: React presentation and interaction components
 - `src/hooks/`: Zustand store integration
 - `src/persistence/`: save/load and state hydration
+- `src/multiplayer/`: the Node server (WebSocket rooms, accounts, stats) and
+  the browser client. The server is authoritative; `stateSplitter.ts` splits
+  each state into a public view and one private view per seat. Cast rooms
+  drive a TV + phone controllers; friend rooms ("Play a friend") give both
+  players the full board (`GameBoard`, fed `toBoardState(public, private)`).
 
 ## Engine Principles
 
