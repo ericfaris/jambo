@@ -11,6 +11,9 @@ import { randomBytes } from 'node:crypto';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { resolve, join, extname } from 'node:path';
 import { createInitialState } from '../engine/GameState.ts';
+import { createStartingState } from '../persistence/replayLog.ts';
+import { buildGameStory } from '../ui/gameStory.ts';
+import type { GameStory } from '../ui/gameStory.ts';
 import { processAction } from '../engine/GameEngine.ts';
 import { getAiActionByDifficulty } from '../ai/difficulties/index.ts';
 import { getAiActionDescription } from '../ai/aiActionDescriptions.ts';
@@ -26,6 +29,7 @@ import type {
   ClientMessage,
   ServerMessage,
   RoomMode,
+  RoomKind,
   PlayerSlot,
   AudioEvent,
 } from './types.ts';
@@ -39,6 +43,12 @@ import { handleStatsApi } from './statsApi.ts';
 import { resolveCastPublicRoom, toCastPublicRoomPayload, validateCastRoomAccess } from './castApi.ts';
 import { recordAiDecision, recordAiGameSummary } from './aiTelemetryStore.ts';
 import { contentTypeFor } from './mimeTypes.ts';
+import { getSession } from './authStore.ts';
+import { resolveSessionIdentity, seatProfileId, GUEST_IDENTITY } from './onlineIdentity.ts';
+import type { SessionIdentity } from './onlineIdentity.ts';
+import { seatViews, onlineGameResults, onlineAbandon, randomFirstPlayer } from './friendRoom.ts';
+import type { SeatIdentity, SeatPair } from './friendRoom.ts';
+import { recordCompletedGame, recordAbandonedGame } from './statsStore.ts';
 
 loadLocalEnv();
 
@@ -60,6 +70,8 @@ interface Room {
   code: string;
   castAccessToken: string;
   mode: RoomMode;
+  /** 'friend' = Play a friend: no TV, each player sees the full board. */
+  kind: RoomKind;
   aiDifficulty: AIDifficulty;
   state: GameState | null;
   connections: Connection[];
@@ -70,6 +82,21 @@ interface Room {
   telemetryStartedAt: number | null;
   telemetryDecisionIndex: number;
   telemetrySampled: boolean;
+  // --- Friend rooms only ---
+  identities: SeatPair<SeatIdentity>;
+  /** Seats that left for good (Leave, or the reconnect window ran out). */
+  leftSlots: Set<PlayerSlot>;
+  /** Fires when a disconnected seat's reconnect window runs out. */
+  seatTimers: Map<PlayerSlot, ReturnType<typeof setTimeout>>;
+  /** Increments with every new game (rematches), so each tab tosses the coin once. */
+  gameNumber: number;
+  /** The seeded start and every action — the endgame story is replayed from them. */
+  startingState: GameState | null;
+  actions: GameAction[];
+  story: GameStory | null;
+  resultRecorded: boolean;
+  /** Seats whose abandon is already logged for this game. */
+  abandonLogged: Set<PlayerSlot>;
 }
 
 const rooms = new Map<string, Room>();
@@ -240,32 +267,169 @@ function broadcastRematchStatus(room: Room): void {
 function removeConnectionFromRoom(
   room: Room,
   conn: Connection,
-  options: { reserveSlot: boolean; reason: 'disconnect' | 'switch' },
+  options: { reserveSlot: boolean; reason: 'disconnect' | 'switch' | 'leave' },
 ): void {
   room.connections = room.connections.filter((connection) => connection.ws !== conn.ws);
   room.rematchVotes.delete(conn.playerSlot);
+  const slotStillConnected = room.connections.some((connection) => connection.playerSlot === conn.playerSlot);
+
+  // A friend who leaves mid-game (Leave, or this tab joined another room)
+  // ends it for both: the other player is told, the leaver's abandon logged.
+  if (room.kind === 'friend' && !options.reserveSlot && !slotStillConnected && isLiveGame(room)) {
+    releaseReservedSlot(room, conn.playerSlot);
+    room.leftSlots.add(conn.playerSlot);
+    console.log(`[Room ${room.code}] Player ${conn.playerSlot} left mid-game`);
+    closeFriendRoom(room, { leaver: conn.playerSlot, reason: 'left' });
+    return;
+  }
+
   if (options.reserveSlot && conn.reconnectToken) {
     reservePlayerSlot(room, conn.playerSlot, conn.reconnectToken);
+    if (room.kind === 'friend') scheduleSeatExpiry(room, conn.playerSlot);
   } else {
     releaseReservedSlot(room, conn.playerSlot);
+    if (room.kind === 'friend' && !slotStillConnected) {
+      clearSeatTimer(room, conn.playerSlot);
+      room.leftSlots.add(conn.playerSlot);
+    }
   }
   room.lastActivity = Date.now();
 
-  const disconnectReason = options.reason === 'disconnect' ? 'disconnected' : 'left (joined another room)';
+  const disconnectReason = options.reason === 'disconnect' ? 'disconnected' : options.reason === 'leave' ? 'left' : 'left (joined another room)';
   console.log(`[Room ${room.code}] Player ${conn.playerSlot} ${disconnectReason}`);
 
   for (const other of room.connections) {
     send(other.ws, { type: 'PLAYER_DISCONNECTED', playerSlot: conn.playerSlot });
   }
   broadcastRematchStatus(room);
+  broadcastRoomPlayers(room);
   broadcastCastRoomSnapshot(room);
 
   if (isRoomAbandoned(room.connections.length, room.reservedSlots, Date.now())) {
-    closeCastRoomStreams(room.code);
-    rooms.delete(room.code);
+    deleteRoom(room);
     console.log(`[Room ${room.code}] Deleted (empty)`);
   } else if (room.connections.length === 0) {
     console.log(`[Room ${room.code}] Empty — holding for reconnect (${PLAYER_RECONNECT_GRACE_MS / 1000}s)`);
+  }
+}
+
+// --- Friend rooms ---
+
+function isLiveGame(room: Room): boolean {
+  return room.state !== null && room.state.phase !== 'GAME_OVER';
+}
+
+/** Every path that removes a room goes through here, so no seat timer outlives it. */
+function deleteRoom(room: Room): void {
+  for (const timer of room.seatTimers.values()) clearTimeout(timer);
+  room.seatTimers.clear();
+  closeCastRoomStreams(room.code);
+  if (rooms.get(room.code) === room) rooms.delete(room.code);
+}
+
+function clearSeatTimer(room: Room, slot: PlayerSlot): void {
+  const timer = room.seatTimers.get(slot);
+  if (timer) clearTimeout(timer);
+  room.seatTimers.delete(slot);
+}
+
+function scheduleSeatExpiry(room: Room, slot: PlayerSlot): void {
+  clearSeatTimer(room, slot);
+  room.seatTimers.set(slot, setTimeout(() => expireFriendSeat(room, slot), PLAYER_RECONNECT_GRACE_MS));
+}
+
+function broadcastRoomPlayers(room: Room): void {
+  if (room.kind !== 'friend') return;
+  clearExpiredReservations(room);
+  const seats = seatViews({
+    identities: room.identities,
+    connected: getActivePlayerSlots(room),
+    reservations: room.reservedSlots,
+    left: room.leftSlots,
+    now: Date.now(),
+  });
+  for (const conn of room.connections) {
+    send(conn.ws, { type: 'ROOM_PLAYERS', seats });
+  }
+}
+
+/** A disconnected friend's reconnect window ran out. */
+function expireFriendSeat(room: Room, slot: PlayerSlot): void {
+  room.seatTimers.delete(slot);
+  if (rooms.get(room.code) !== room) return; // already closed
+  if (room.connections.some((connection) => connection.playerSlot === slot)) return; // came back
+  releaseReservedSlot(room, slot);
+  room.leftSlots.add(slot);
+  console.log(`[Room ${room.code}] Player ${slot} did not come back`);
+  if (isLiveGame(room)) {
+    closeFriendRoom(room, { leaver: slot, reason: 'timeout' });
+    return;
+  }
+  broadcastRoomPlayers(room);
+  if (isRoomAbandoned(room.connections.length, room.reservedSlots, Date.now())) {
+    deleteRoom(room);
+    console.log(`[Room ${room.code}] Deleted (empty)`);
+  }
+}
+
+/**
+ * Ends a friend game nobody can finish: logs an abandon for the leaver and
+ * any other seat that isn't here (both gone ⇒ both abandoned), tells whoever
+ * is still connected, and closes the room.
+ */
+function closeFriendRoom(room: Room, { leaver, reason }: { leaver: PlayerSlot; reason: 'left' | 'timeout' }): void {
+  const now = Date.now();
+  const connected = getActivePlayerSlots(room);
+  for (const slot of [0, 1] as const) {
+    if (slot !== leaver && connected.has(slot)) continue;
+    if (room.abandonLogged.has(slot)) continue;
+    room.abandonLogged.add(slot);
+    const abandon = onlineAbandon(room.state, slot, room.identities[slot], now);
+    if (abandon) {
+      void recordAbandonedGame(abandon).catch((error: unknown) => {
+        console.error('[Stats] Online abandon write failed:', (error as Error).message);
+      });
+    }
+  }
+  for (const conn of room.connections) {
+    if (conn.playerSlot !== leaver) send(conn.ws, { type: 'GAME_ABANDONED', leaver, reason });
+  }
+  room.connections = [];
+  room.reservedSlots = [];
+  deleteRoom(room);
+  console.log(`[Room ${room.code}] Closed — player ${leaver} ${reason === 'left' ? 'left' : 'never came back'}`);
+}
+
+/** A new friend game (first or rematch): random first player, fresh story and records. */
+function startFriendGame(room: Room): void {
+  room.state = createStartingState(undefined, randomFirstPlayer());
+  room.gameNumber += 1;
+  room.startingState = room.state;
+  room.actions = [];
+  room.story = null;
+  room.resultRecorded = false;
+  room.abandonLogged.clear();
+}
+
+function friendStory(room: Room): GameStory | null {
+  if (room.story) return room.story;
+  if (!room.startingState) return null;
+  try {
+    room.story = buildGameStory(room.startingState, room.actions);
+  } catch (error) {
+    console.error(`[Room ${room.code}] Story failed:`, (error as Error).message);
+    room.story = null;
+  }
+  return room.story;
+}
+
+function recordFriendResults(room: Room): void {
+  if (room.resultRecorded || !room.state) return;
+  room.resultRecorded = true;
+  for (const result of onlineGameResults(room.state, room.identities, Date.now(), room.actions)) {
+    void recordCompletedGame(result).catch((error: unknown) => {
+      console.error('[Stats] Online result write failed:', (error as Error).message);
+    });
   }
 }
 
@@ -287,6 +451,7 @@ function broadcastState(room: Room, audioEvent: AudioEvent | null, aiMessage: st
         private: privateState,
         audioEvent,
         aiMessage,
+        ...gameNumberField(room),
       };
       send(conn.ws, msg);
     }
@@ -305,7 +470,12 @@ function sendStateToConnection(room: Room, conn: Connection, audioEvent: AudioEv
     private: privateState,
     audioEvent,
     aiMessage,
+    ...gameNumberField(room),
   });
+}
+
+function gameNumberField(room: Room): { gameNumber?: number } {
+  return room.kind === 'friend' ? { gameNumber: room.gameNumber } : {};
 }
 
 // --- AI Loop ---
@@ -420,9 +590,11 @@ function isWaitingForPlayer(state: GameState, slot: PlayerSlot): boolean {
 function broadcastGameOver(room: Room): void {
   if (!room.state) return;
   const publicState = extractPublicState(room.state);
+  const story = room.kind === 'friend' ? friendStory(room) : undefined;
   for (const conn of room.connections) {
-    send(conn.ws, { type: 'GAME_OVER', public: publicState });
+    send(conn.ws, { type: 'GAME_OVER', public: publicState, ...(room.kind === 'friend' ? { story } : {}) });
   }
+  if (room.kind === 'friend') recordFriendResults(room);
 
   if (room.mode === 'ai' && room.telemetrySampled && room.telemetryGameId && room.telemetryStartedAt !== null) {
     const state = room.state;
@@ -473,7 +645,8 @@ function tryStartGame(room: Room): void {
     scheduleAiTurn(room);
   } else if (room.mode === 'pvp' && playerCount >= 2) {
     room.rematchVotes.clear();
-    room.state = createInitialState();
+    if (room.kind === 'friend') startFriendGame(room);
+    else room.state = createInitialState();
     initializeTelemetryForNewGame(room);
     broadcastState(room, null);
   }
@@ -481,7 +654,9 @@ function tryStartGame(room: Room): void {
 
 // --- Message Handlers ---
 
-function handleCreateRoom(ws: WebSocket, mode: RoomMode, aiDifficulty: AIDifficulty = 'medium'): void {
+function handleCreateRoom(ws: WebSocket, requestedMode: RoomMode, aiDifficulty: AIDifficulty = 'medium', kind: RoomKind = 'cast'): void {
+  // A friend game is always two people
+  const mode: RoomMode = kind === 'friend' ? 'pvp' : requestedMode;
   if (!canCreateRoom(rooms.size)) {
     send(ws, { type: 'ERROR', message: 'The server is busy right now — please try again in a few minutes' });
     console.warn(`[Rooms] Refused CREATE_ROOM: ${rooms.size} live rooms`);
@@ -502,14 +677,31 @@ function handleCreateRoom(ws: WebSocket, mode: RoomMode, aiDifficulty: AIDifficu
     telemetryStartedAt: null,
     telemetryDecisionIndex: 0,
     telemetrySampled: false,
+    kind,
+    identities: [null, null],
+    leftSlots: new Set<PlayerSlot>(),
+    seatTimers: new Map(),
+    gameNumber: 0,
+    startingState: null,
+    actions: [],
+    story: null,
+    resultRecorded: false,
+    abandonLogged: new Set<PlayerSlot>(),
   };
   rooms.set(code, room);
-  send(ws, { type: 'ROOM_CREATED', code, castAccessToken: room.castAccessToken });
+  // A friend room has no TV, so its cast token never leaves the server
+  send(ws, kind === 'friend' ? { type: 'ROOM_CREATED', code } : { type: 'ROOM_CREATED', code, castAccessToken: room.castAccessToken });
   broadcastCastRoomSnapshot(room);
-  console.log(`[Room ${code}] Created (${mode} mode, ai=${aiDifficulty})`);
+  console.log(`[Room ${code}] Created (${kind === 'friend' ? 'friend' : `${mode} mode, ai=${aiDifficulty}`})`);
 }
 
-function handleJoinRoom(ws: WebSocket, code: string, reconnectToken?: string): void {
+function handleJoinRoom(
+  ws: WebSocket,
+  code: string,
+  reconnectToken?: string,
+  identity: SessionIdentity = GUEST_IDENTITY,
+  clientProfileId?: unknown,
+): void {
   const room = rooms.get(code);
   if (!room) {
     send(ws, { type: 'ERROR', message: 'Room not found' });
@@ -602,16 +794,35 @@ function handleJoinRoom(ws: WebSocket, code: string, reconnectToken?: string): v
   };
   room.connections.push(conn);
   room.lastActivity = Date.now();
+  if (room.kind === 'friend') {
+    // (Re)claimed seat: whoever sits here now, back from any "left" state
+    room.identities[playerSlot] = {
+      name: identity.name,
+      avatarUrl: identity.avatarUrl,
+      signedIn: identity.signedIn,
+      profileId: seatProfileId(identity, clientProfileId),
+    };
+    clearSeatTimer(room, playerSlot);
+    room.leftSlots.delete(playerSlot);
+  }
   broadcastCastRoomSnapshot(room);
 
-  send(ws, {
+  send(ws, room.kind === 'friend' ? {
     type: 'JOINED',
     playerSlot,
     mode: room.mode,
+    kind: room.kind,
+    reconnectToken: assignedReconnectToken,
+  } : {
+    type: 'JOINED',
+    playerSlot,
+    mode: room.mode,
+    kind: room.kind,
     reconnectToken: assignedReconnectToken,
     castAccessToken: room.castAccessToken,
   });
   console.log(`[Room ${code}] player joined as slot ${playerSlot}`);
+  broadcastRoomPlayers(room);
 
   // Notify others about new player
   for (const other of room.connections) {
@@ -627,7 +838,19 @@ function handleJoinRoom(ws: WebSocket, code: string, reconnectToken?: string): v
   if (room.state) {
     const publicState = extractPublicState(room.state);
     const privateState = extractPrivateState(room.state, playerSlot);
-    send(ws, { type: 'GAME_STATE', public: publicState, private: privateState, audioEvent: null, aiMessage: null });
+    send(ws, { type: 'GAME_STATE', public: publicState, private: privateState, audioEvent: null, aiMessage: null, ...gameNumberField(room) });
+    // Back on a finished friend game: the endgame screen and rematch votes too
+    if (room.kind === 'friend' && room.state.phase === 'GAME_OVER') {
+      send(ws, { type: 'GAME_OVER', public: publicState, story: friendStory(room) });
+      broadcastRematchStatus(room);
+    }
+  }
+}
+
+function handleLeaveRoom(ws: WebSocket): void {
+  for (const room of findRooms(ws)) {
+    const conn = findConnection(room, ws);
+    if (conn) removeConnectionFromRoom(room, conn, { reserveSlot: false, reason: 'leave' });
   }
 }
 
@@ -655,6 +878,7 @@ function handleGameAction(ws: WebSocket, action: GameAction): void {
     const before = room.state;
     room.state = processAction(room.state, action);
     room.lastActivity = Date.now();
+    if (room.kind === 'friend') room.actions.push(action);
 
     const audioEvent = detectAudioEvent(action, before);
     broadcastState(room, audioEvent, null);
@@ -706,7 +930,8 @@ function handleRematchRequest(ws: WebSocket): void {
   const allReady = required.every((slot) => room.rematchVotes.has(slot));
   if (!allReady) return;
 
-  room.state = createInitialState();
+  if (room.kind === 'friend') startFriendGame(room);
+  else room.state = createInitialState();
   initializeTelemetryForNewGame(room);
   room.rematchVotes.clear();
   broadcastState(room, null, null);
@@ -738,10 +963,21 @@ setInterval(() => {
   const now = Date.now();
   for (const [code, room] of rooms) {
     clearExpiredReservations(room);
+    if (room.kind === 'friend' && isLiveGame(room)) {
+      // Safety net — a seat timer normally fires first: a seat that is
+      // neither here nor held has run out of time
+      const connected = getActivePlayerSlots(room);
+      const held = getReservedSlots(room);
+      const gone = ([0, 1] as const).find((slot) => !connected.has(slot) && !held.has(slot));
+      if (gone !== undefined) {
+        room.leftSlots.add(gone);
+        closeFriendRoom(room, { leaver: gone, reason: 'timeout' });
+        continue;
+      }
+    }
     if (isRoomAbandoned(room.connections.length, room.reservedSlots, now)) {
       // Everyone left and nobody came back within the reconnect window
-      closeCastRoomStreams(code);
-      rooms.delete(code);
+      deleteRoom(room);
       console.log(`[Room ${code}] Deleted (reconnect window expired)`);
       continue;
     }
@@ -750,8 +986,7 @@ setInterval(() => {
         send(conn.ws, { type: 'ERROR', message: 'Room expired due to inactivity' });
         conn.ws.close();
       }
-      closeCastRoomStreams(code);
-      rooms.delete(code);
+      deleteRoom(room);
       console.log(`[Room ${code}] Expired (1h inactivity)`);
     }
   }
@@ -953,7 +1188,43 @@ server.on('upgrade', (req, socket, head) => {
   });
 });
 
-wss.on('connection', (ws: WebSocket) => {
+function dispatchClientMessage(ws: WebSocket, msg: ClientMessage, identity: SessionIdentity): void {
+  switch (msg.type) {
+    case 'CREATE_ROOM':
+      handleCreateRoom(ws, msg.mode, msg.aiDifficulty ?? 'medium', msg.kind === 'friend' ? 'friend' : 'cast');
+      break;
+    case 'JOIN_ROOM':
+      handleJoinRoom(ws, msg.code, msg.reconnectToken, identity, msg.localProfileId);
+      break;
+    case 'GAME_ACTION':
+      handleGameAction(ws, msg.action);
+      break;
+    case 'REQUEST_REMATCH':
+      handleRematchRequest(ws);
+      break;
+    case 'LEAVE_ROOM':
+      handleLeaveRoom(ws);
+      break;
+  }
+}
+
+// Heartbeat: a phone that dropped off Wi-Fi or went to sleep can leave a
+// socket that looks open forever. Ping every 30 s; one that didn't answer the
+// last ping is terminated, and the normal close path holds its seat.
+const HEARTBEAT_MS = 30_000;
+const awaitingPong = new WeakSet<WebSocket>();
+setInterval(() => {
+  for (const client of wss.clients) {
+    if (awaitingPong.has(client)) {
+      client.terminate();
+      continue;
+    }
+    awaitingPong.add(client);
+    try { client.ping(); } catch { /* closing anyway */ }
+  }
+}, HEARTBEAT_MS);
+
+wss.on('connection', (ws: WebSocket, req: import('node:http').IncomingMessage) => {
   // Without an 'error' listener, one bad client frame (oversized, malformed,
   // invalid UTF-8) is an unhandled 'error' event and crashes the whole server,
   // ending every game. Log it; ws then closes just this socket and the normal
@@ -961,30 +1232,34 @@ wss.on('connection', (ws: WebSocket) => {
   ws.on('error', (err: Error & { code?: string }) => {
     console.warn(`[WS] Client socket error (${err.code ?? 'unknown'}): ${err.message}`);
   });
+  ws.on('pong', () => awaitingPong.delete(ws));
+  // Who this socket is (friend games show the name; stats need the profile):
+  // the session cookie rides on the same-origin upgrade. Every message and the
+  // close chain off this one promise, so they still run in arrival order; a
+  // failed lookup just means "guest".
+  const identityReady = resolveSessionIdentity(req.headers.cookie, getSession).catch(() => GUEST_IDENTITY);
   ws.on('message', (data: Buffer | string) => {
+    let msg: ClientMessage;
     try {
-      const msg = JSON.parse(data.toString()) as ClientMessage;
-      switch (msg.type) {
-        case 'CREATE_ROOM':
-          handleCreateRoom(ws, msg.mode, msg.aiDifficulty ?? 'medium');
-          break;
-        case 'JOIN_ROOM':
-          handleJoinRoom(ws, msg.code, msg.reconnectToken);
-          break;
-        case 'GAME_ACTION':
-          handleGameAction(ws, msg.action);
-          break;
-        case 'REQUEST_REMATCH':
-          handleRematchRequest(ws);
-          break;
-      }
+      msg = JSON.parse(data.toString()) as ClientMessage;
     } catch (e) {
       send(ws, { type: 'ERROR', message: 'Invalid message' });
       console.error('[WS] Parse error:', (e as Error).message);
+      return;
     }
+    void identityReady.then((identity) => {
+      try {
+        dispatchClientMessage(ws, msg, identity);
+      } catch (e) {
+        send(ws, { type: 'ERROR', message: 'Invalid message' });
+        console.error('[WS] Message error:', (e as Error).message);
+      }
+    });
   });
 
-  ws.on('close', () => handleDisconnect(ws));
+  ws.on('close', () => {
+    void identityReady.then(() => handleDisconnect(ws));
+  });
 });
 
 logMissingAuthConfig();

@@ -30,9 +30,16 @@ function saveLocalMap<T>(path: string, results: Map<string, T[]>): void {
   }
 }
 
+/** Absent on legacy rows and solo/hotseat results; 'online' = a friend game (recorded by the server). */
+export type GameResultMode = 'solo' | 'online';
+type Difficulty = 'easy' | 'medium' | 'hard' | 'expert';
+
 export interface GameResultInput {
   localProfileId: string;
-  aiDifficulty: 'easy' | 'medium' | 'hard' | 'expert';
+  mode?: GameResultMode;
+  /** Required for solo results (the HTTP validator enforces it); absent online. */
+  aiDifficulty?: Difficulty;
+  /** 0 = this profile won. */
   winner: 0 | 1;
   playerGold: number;
   opponentGold: number;
@@ -40,13 +47,15 @@ export interface GameResultInput {
   rngSeed: number;
   completedAt: number;
   actions?: unknown[];
+  /** Online only: the other seat's profile (null = a guest). */
+  opponentProfileId?: string | null;
 }
 
-/** A local (solo or hotseat) game the player abandoned before it finished. */
+/** A game the player abandoned before it finished: local (solo or hotseat) or online. */
 export interface AbandonedGameInput {
   localProfileId: string;
-  mode: 'solo' | 'multiplayer';
-  aiDifficulty: 'easy' | 'medium' | 'hard' | 'expert';
+  mode: 'solo' | 'multiplayer' | 'online';
+  aiDifficulty?: Difficulty;
   playerGold: number;
   opponentGold: number;
   turnCount: number;
@@ -69,7 +78,9 @@ export interface UserStatsSummary {
 
 interface GameResultDocument {
   localProfileId: string;
-  aiDifficulty: 'easy' | 'medium' | 'hard' | 'expert';
+  mode?: GameResultMode;
+  aiDifficulty?: Difficulty;
+  opponentProfileId?: string | null;
   winner: 0 | 1;
   playerGold: number;
   opponentGold: number;
@@ -160,6 +171,13 @@ async function ensureIndexes(): Promise<void> {
   mongoIndexesReady = true;
 }
 
+/** Online results are kept out of the solo record (wins, win rate, levels); legacy rows have no mode. */
+function isOnline(result: { mode?: GameResultMode }): boolean {
+  return result.mode === 'online';
+}
+
+const NOT_ONLINE = { mode: { $ne: 'online' as const } };
+
 function sanitizeSummary(localProfileId: string, results: readonly GameResultInput[], gamesAbandoned = 0): UserStatsSummary {
   if (results.length === 0) {
     return {
@@ -223,7 +241,9 @@ export async function recordCompletedGame(result: GameResultInput): Promise<void
       $setOnInsert: {
         gameId,
         localProfileId: result.localProfileId,
-        aiDifficulty: result.aiDifficulty,
+        mode: result.mode ?? 'solo',
+        ...(result.aiDifficulty ? { aiDifficulty: result.aiDifficulty } : {}),
+        ...(isOnline(result) ? { opponentProfileId: result.opponentProfileId ?? null } : {}),
         winner: result.winner,
         playerGold: result.playerGold,
         opponentGold: result.opponentGold,
@@ -241,6 +261,7 @@ export async function recordCompletedGame(result: GameResultInput): Promise<void
     await gameLogs.insertOne({
       gameId,
       localProfileId: result.localProfileId,
+      mode: result.mode ?? 'solo',
       rngSeed: result.rngSeed,
       aiDifficulty: result.aiDifficulty,
       winner: result.winner,
@@ -296,13 +317,13 @@ export async function getDifficultyBreakdown(localProfileId: string): Promise<Di
 
   let results: GameResultInput[];
   if (!isMongoEnabled()) {
-    results = memoryResults().get(localProfileId) ?? [];
+    results = (memoryResults().get(localProfileId) ?? []).filter((r) => !isOnline(r));
   } else {
     await ensureIndexes();
     const client = await getMongoClient();
     const db = client.db(getMongoDbName());
     const collection = db.collection<GameResultDocument>('game_results');
-    const docs = await collection.find({ localProfileId }).toArray();
+    const docs = await collection.find({ localProfileId, ...NOT_ONLINE }).toArray();
     results = docs.map((entry) => ({
       localProfileId: entry.localProfileId,
       aiDifficulty: entry.aiDifficulty,
@@ -334,7 +355,7 @@ export async function getDifficultyBreakdown(localProfileId: string): Promise<Di
 
 export async function getStatsSummary(localProfileId: string): Promise<UserStatsSummary> {
   if (!isMongoEnabled()) {
-    const results = memoryResults().get(localProfileId) ?? [];
+    const results = (memoryResults().get(localProfileId) ?? []).filter((r) => !isOnline(r));
     return sanitizeSummary(localProfileId, results, await countAbandonedGames(localProfileId));
   }
 
@@ -343,7 +364,7 @@ export async function getStatsSummary(localProfileId: string): Promise<UserStats
   const db = client.db(getMongoDbName());
   const collection = db.collection<GameResultDocument>('game_results');
 
-  const results = await collection.find({ localProfileId }).toArray();
+  const results = await collection.find({ localProfileId, ...NOT_ONLINE }).toArray();
   const normalized: GameResultInput[] = results.map((entry) => ({
     localProfileId: entry.localProfileId,
     aiDifficulty: entry.aiDifficulty,

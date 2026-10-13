@@ -14,32 +14,51 @@ import type {
   DeckCardId,
 } from '../engine/types.ts';
 import type { AIDifficulty } from '../ai/difficulties/index.ts';
+import type { GameStory } from '../ui/gameStory.ts';
 
 // --- Room & Connection ---
 
 export type RoomMode = 'ai' | 'pvp';
 export type ConnectionRole = 'player';
 export type PlayerSlot = 0 | 1;
+/** A Cast room (TV shows the board) or a friend game (each player sees the full board). */
+export type RoomKind = 'cast' | 'friend';
+
+/** How a friend-game seat looks to both players — never an email or a profile id. */
+export interface OnlineSeatView {
+  /** The account's display name, or 'Guest'. */
+  name: string;
+  /** https only. */
+  avatarUrl: string | null;
+  signedIn: boolean;
+  status: 'connected' | 'reconnecting' | 'left';
+  /** Time left to come back, while 'reconnecting' (relative, so client clocks don't matter). */
+  graceMsLeft: number | null;
+}
 
 // --- Client → Server Messages ---
 
 export type ClientMessage =
-  | { type: 'CREATE_ROOM'; mode: RoomMode; aiDifficulty?: AIDifficulty }
-  | { type: 'JOIN_ROOM'; code: string; role: ConnectionRole; reconnectToken?: string }
+  | { type: 'CREATE_ROOM'; mode: RoomMode; aiDifficulty?: AIDifficulty; kind?: RoomKind }
+  | { type: 'JOIN_ROOM'; code: string; role: ConnectionRole; reconnectToken?: string; localProfileId?: string }
   | { type: 'GAME_ACTION'; action: GameAction }
-  | { type: 'REQUEST_REMATCH' };
+  | { type: 'REQUEST_REMATCH' }
+  | { type: 'LEAVE_ROOM' };
 
 // --- Server → Client Messages ---
 
 export type ServerMessage =
   | { type: 'ROOM_CREATED'; code: string; castAccessToken?: string }
-  | { type: 'JOINED'; playerSlot: PlayerSlot | null; mode: RoomMode; reconnectToken?: string; castAccessToken?: string }
-  | { type: 'GAME_STATE'; public: PublicGameState; private: PrivateGameState | null; audioEvent: AudioEvent | null; aiMessage: string | null }
+  | { type: 'JOINED'; playerSlot: PlayerSlot | null; mode: RoomMode; reconnectToken?: string; castAccessToken?: string; kind: RoomKind }
+  | { type: 'GAME_STATE'; public: PublicGameState; private: PrivateGameState | null; audioEvent: AudioEvent | null; aiMessage: string | null; gameNumber?: number }
   | { type: 'PLAYER_JOINED'; playerSlot: PlayerSlot }
   | { type: 'PLAYER_DISCONNECTED'; playerSlot: PlayerSlot }
   | { type: 'REMATCH_STATUS'; votes: PlayerSlot[]; required: PlayerSlot[] }
   | { type: 'ERROR'; message: string }
-  | { type: 'GAME_OVER'; public: PublicGameState };
+  | { type: 'GAME_OVER'; public: PublicGameState; story?: GameStory | null }
+  // Friend rooms only
+  | { type: 'ROOM_PLAYERS'; seats: [OnlineSeatView | null, OnlineSeatView | null] }
+  | { type: 'GAME_ABANDONED'; leaver: PlayerSlot; reason: 'left' | 'timeout' };
 
 // --- Audio Events ---
 

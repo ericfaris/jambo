@@ -9,23 +9,27 @@
 //   - the two private hands never overlap and match the public hand counts
 //   - a phone that is waited on can always make progress (no stall)
 //   - games reach GAME_OVER; a rematch starts a fresh game
+// With kind=friend (Play a friend rooms) it also checks: ROOM_PLAYERS stays
+// sane through every drop and rejoin, both seats get to go first, every
+// GAME_OVER carries the story, and leaving mid-game (last game) ends it for
+// the other phone with GAME_ABANDONED. Prints scenario coverage.
 //
 // usage: start a server (PORT=3031 MONGODB_URI= npx tsx src/multiplayer/server.ts)
-//        npx tsx scripts/cast-fuzz.ts [games=10] [seed=7000] [url=ws://127.0.0.1:3031/ws]
+//        npx tsx scripts/cast-fuzz.ts [games=10] [seed=7000] [url=ws://127.0.0.1:3031/ws] [kind=cast|friend]
 // ============================================================================
 
 import WebSocket from 'ws';
-import type { GameAction, InteractionResponse, GameState } from '../src/engine/types.ts';
-import { WARE_TYPES } from '../src/engine/types.ts';
-import type { PublicGameState, PrivateGameState } from '../src/multiplayer/types.ts';
-import { getCard } from '../src/engine/cards/CardDatabase.ts';
-import { getFallbackInteractionResponses } from '../src/ai/RandomAI.ts';
+import type { GameAction } from '../src/engine/types.ts';
+import type { PublicGameState, PrivateGameState, OnlineSeatView } from '../src/multiplayer/types.ts';
 import { createRng } from '../src/utils/rng.ts';
+import { candidateActions } from './lib/phonePolicy.ts';
 
 const GAMES = Number(process.argv[2] ?? 10);
 const SEED = Number(process.argv[3] ?? 7000);
 const URL = process.argv[4] ?? 'ws://127.0.0.1:3031/ws';
+const KIND: 'cast' | 'friend' = process.argv[5] === 'friend' ? 'friend' : 'cast';
 const STEP_CAP = 4000;
+const coverage = { guardsPlayed: 0, rainMakers: 0, drafts: 0, auctions: 0, cancels: 0, firstPlayers: new Set<number>() };
 
 type Msg = Record<string, unknown> & { type: string };
 const findings: string[] = [];
@@ -41,6 +45,7 @@ class Phone {
   seq = 0; // increments on every GAME_STATE
   errors: string[] = [];
   inbox: Msg[] = [];
+  seats: [OnlineSeatView | null, OnlineSeatView | null] | null = null;
   constructor(public name: string) {}
   async open(): Promise<void> {
     this.ws = new WebSocket(URL);
@@ -51,6 +56,7 @@ class Phone {
       if (m.type === 'GAME_STATE') { this.pub = m.public as PublicGameState; this.priv = m.private as PrivateGameState; this.seq++; }
       if (m.type === 'GAME_OVER') { this.pub = m.public as PublicGameState; this.seq++; }
       if (m.type === 'ERROR') this.errors.push(m.message as string);
+      if (m.type === 'ROOM_PLAYERS') this.seats = m.seats as [OnlineSeatView | null, OnlineSeatView | null];
     });
     await new Promise<void>((res, rej) => { this.ws.once('open', () => res()); this.ws.once('error', rej); });
   }
@@ -65,82 +71,16 @@ class Phone {
 
 async function createRoom(): Promise<string> {
   const h = new Phone('host'); await h.open();
-  h.send({ type: 'CREATE_ROOM', mode: 'pvp' });
+  h.send(KIND === 'friend' ? { type: 'CREATE_ROOM', mode: 'pvp', kind: 'friend' } : { type: 'CREATE_ROOM', mode: 'pvp' });
   await h.waitFor(() => h.inbox.some((m) => m.type === 'ROOM_CREATED'));
   const code = h.inbox.find((m) => m.type === 'ROOM_CREATED')!.code as string;
   h.close();
   return code;
 }
 
-/** Best-effort GameState from one phone's view — enough for fallback responses. */
-function synthetic(pub: PublicGameState, priv: PrivateGameState, slot: 0 | 1): GameState {
-  return {
-    currentPlayer: pub.currentPlayer, phase: pub.phase, actionsLeft: pub.actionsLeft, turn: pub.turn,
-    pendingResolution: priv.pendingResolution, pendingGuardReaction: pub.pendingGuardReaction, pendingWareCardReaction: pub.pendingWareCardReaction,
-    wareSupply: pub.wareSupply, discardPile: pub.discardPile, deck: Array(pub.deckCount).fill('unknown_1'),
-    turnModifiers: pub.turnModifiers, endgame: pub.endgame, log: pub.log, drawnCard: priv.drawnCard,
-    players: [0, 1].map((p) => ({ ...pub.players[p], hand: p === slot ? priv.hand : [] })) as unknown as GameState['players'],
-  } as unknown as GameState;
-}
-
 function candidates(ph: Phone, rng: () => number): GameAction[] {
-  const pub = ph.pub!, priv = ph.priv!, me = ph.slot!;
-  const out: GameAction[] = [];
-  const shuffle = <T>(xs: T[]) => xs.map((x) => [rng(), x] as const).sort((a, b) => a[0] - b[0]).map((x) => x[1]);
-  if (pub.pendingGuardReaction?.targetPlayer === me) return shuffle([{ type: 'GUARD_REACTION', play: true }, { type: 'GUARD_REACTION', play: false }]);
-  if (pub.pendingWareCardReaction?.targetPlayer === me) return shuffle([{ type: 'WARE_CARD_REACTION', play: true }, { type: 'WARE_CARD_REACTION', play: false }]);
-  if (priv.pendingResolution) {
-    if (pub.canCancel && rng() < 0.05) out.push({ type: 'CANCEL_ACTION' });
-    let fb: InteractionResponse[] = [];
-    try { fb = getFallbackInteractionResponses(synthetic(pub, priv, me)); } catch { /* partial state */ }
-    const junk: InteractionResponse[] = [
-      { type: 'SELECT_WARE_TYPE', wareType: 'gold' as never }, { type: 'SELECT_CARDS', cardIds: [priv.hand[0] ?? 'x', priv.hand[0] ?? 'x'] },
-      { type: 'AUCTION_BID', amount: -1 }, { type: 'SELECT_WARE', wareIndex: 99 },
-    ];
-    for (const r of shuffle([...fb, pick(rng, junk), ...WARE_TYPES.map((w) => ({ type: 'SELECT_WARE_TYPE', wareType: w }) as InteractionResponse), { type: 'BINARY_CHOICE', choice: 0 }, { type: 'BINARY_CHOICE', choice: 1 }, { type: 'AUCTION_PASS' }, { type: 'AUCTION_BID', amount: 1 + Math.floor(rng() * 4) }])) {
-      out.push({ type: 'RESOLVE_INTERACTION', response: r });
-    }
-    // every card id / index this phone can see in the decision
-    const visible = new Set<string>(priv.hand);
-    const scan = JSON.stringify([priv.pendingResolution, priv.revealedCards, priv.revealedHand, pub.discardPile.slice(0, 12)]);
-    for (const m of scan.matchAll(/"([a-z]+(?:_[a-z0-9]+)*_\d+)"/g)) visible.add(m[1]);
-    for (const id of visible) {
-      out.push({ type: 'RESOLVE_INTERACTION', response: { type: 'SELECT_CARD', cardId: id } });
-      out.push({ type: 'RESOLVE_INTERACTION', response: { type: 'DISCARD_PICK', cardId: id } });
-      out.push({ type: 'RESOLVE_INTERACTION', response: { type: 'SELECT_CARDS', cardIds: [id] } });
-    }
-    const marketIdx = pub.players[me].market.map((w, i) => (w ? i : -1)).filter((i) => i >= 0);
-    const oppIdx = pub.players[1 - me].market.map((w, i) => (w ? i : -1)).filter((i) => i >= 0);
-    for (const i of [...marketIdx, ...oppIdx]) {
-      out.push({ type: 'RESOLVE_INTERACTION', response: { type: 'SELECT_WARE', wareIndex: i } });
-      out.push({ type: 'RESOLVE_INTERACTION', response: { type: 'RETURN_WARE', wareIndex: i } });
-    }
-    out.push({ type: 'RESOLVE_INTERACTION', response: { type: 'SELL_WARES', wareIndices: marketIdx } });
-    out.push({ type: 'RESOLVE_INTERACTION', response: { type: 'SELECT_WARES', wareIndices: marketIdx.slice(0, 3) } });
-    for (let i = 0; i < 6; i++) {
-      out.push({ type: 'RESOLVE_INTERACTION', response: { type: 'DECK_PEEK_PICK', cardIndex: i } });
-      out.push({ type: 'RESOLVE_INTERACTION', response: { type: 'SELECT_UTILITY', utilityIndex: i } });
-    }
-    out.push({ type: 'RESOLVE_INTERACTION', response: { type: 'OPPONENT_DISCARD_SELECTION', cardIndices: priv.hand.map((_, i) => i).slice(0, Math.max(0, priv.hand.length - 3)) } });
-    out.push({ type: 'RESOLVE_INTERACTION', response: { type: 'OPPONENT_CHOICE', choice: 0 } }, { type: 'RESOLVE_INTERACTION', response: { type: 'OPPONENT_CHOICE', choice: 1 } });
-    out.push({ type: 'RESOLVE_INTERACTION', response: { type: 'SELECT_CARD', cardId: '' } });
-    return out;
-  }
-  if (pub.phase === 'DRAW') {
-    return priv.drawnCard
-      ? shuffle([{ type: 'KEEP_CARD' }, { type: 'DISCARD_DRAWN' }])
-      : shuffle([{ type: 'DRAW_CARD' }, { type: 'SKIP_DRAW' }, { type: 'END_TURN' }]);
-  }
-  for (const id of priv.hand) {
-    if (getCard(id).type === 'ware') out.push({ type: 'PLAY_CARD', cardId: id, wareMode: rng() < 0.5 ? 'buy' : 'sell' });
-    else out.push({ type: 'PLAY_CARD', cardId: id });
-  }
-  pub.players[me].utilities.forEach((_, i) => out.push({ type: 'ACTIVATE_UTILITY', utilityIndex: i }));
-  const end: GameAction = { type: 'END_TURN' };
-  const shuffled = shuffle(out);
-  return rng() < 0.18 ? [end, ...shuffled] : [...shuffled, end];
+  return candidateActions(ph.pub!, ph.priv!, ph.slot!, rng);
 }
-function pick<T>(rng: () => number, xs: T[]): T { return xs[Math.floor(rng() * xs.length)]; }
 
 function check(a: Phone, b: Phone, ctx: string) {
   if (!a.pub || !b.pub || !a.priv || !b.priv) return;
@@ -163,7 +103,9 @@ async function playGame(g: number) {
   for (const ph of [A, B]) { await ph.open(); ph.send({ type: 'JOIN_ROOM', code, role: 'player' }); }
   await A.waitFor(() => !!A.pub && !!B.pub && A.slot !== null && B.slot !== null, 5000);
   if (!A.pub) { finding(`game ${g}: never started`); return; }
+  coverage.firstPlayers.add(A.pub.currentPlayer);
   let steps = 0, rejected = 0, reconnects = 0;
+  const leaveAt = KIND === 'friend' && g === GAMES - 1 ? 40 + Math.floor(rng() * 40) : -1;
   const bySlot = () => (A.slot === 0 ? [A, B] : [B, A]) as [Phone, Phone];
 
   while (steps++ < STEP_CAP) {
@@ -171,6 +113,18 @@ async function playGame(g: number) {
     if (pub.phase === 'GAME_OVER') break;
     const waiting = pub.pendingGuardReaction?.targetPlayer ?? pub.pendingWareCardReaction?.targetPlayer ?? pub.waitingOnPlayer ?? pub.currentPlayer;
     const ph = bySlot()[waiting];
+
+    // friend rooms: the last game ends with a player leaving mid-game
+    if (steps === leaveAt) {
+      const other = ph === A ? B : A;
+      ph.send({ type: 'LEAVE_ROOM' });
+      const told = await other.waitFor(() => other.inbox.some((m) => m.type === 'GAME_ABANDONED'), 3000);
+      const msg = other.inbox.find((m) => m.type === 'GAME_ABANDONED');
+      if (!told || msg?.leaver !== ph.slot || msg?.reason !== 'left') finding(`game ${g}: LEAVE_ROOM mid-game did not end it for the other phone (${JSON.stringify(msg)})`);
+      console.log(`game ${g}: ${ph.name} left at step ${steps} → ${other.name} told ${JSON.stringify(msg)}`);
+      A.close(); B.close();
+      return;
+    }
 
     // random drop + rejoin of the acting phone
     if (rng() < 0.02) {
@@ -181,6 +135,11 @@ async function playGame(g: number) {
       const ok = await ph.waitFor(() => ph.slot !== null && !!ph.pub, 4000);
       if (!ok || ph.slot !== slot) { finding(`game ${g}: ${ph.name} rejoined as ${ph.slot}, expected ${slot}`); return; }
       reconnects++;
+      if (KIND === 'friend') {
+        const other = ph === A ? B : A;
+        const sane = await other.waitFor(() => other.seats?.[slot!]?.status === 'connected' && other.seats?.[1 - slot!]?.status === 'connected', 2000);
+        if (!sane) finding(`game ${g}: after ${ph.name} rejoined, ROOM_PLAYERS says ${JSON.stringify(other.seats)}`);
+      }
     }
 
     let progressed = false;
@@ -188,7 +147,15 @@ async function playGame(g: number) {
       const seq0 = ph.seq, err0 = ph.errors.length;
       ph.send({ type: 'GAME_ACTION', action });
       await ph.waitFor(() => ph.seq > seq0 || ph.errors.length > err0, 2000);
-      if (ph.seq > seq0 && ph.errors.length === err0) { progressed = true; break; }
+      if (ph.seq > seq0 && ph.errors.length === err0) {
+        progressed = true;
+        if (action.type === 'GUARD_REACTION' && action.play) coverage.guardsPlayed++;
+        if (action.type === 'WARE_CARD_REACTION' && action.play) coverage.rainMakers++;
+        if (action.type === 'CANCEL_ACTION') coverage.cancels++;
+        if (action.type === 'RESOLVE_INTERACTION' && pub.pendingResolutionType === 'DRAFT') coverage.drafts++;
+        if (action.type === 'RESOLVE_INTERACTION' && pub.pendingResolutionType === 'AUCTION') coverage.auctions++;
+        break;
+      }
       rejected++;
       await ph.waitFor(() => ph.seq > seq0, 30); // server resends state after an error
     }
@@ -201,6 +168,13 @@ async function playGame(g: number) {
   }
   const over = A.pub?.phase === 'GAME_OVER';
   if (!over) finding(`game ${g}: no GAME_OVER after ${steps} steps (turn ${A.pub?.turn})`);
+  if (over && KIND === 'friend') {
+    for (const ph of [A, B]) {
+      await ph.waitFor(() => ph.inbox.some((m) => m.type === 'GAME_OVER'), 2000);
+      const msg = ph.inbox.find((m) => m.type === 'GAME_OVER') as { story?: { timeline?: unknown[] } | null } | undefined;
+      if (!msg?.story?.timeline?.length) finding(`game ${g}: ${ph.name} got GAME_OVER without a story`);
+    }
+  }
 
   // rematch: both vote → fresh game at turn 1
   if (over) {
@@ -214,6 +188,10 @@ async function playGame(g: number) {
 
 (async () => {
   for (let g = 0; g < GAMES; g++) await playGame(g);
-  console.log(`cast-fuzz: ${GAMES} games, findings: ${findings.length}`);
+  if (KIND === 'friend') {
+    if (GAMES >= 6 && coverage.firstPlayers.size < 2) finding(`only seat ${[...coverage.firstPlayers].join()} ever went first`);
+    console.log(`coverage: guards played ${coverage.guardsPlayed}, rain makers ${coverage.rainMakers}, draft picks ${coverage.drafts}, auction moves ${coverage.auctions}, cancels ${coverage.cancels}, first players ${[...coverage.firstPlayers].sort().join('+')}`);
+  }
+  console.log(`cast-fuzz${KIND === 'friend' ? ' (friend rooms)' : ''}: ${GAMES} games, findings: ${findings.length}`);
   process.exit(findings.length ? 1 : 0);
 })();

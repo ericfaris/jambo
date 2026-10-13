@@ -13,6 +13,7 @@
     "test:watch": "vitest",
     "fuzz": "tsx scripts/fuzz.ts",
     "fuzz:cast": "tsx scripts/cast-fuzz.ts",
+    "fuzz:friend": "tsx scripts/cast-fuzz.ts 10 7000 ws://127.0.0.1:3031/ws friend",
     "server": "tsx src/multiplayer/server.ts",
     "ai:bench:short": "tsx scripts/ai-benchmark.ts short",
     "ai:bench:medium": "tsx scripts/ai-benchmark.ts medium",

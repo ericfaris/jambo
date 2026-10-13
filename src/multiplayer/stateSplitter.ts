@@ -71,10 +71,11 @@ export function extractPrivateState(
     const waitingOn = getWaitingPlayer(state);
 
     if (waitingOn !== playerSlot) {
-      // This player is NOT the one who needs to act — hide resolution details
-      // Exception: AUCTION with revealedCards (Arabian Merchant) visible to both
-      if (pr.type === 'AUCTION') {
-        // Both players see auction state (bids, current bidder, etc.)
+      // This player is NOT the one who needs to act — hide resolution details.
+      // Exceptions, public by the rules: an AUCTION (bids, the Arabian
+      // Merchant's revealed cards) and a DRAFT (the pool is laid face up and
+      // both players watch it shrink — the board shows it read-only).
+      if (pr.type === 'AUCTION' || pr.type === 'DRAFT') {
         pendingResolution = pr;
       } else {
         pendingResolution = null;
