@@ -2224,6 +2224,8 @@ button.brown:hover:not(:disabled) {
 .endgame-record { font-size: 13px; color: var(--text-muted); margin-bottom: 12px; }
 .endgame-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
 .endgame-actions button { font-size: 17px; padding: 11px 26px; }
+/* Online rematch: "Waiting for Sam…" under the buttons, or why there's no rematch */
+.endgame-rematch-status { margin-top: 10px; font-size: 13px; color: var(--text-muted); font-style: italic; min-height: 1.2em; }
 @media (max-width: 420px) {
   .endgame-card { padding: 16px 12px 14px; }
   .endgame-title { margin-bottom: 6px; }

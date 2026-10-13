@@ -118,7 +118,7 @@ export interface GameBoardProps {
 
 function opponentPortraitFor(opponent: OpponentSeat, size: number, isActive = false): ReactNode {
   if (opponent.kind === 'trader') return <TraderPortrait trader={opponent.trader} mood={opponent.mood} speaking={opponent.speaking} size={size} />;
-  if (opponent.kind === 'human') return <PlayerAvatar avatarUrl={opponent.avatarUrl} size={size} active={isActive} />;
+  if (opponent.kind === 'human') return <PlayerAvatar avatarUrl={opponent.avatarUrl} size={size} active={isActive} label={opponent.name} />;
   return undefined;
 }
 
@@ -286,6 +286,8 @@ export function GameBoard({
     state.currentPlayer === viewerPlayer &&
     !isAiTurn;
   const drawActionsDisabled = !canTakeDrawActions;
+  // Online: the disabled reasons name the friend ("Waiting for Sam…")
+  const opponentLabel = mode === 'online' ? labels[opponentPlayer] : undefined;
   const playDisabledReason = getPlayDisabledReason({
     phase: state.phase,
     currentPlayer: state.currentPlayer,
@@ -293,12 +295,14 @@ export function GameBoard({
     actionsLeft: state.actionsLeft,
     hasPendingInteraction,
     isAiTurn,
+    opponentLabel,
   });
   const drawDisabledReason = getDrawDisabledReason({
     phase: state.phase,
     currentPlayer: state.currentPlayer,
     viewerPlayer,
     isAiTurn,
+    opponentLabel,
   });
 
   const lastLog = state.log.length > 0 ? state.log[state.log.length - 1] : null;
@@ -509,7 +513,7 @@ export function GameBoard({
               />
             </div>
 
-            <CenterRow compact state={state} dispatch={dispatch} isLocalMode={true} showGlow={false} visualFeedback={visualFeedback} actorLabels={logLabels} hiddenPlayer={opponentPlayer} spotlitPlayer={localMultiplayer ? null : opponentPlayer} heldDiscardCard={spotlitDiscard} />
+            <CenterRow compact state={state} dispatch={dispatch} isLocalMode={true} showGlow={false} visualFeedback={visualFeedback} actorLabels={logLabels} hiddenPlayer={opponentPlayer} spotlitPlayer={localMultiplayer ? null : opponentPlayer} heldDiscardCard={spotlitDiscard} viewer={viewerPlayer} />
             <WareSupply supply={state.wareSupply} compact highlight={supplyAlert} />
 
             {hintText && (
@@ -649,6 +653,7 @@ export function GameBoard({
             hiddenPlayer={opponentPlayer}
             spotlitPlayer={localMultiplayer ? null : opponentPlayer}
             heldDiscardCard={spotlitDiscard}
+            viewer={viewerPlayer}
             supplySlot={<WareSupply supply={state.wareSupply} highlight={supplyAlert} />}
             endTurnSlot={state.phase === 'PLAY' && state.currentPlayer === viewerPlayer ? (
               <button
@@ -897,11 +902,13 @@ export function GameBoard({
         playerPortrait={opponent.kind === 'hotseat' ? undefined : <PlayerAvatar avatarUrl={avatarUrl} size={56} />}
         opponentPortrait={opponent.kind === 'trader'
           ? <TraderPortrait trader={opponent.trader} mood={opponent.mood} size={56} />
-          : opponent.kind === 'human' ? <PlayerAvatar avatarUrl={opponent.avatarUrl} size={56} /> : undefined}
+          : opponent.kind === 'human' ? <PlayerAvatar avatarUrl={opponent.avatarUrl} size={56} label={opponent.name} /> : undefined}
         opponentQuote={opponent.kind === 'trader' && isGameOver ? opponent.endQuote : null}
         viewer={localMultiplayer ? null : viewerPlayer}
         onRematch={endgame.onRematch}
         rematchLabel={endgame.rematchLabel}
+        rematchStatus={endgame.rematchStatus}
+        rematchDisabled={endgame.rematchDisabled}
         onMainMenu={endgame.onMainMenu}
         record={endgame.record}
       />

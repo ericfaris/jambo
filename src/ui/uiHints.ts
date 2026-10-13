@@ -11,6 +11,8 @@ interface PlayDisabledReasonInput {
   actionsLeft: number;
   hasPendingInteraction: boolean;
   isAiTurn: boolean;
+  /** Online: the friend's name — "Waiting for Sam…" instead of the AI copy. */
+  opponentLabel?: string;
 }
 
 interface DrawDisabledReasonInput {
@@ -18,12 +20,17 @@ interface DrawDisabledReasonInput {
   currentPlayer: 0 | 1;
   viewerPlayer: 0 | 1;
   isAiTurn: boolean;
+  opponentLabel?: string;
+}
+
+function opponentActingReason(opponentLabel: string | undefined): string {
+  return opponentLabel ? `Waiting for ${opponentLabel}…` : 'Opponent is resolving actions.';
 }
 
 export function getPlayDisabledReason(input: PlayDisabledReasonInput): string | null {
   if (input.phase !== 'PLAY') return 'Play cards during the Play phase.';
   if (input.currentPlayer !== input.viewerPlayer) return "Wait for your turn to play cards.";
-  if (input.isAiTurn) return 'Opponent is resolving actions.';
+  if (input.isAiTurn) return opponentActingReason(input.opponentLabel);
   if (input.hasPendingInteraction) return 'Finish the current interaction first.';
   if (input.actionsLeft <= 0) return 'No actions remaining this turn.';
   return null;
@@ -32,7 +39,7 @@ export function getPlayDisabledReason(input: PlayDisabledReasonInput): string | 
 export function getDrawDisabledReason(input: DrawDisabledReasonInput): string | null {
   if (input.phase !== 'DRAW') return 'Drawing is only available during the Draw phase.';
   if (input.currentPlayer !== input.viewerPlayer) return "Wait for your turn to draw.";
-  if (input.isAiTurn) return 'Opponent is resolving actions.';
+  if (input.isAiTurn) return opponentActingReason(input.opponentLabel);
   return null;
 }
 

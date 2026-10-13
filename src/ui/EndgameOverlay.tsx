@@ -26,6 +26,10 @@ interface EndgameOverlayProps {
   opponentPortrait?: ReactNode;
   /** Solo: what the trader says about the result. */
   opponentQuote?: string | null;
+  /** Online: "Waiting for Sam…" after you vote, or why a rematch can't happen. */
+  rematchStatus?: string | null;
+  /** Online: the friend left — there's nobody to rematch. */
+  rematchDisabled?: boolean;
 }
 
 /** "You win!" / "AI wins!" / "Player 2 wins!" */
@@ -55,7 +59,7 @@ function cardName(id: DeckCardId): string {
 
 const COINS = Array.from({ length: 16 }, (_, i) => i);
 
-export function EndgameOverlay({ state, story = null, labels = ['You', 'AI'], viewer = 0, onRematch, rematchLabel = 'Rematch', onMainMenu, record = null, playerPortrait, opponentPortrait, opponentQuote = null }: EndgameOverlayProps) {
+export function EndgameOverlay({ state, story = null, labels = ['You', 'AI'], viewer = 0, onRematch, rematchLabel = 'Rematch', onMainMenu, record = null, playerPortrait, opponentPortrait, opponentQuote = null, rematchStatus = null, rematchDisabled = false }: EndgameOverlayProps) {
   const rematchRef = useRef<HTMLButtonElement | null>(null);
   const isOver = state.phase === 'GAME_OVER';
   useEffect(() => {
@@ -76,6 +80,11 @@ export function EndgameOverlay({ state, story = null, labels = ['You', 'AI'], vi
   const mvp = mvpAddsToPayday(mvpCandidate, payday) ? mvpCandidate : null;
   const theirPayday = story?.bestPayday[me === 0 ? 1 : 0] ?? null;
   const swing = story?.biggestSwing ?? null;
+  // The viewer's own column comes first (online, the viewer may be seat 1);
+  // hotseat keeps seat order. Styling follows "you" vs "them", not the seat.
+  const near: 0 | 1 = viewer ?? 0;
+  const far: 0 | 1 = near === 0 ? 1 : 0;
+  const goldOf = (seat: 0 | 1) => (seat === 0 ? scores.player0 : scores.player1);
 
   return (
     <div className="overlay-fade endgame-overlay" role="dialog" aria-modal="true" aria-labelledby="endgame-title">
@@ -90,19 +99,19 @@ export function EndgameOverlay({ state, story = null, labels = ['You', 'AI'], vi
         <div className="endgame-scores">
           <div className="endgame-score-side">
             {playerPortrait}
-            <div className="endgame-score-label">{labels[0]}</div>
-            <div className="endgame-score endgame-score-0">{scores.player0}g</div>
+            <div className="endgame-score-label">{labels[near]}</div>
+            <div className="endgame-score endgame-score-0">{goldOf(near)}g</div>
           </div>
           <div className="endgame-vs">vs</div>
           <div className="endgame-score-side">
             {opponentPortrait}
-            <div className="endgame-score-label">{labels[1]}</div>
-            <div className="endgame-score endgame-score-1">{scores.player1}g</div>
+            <div className="endgame-score-label">{labels[far]}</div>
+            <div className="endgame-score endgame-score-1">{goldOf(far)}g</div>
           </div>
         </div>
-        {opponentQuote && <p className="endgame-quote">“{opponentQuote}” <span>— {labels[1]}</span></p>}
+        {opponentQuote && <p className="endgame-quote">“{opponentQuote}” <span>— {labels[far]}</span></p>}
 
-        {story && <GoldChart timeline={story.timeline} labels={labels} highlightTurn={swing?.turn ?? null} />}
+        {story && <GoldChart timeline={story.timeline} labels={labels} highlightTurn={swing?.turn ?? null} viewer={near} />}
 
         {story && (
           <div className="endgame-facts">
@@ -145,9 +154,10 @@ export function EndgameOverlay({ state, story = null, labels = ['You', 'AI'], vi
         )}
 
         <div className="endgame-actions">
-          <button ref={rematchRef} className="primary" onClick={onRematch}>{rematchLabel}</button>
+          <button ref={rematchRef} className="primary" onClick={onRematch} disabled={rematchDisabled}>{rematchLabel}</button>
           {onMainMenu && <button onClick={onMainMenu}>Main Menu</button>}
         </div>
+        {rematchStatus && <div className="endgame-rematch-status" role="status">{rematchStatus}</div>}
       </div>
     </div>
   );
