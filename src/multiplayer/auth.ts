@@ -1,11 +1,34 @@
 import { createHash, randomBytes } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { createSession, deleteSession, getLinkedProfileId, getSession, upsertLinkedProfileId } from './authStore.ts';
+import { normalizeEmail } from './accountRules.ts';
+import { handleAccountApi } from './accountApi.ts';
+import { authDeps, getRequestSession, sanitizeLocalProfileId, startSession, toPublicUser } from './authCore.ts';
+import {
+  clearSessionCookie,
+  getAppBaseUrl,
+  getSessionCookie,
+  isSameOriginJsonRequest,
+  redirect,
+  sendJson,
+} from './authHttp.ts';
+import { deleteSession, getLinkedProfileId } from './authStore.ts';
+import {
+  createUser,
+  DuplicateAccountError,
+  getUserByEmail,
+  getUserByGoogleSub,
+  getUserById,
+  newUserId,
+  updateUser,
+} from './userStore.ts';
+import type { AccountUser } from './userStore.ts';
 
 interface OAuthFlowState {
   codeVerifier: string;
   localProfileId: string | null;
   returnTo: string;
+  /** Set when a signed-in user is adding Google to their existing account. */
+  linkUserId: string | null;
   createdAt: number;
 }
 
@@ -17,6 +40,7 @@ interface GoogleTokenInfoResponse {
   aud?: string;
   sub?: string;
   email?: string;
+  email_verified?: string | boolean;
   name?: string;
   picture?: string;
 }
@@ -24,15 +48,13 @@ interface GoogleTokenInfoResponse {
 const oauthStates = new Map<string, OAuthFlowState>();
 
 const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
-const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-const COOKIE_NAME = 'jambo_session';
 
 function getGoogleOAuthConfig() {
   return {
     clientId: process.env['GOOGLE_CLIENT_ID'] ?? '',
     clientSecret: process.env['GOOGLE_CLIENT_SECRET'] ?? '',
     redirectUri: process.env['GOOGLE_REDIRECT_URI'] ?? 'http://localhost:5173/api/auth/google/callback',
-    appBaseUrl: process.env['APP_BASE_URL'] ?? 'http://localhost:5173',
+    appBaseUrl: getAppBaseUrl(),
   };
 }
 
@@ -62,13 +84,6 @@ function createCodeChallenge(codeVerifier: string): string {
   return base64UrlEncode(digest);
 }
 
-function sanitizeLocalProfileId(value: string | null): string | null {
-  if (!value) return null;
-  const trimmed = value.trim();
-  if (trimmed.length === 0 || trimmed.length > 128) return null;
-  return /^[a-zA-Z0-9._-]+$/.test(trimmed) ? trimmed : null;
-}
-
 function sanitizeReturnTo(value: string | null, appBaseUrl: string): string {
   try {
     const base = new URL(appBaseUrl);
@@ -88,72 +103,6 @@ function appendQuery(urlString: string, key: string, value: string): string {
   return url.toString();
 }
 
-function sendJson(res: ServerResponse, statusCode: number, body: unknown): void {
-  const payload = JSON.stringify(body);
-  res.statusCode = statusCode;
-  res.setHeader('Content-Type', 'application/json; charset=utf-8');
-  res.setHeader('Cache-Control', 'no-store');
-  res.end(payload);
-}
-
-function redirect(res: ServerResponse, location: string): void {
-  res.statusCode = 302;
-  res.setHeader('Location', location);
-  res.end();
-}
-
-function parseCookies(req: IncomingMessage): Record<string, string> {
-  const rawCookie = req.headers.cookie;
-  if (!rawCookie) return {};
-  const parsed: Record<string, string> = {};
-  for (const part of rawCookie.split(';')) {
-    const [key, ...rest] = part.trim().split('=');
-    if (!key) continue;
-    parsed[key] = decodeURIComponent(rest.join('='));
-  }
-  return parsed;
-}
-
-function isSecureRequest(req: IncomingMessage): boolean {
-  const forwardedProto = req.headers['x-forwarded-proto'];
-  if (typeof forwardedProto === 'string' && forwardedProto.toLowerCase() === 'https') {
-    return true;
-  }
-
-  const socket = req.socket as { encrypted?: boolean };
-  return Boolean(socket.encrypted);
-}
-
-function setSessionCookie(req: IncomingMessage, res: ServerResponse, sessionId: string): void {
-  const secure = isSecureRequest(req);
-  const parts = [
-    `${COOKIE_NAME}=${encodeURIComponent(sessionId)}`,
-    'Path=/',
-    'HttpOnly',
-    'SameSite=Lax',
-    `Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}`,
-  ];
-  if (secure) {
-    parts.push('Secure');
-  }
-  res.setHeader('Set-Cookie', parts.join('; '));
-}
-
-function clearSessionCookie(req: IncomingMessage, res: ServerResponse): void {
-  const secure = isSecureRequest(req);
-  const parts = [
-    `${COOKIE_NAME}=`,
-    'Path=/',
-    'HttpOnly',
-    'SameSite=Lax',
-    'Max-Age=0',
-  ];
-  if (secure) {
-    parts.push('Secure');
-  }
-  res.setHeader('Set-Cookie', parts.join('; '));
-}
-
 async function exchangeCodeForIdToken(code: string, codeVerifier: string): Promise<string> {
   const config = getGoogleOAuthConfig();
   const body = new URLSearchParams({
@@ -165,10 +114,10 @@ async function exchangeCodeForIdToken(code: string, codeVerifier: string): Promi
     code_verifier: codeVerifier,
   });
 
-  const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+  const tokenResponse = await authDeps.fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body,
+    body: body.toString(),
   });
 
   if (!tokenResponse.ok) {
@@ -186,24 +135,95 @@ async function exchangeCodeForIdToken(code: string, codeVerifier: string): Promi
 async function getGoogleUserFromIdToken(idToken: string): Promise<GoogleTokenInfoResponse> {
   const url = new URL('https://oauth2.googleapis.com/tokeninfo');
   url.searchParams.set('id_token', idToken);
-  const response = await fetch(url);
+  const response = await authDeps.fetch(url.toString());
   if (!response.ok) {
     throw new Error('Failed to validate id_token with Google');
   }
   return (await response.json()) as GoogleTokenInfoResponse;
 }
 
-async function getSessionFromRequest(req: IncomingMessage) {
-  const cookies = parseCookies(req);
-  const sessionId = cookies[COOKIE_NAME];
-  if (!sessionId) return null;
-  return getSession(sessionId);
+type GoogleOutcome = { userId: string; status: 'success' } | { userId: null; status: string };
+
+interface GoogleIdentity {
+  sub: string;
+  email: string;
+  name: string;
+  picture: string;
+}
+
+/** Adds a Google identity to the signed-in account that started the flow. */
+async function linkGoogle(linkUserId: string, google: GoogleIdentity): Promise<GoogleOutcome> {
+  const target = await getUserById(linkUserId);
+  if (!target) return { userId: null, status: 'failed' };
+  const owner = await getUserByGoogleSub(google.sub);
+  if (owner && owner.id !== target.id) return { userId: null, status: 'google_in_use' };
+
+  const patch: Partial<AccountUser> = { googleSub: google.sub, googleName: google.name };
+  if (!target.picture) patch.picture = google.picture;
+  // Google has verified this address, so it confirms a matching unverified one.
+  if (!target.emailVerified && target.email === google.email) {
+    patch.emailVerified = true;
+    patch.unverifiedExpiresAt = null;
+  }
+  try {
+    await updateUser(target.id, patch);
+  } catch (error) {
+    if (error instanceof DuplicateAccountError) return { userId: null, status: 'google_in_use' };
+    throw error;
+  }
+  return { userId: target.id, status: 'success' };
+}
+
+/** Signs in with Google, creating the account on first use. */
+async function signInWithGoogle(google: GoogleIdentity, flowProfileId: string | null): Promise<GoogleOutcome> {
+  const known = await getUserByGoogleSub(google.sub);
+  if (known) {
+    if (known.googleName !== google.name || (!known.picture && google.picture)) {
+      await updateUser(known.id, { googleName: google.name, picture: known.picture || google.picture });
+    }
+    return { userId: known.id, status: 'success' };
+  }
+
+  const holder = await getUserByEmail(google.email);
+  if (holder) {
+    // A verified account already owns this address: never merge silently.
+    if (holder.emailVerified) return { userId: null, status: 'email_in_use' };
+    // An unverified claim loses to Google's verified one (it can now never verify, and is purged on schedule).
+    await updateUser(holder.id, { email: null });
+  }
+
+  const user: AccountUser = {
+    id: newUserId(),
+    username: null,
+    email: google.email,
+    emailVerified: true,
+    passwordHash: null,
+    googleSub: google.sub,
+    googleName: google.name,
+    picture: google.picture,
+    localProfileId: (await getLinkedProfileId(google.sub)) ?? flowProfileId,
+    createdAt: Date.now(),
+    unverifiedExpiresAt: null,
+  };
+  try {
+    await createUser(user);
+  } catch (error) {
+    if (!(error instanceof DuplicateAccountError)) throw error;
+    const raced = await getUserByGoogleSub(google.sub);
+    if (raced) return { userId: raced.id, status: 'success' };
+    return { userId: null, status: 'email_in_use' };
+  }
+  return { userId: user.id, status: 'success' };
 }
 
 export async function handleAuthApi(req: IncomingMessage, res: ServerResponse): Promise<boolean> {
   const method = req.method ?? 'GET';
   const host = req.headers.host ?? 'localhost:3001';
   const requestUrl = new URL(req.url ?? '/', `http://${host}`);
+
+  if (!requestUrl.pathname.startsWith('/api/auth/')) {
+    return false;
+  }
 
   cleanupExpiredOAuthStates();
 
@@ -216,16 +236,26 @@ export async function handleAuthApi(req: IncomingMessage, res: ServerResponse): 
       return true;
     }
 
+    const returnTo = sanitizeReturnTo(requestUrl.searchParams.get('returnTo'), config.appBaseUrl);
+    let linkUserId: string | null = null;
+    if (requestUrl.searchParams.get('link') === '1') {
+      const session = await getRequestSession(req);
+      if (!session) {
+        redirect(res, appendQuery(returnTo, 'auth', 'failed'));
+        return true;
+      }
+      linkUserId = session.user.id;
+    }
+
     const state = base64UrlEncode(randomBytes(24));
     const codeVerifier = createCodeVerifier();
     const codeChallenge = createCodeChallenge(codeVerifier);
-    const localProfileId = sanitizeLocalProfileId(requestUrl.searchParams.get('localProfileId'));
-    const returnTo = sanitizeReturnTo(requestUrl.searchParams.get('returnTo'), config.appBaseUrl);
 
     oauthStates.set(state, {
       codeVerifier,
-      localProfileId,
+      localProfileId: sanitizeLocalProfileId(requestUrl.searchParams.get('localProfileId')),
       returnTo,
+      linkUserId,
       createdAt: Date.now(),
     });
 
@@ -237,8 +267,7 @@ export async function handleAuthApi(req: IncomingMessage, res: ServerResponse): 
     authUrl.searchParams.set('state', state);
     authUrl.searchParams.set('code_challenge', codeChallenge);
     authUrl.searchParams.set('code_challenge_method', 'S256');
-    authUrl.searchParams.set('access_type', 'offline');
-    authUrl.searchParams.set('prompt', 'consent');
+    authUrl.searchParams.set('prompt', 'select_account');
 
     redirect(res, authUrl.toString());
     return true;
@@ -273,34 +302,30 @@ export async function handleAuthApi(req: IncomingMessage, res: ServerResponse): 
     try {
       const idToken = await exchangeCodeForIdToken(code, flowState.codeVerifier);
       const tokenInfo = await getGoogleUserFromIdToken(idToken);
+      const emailVerified = tokenInfo.email_verified === true || tokenInfo.email_verified === 'true';
 
-      if (tokenInfo.aud !== config.clientId || !tokenInfo.sub || !tokenInfo.email || !tokenInfo.name) {
+      if (tokenInfo.aud !== config.clientId || !tokenInfo.sub || !tokenInfo.email || !emailVerified) {
         throw new Error('Invalid token audience or required claim missing');
       }
 
-      const linkedProfileId = await getLinkedProfileId(tokenInfo.sub)
-        ?? flowState.localProfileId
-        ?? null;
+      const google: GoogleIdentity = {
+        sub: tokenInfo.sub,
+        email: normalizeEmail(tokenInfo.email),
+        name: tokenInfo.name ?? '',
+        picture: tokenInfo.picture ?? '',
+      };
 
-      if (linkedProfileId) {
-        await upsertLinkedProfileId(tokenInfo.sub, linkedProfileId);
+      if (flowState.linkUserId) {
+        const outcome = await linkGoogle(flowState.linkUserId, google);
+        redirect(res, appendQuery(flowState.returnTo, 'auth', outcome.status === 'success' ? 'google_linked' : outcome.status));
+        return true;
       }
 
-      const sessionId = base64UrlEncode(randomBytes(24));
-      await createSession({
-        id: sessionId,
-        user: {
-          googleSub: tokenInfo.sub,
-          email: tokenInfo.email,
-          name: tokenInfo.name,
-          picture: tokenInfo.picture ?? '',
-          localProfileId: linkedProfileId,
-        },
-        expiresAt: Date.now() + SESSION_TTL_MS,
-      });
-      setSessionCookie(req, res, sessionId);
-
-      redirect(res, appendQuery(flowState.returnTo, 'auth', 'success'));
+      const outcome = await signInWithGoogle(google, flowState.localProfileId);
+      if (outcome.userId) {
+        await startSession(req, res, outcome.userId);
+      }
+      redirect(res, appendQuery(flowState.returnTo, 'auth', outcome.status));
       return true;
     } catch {
       redirect(res, appendQuery(flowState.returnTo, 'auth', 'failed'));
@@ -309,28 +334,32 @@ export async function handleAuthApi(req: IncomingMessage, res: ServerResponse): 
   }
 
   if (method === 'GET' && requestUrl.pathname === '/api/auth/session') {
-    const session = await getSessionFromRequest(req);
+    const session = await getRequestSession(req);
     if (!session) {
       sendJson(res, 200, { authenticated: false });
       return true;
     }
     sendJson(res, 200, {
       authenticated: true,
-      user: session.user,
+      user: toPublicUser(session.user),
       expiresAt: session.expiresAt,
     });
     return true;
   }
 
-  if ((method === 'POST' || method === 'GET') && requestUrl.pathname === '/api/auth/logout') {
-    const session = await getSessionFromRequest(req);
-    if (session) {
-      await deleteSession(session.id);
+  if (method === 'POST' && requestUrl.pathname === '/api/auth/logout') {
+    if (!isSameOriginJsonRequest(req)) {
+      sendJson(res, 403, { error: 'Cross-origin request refused.' });
+      return true;
+    }
+    const sessionId = getSessionCookie(req);
+    if (sessionId) {
+      await deleteSession(sessionId);
     }
     clearSessionCookie(req, res);
     sendJson(res, 200, { ok: true });
     return true;
   }
 
-  return false;
+  return handleAccountApi(req, res, requestUrl.pathname);
 }

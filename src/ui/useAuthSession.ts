@@ -1,18 +1,12 @@
 import { useState, useCallback, useEffect } from 'react';
+import { authApi } from './auth/authApi.ts';
+import type { AuthUserProfile } from './auth/authApi.ts';
+
+export type { AuthUserProfile };
 
 interface AuthSessionResponse {
   authenticated: boolean;
-  user?: {
-    name: string;
-    email: string;
-    picture: string;
-  };
-}
-
-export interface AuthUserProfile {
-  name: string;
-  email: string;
-  picture: string;
+  user?: AuthUserProfile;
 }
 
 export interface AuthSession {
@@ -68,11 +62,8 @@ export function useAuthSession(): AuthSession {
 
   const logout = useCallback(async () => {
     try {
-      const response = await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include',
-      });
-      if (!response.ok) {
+      const result = await authApi.logout();
+      if (!result.ok) {
         throw new Error('Logout failed');
       }
       setAuthUser(null);

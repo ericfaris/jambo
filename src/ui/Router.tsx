@@ -13,6 +13,9 @@ import { MainMenu } from './screens/MainMenu.tsx';
 import { SettingsScreen } from './screens/SettingsScreen.tsx';
 import { applyDocumentPreferences, readPreferences } from './preferences.ts';
 import { LoginModal } from './screens/LoginModal.tsx';
+import type { AuthNotice } from './screens/LoginModal.tsx';
+import { ChooseUsernameDialog, ResetPasswordDialog } from './auth/AccountLinkDialogs.tsx';
+import { authApi, describeGoogleOutcome } from './auth/authApi.ts';
 import { PreGameSetupModal } from './screens/PreGameSetupModal.tsx';
 import { FirstPlayerReveal } from './FirstPlayerReveal.tsx';
 import { TutorialOverlay } from './TutorialOverlay.tsx';
@@ -137,6 +140,8 @@ function RouterInner() {
   const [pendingScreen, setPendingScreen] = useState<'solo' | 'multiplayer' | null>(null);
   const [castRoomMode, setCastRoomMode] = useState<RoomMode | null>(null);
   const [castStartError, setCastStartError] = useState<string | null>(null);
+  const [authNotice, setAuthNotice] = useState<AuthNotice | null>(null);
+  const [resetToken, setResetToken] = useState<string | null>(null);
   const newGame = useGameStore((store) => store.newGame);
   const restoreGame = useGameStore((store) => store.restore);
 
@@ -161,6 +166,36 @@ function RouterInner() {
     setAiDifficulty(saved.aiDifficulty);
     setScreen(saved.mode);
   }, [restoreGame]);
+
+  // Landing from a Google redirect (?auth=), an email confirmation link
+  // (?verify=) or a password-reset link (?reset=): act on it once, then strip
+  // it from the address bar so a refresh or a shared URL doesn't replay it.
+  const { refresh: refreshAuth } = auth;
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const authStatus = url.searchParams.get('auth');
+    const verifyToken = url.searchParams.get('verify');
+    const reset = url.searchParams.get('reset');
+    if (!authStatus && !verifyToken && !reset) return;
+    for (const key of ['auth', 'verify', 'reset']) url.searchParams.delete(key);
+    window.history.replaceState(window.history.state, '', url.toString());
+
+    if (reset) setResetToken(reset);
+    if (verifyToken) {
+      void authApi.verifyEmail(verifyToken).then((result) => {
+        setAuthNotice(result.ok
+          ? { message: 'Email confirmed — your account is all set.', isError: false }
+          : { message: result.error ?? 'That confirmation link is invalid or has expired.', isError: true });
+        setScreen('login');
+        void refreshAuth();
+      });
+    }
+    const outcome = authStatus ? describeGoogleOutcome(authStatus) : null;
+    if (outcome) {
+      setAuthNotice(outcome);
+      setScreen('login');
+    }
+  }, [refreshAuth]);
 
   useEffect(() => {
     const onHashChange = () => setRoute(getRoute());
@@ -270,7 +305,8 @@ function RouterInner() {
   }
 
   if (screen === 'menu' || screen === 'login') {
-    const overlayOpen = screen === 'login' || showTvSetup || showTutorial;
+    const needsUsername = !!auth.authUser?.needsUsername && !resetToken;
+    const overlayOpen = screen === 'login' || showTvSetup || showTutorial || !!resetToken || needsUsername;
     return (
       <>
         <MainMenu
@@ -294,7 +330,28 @@ function RouterInner() {
             castStartError={castStartError}
           />
         )}
-        {screen === 'login' && <LoginModal onClose={() => setScreen('menu')} />}
+        {screen === 'login' && !resetToken && !needsUsername && (
+          <LoginModal auth={auth} notice={authNotice} onClose={() => { setAuthNotice(null); setScreen('menu'); }} />
+        )}
+        {resetToken && (
+          <ResetPasswordDialog
+            token={resetToken}
+            onClose={() => setResetToken(null)}
+            onDone={() => {
+              setResetToken(null);
+              setAuthNotice(null);
+              setScreen('login');
+              void auth.refresh();
+            }}
+          />
+        )}
+        {needsUsername && auth.authUser && (
+          <ChooseUsernameDialog
+            user={auth.authUser}
+            onSaved={() => void auth.refresh()}
+            onSignOut={() => void auth.logout()}
+          />
+        )}
         {showTutorial && (
           <TutorialOverlay
             onClose={() => { markTutorialSeen(); setShowTutorial(false); }}

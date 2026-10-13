@@ -87,6 +87,22 @@ A browser refresh must never lose a game.
   alive meanwhile (`src/multiplayer/roomLifecycle.ts`). Rooms live in server
   memory, so a deploy/restart still ends in-progress Cast games.
 
+## Accounts & Auth
+
+- One `users` row per person, holding any of these sign-in methods: password
+  (Argon2id), Google (`googleSub`), and passkeys later. Sessions
+  (`oauth_sessions`) point at a `userId`. Pre-accounts sessions that embed a
+  Google profile migrate in place inside `authStore.getSession()`.
+- The username is also the display name (`user.name` = username, falling back
+  to the Google name until the user picks one).
+- Shared limits live in `src/multiplayer/accountRules.ts`, which the client
+  imports too. Change a limit there, never in the UI.
+- Auth tests use the in-memory stores plus fake fetch and email
+  (`setAuthDepsForTests`). Never let them reach Mongo, HIBP, Google or Resend.
+- New state-changing auth routes go through `handleAccountApi`, which enforces
+  POST plus same-origin JSON. Clients must send `Content-Type: application/json`
+  (use `postAuth` in `src/ui/auth/authApi.ts`).
+
 ## Immutable State — Critical Rule
 
 **Never mutate state.** Every function returns a new state object via spread operators.

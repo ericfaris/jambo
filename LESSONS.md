@@ -559,3 +559,28 @@ overwrites tracked files.)
   `SavedGame` to `localStorage['jambo.savedGame']`, set
   `sessionStorage['jambo.activeGame']='1'` and
   `localStorage['jambo.tutorialSeen']='true'` (the string `'true'`).
+
+## 2026-10-12 — Username/password accounts alongside Google
+
+- **No new crypto dependency.** Node 26 ships `crypto.argon2` (Argon2id).
+  The hash is PHC-encoded by hand in `passwords.ts`. At OWASP's baseline
+  (19 MiB, t=2) one hash takes about 25 ms, fast enough to run for real in tests.
+- **Logout now needs a JSON body.** Every POST under `/api/auth/*` must be
+  same-origin JSON (the CSRF defense), so a bare `fetch(..., {method:'POST'})`
+  gets a 403. Use `postAuth()`.
+- **Unconfirmed accounts can squat an email.** Two rules close this: a
+  verified Google sign-in takes the address from an *unconfirmed* account, and
+  unconfirmed accounts are TTL-purged after 7 days. Reset links still never go
+  to unconfirmed addresses, because a mistyped address must not become a way
+  in.
+- **Google `prompt` changed from `consent` + `access_type=offline` to
+  `select_account`.** We only ever used the id_token, so asking for a refresh
+  token was unneeded privilege.
+- **Local UI check without Vite.** Port 3001 (the Vite proxy target) is used
+  by another lab app. Run `npx vite build`, then
+  `PORT=3031 STATIC_DIR=dist MONGODB_URI= APP_BASE_URL=http://localhost:3031 npm run server`.
+  An explicitly empty `MONGODB_URI=` stays empty, because `loadEnv` only
+  fills *undefined* vars, so the in-memory store is used. In dev, emails
+  (verify and reset links) print to the server log as `[mail:dev]`.
+- **Don't `pkill -f` a pattern that appears in your own command line.** It
+  kills the shell running it (exit 144). Kill by the PID listening on the port.

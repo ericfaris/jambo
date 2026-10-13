@@ -20,14 +20,20 @@ npx vite build
 npm test
 ```
 
-## Google OAuth + MongoDB Setup
+## Accounts (Google + username/password) and MongoDB Setup
 
-The multiplayer/auth server now serves both WebSocket and HTTP auth endpoints on port `3001`.
+The multiplayer/auth server serves the WebSocket and the HTTP auth API on port `3001`.
+Players can sign in with Google or create an account with a username, email and
+password. One account can carry both sign-in methods (link Google from the
+Account dialog, or add a password to a Google account).
 
 1. Copy `.env.example` to `.env` and set:
-	- `MONGODB_URI` (Atlas connection string)
-	- `GOOGLE_CLIENT_ID`
-	- `GOOGLE_CLIENT_SECRET`
+	- `MONGODB_URI` (Atlas connection string; without it accounts live in memory)
+	- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+	- `RESEND_API_KEY`, `EMAIL_FROM` — transactional email via [Resend](https://resend.com)
+	  (the sending domain needs Resend's SPF/DKIM DNS records)
+	- `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` — a Cloudflare Turnstile widget
+	  for the app's hostname
 2. In Google Cloud Console, add OAuth redirect URI:
 	- `http://localhost:5173/api/auth/google/callback`
 3. Start app + server:
@@ -37,14 +43,49 @@ npm run dev
 npm run server
 ```
 
-Auth endpoints used by UI:
-- `GET /api/auth/google/start`
-- `GET /api/auth/google/callback`
-- `GET /api/auth/session`
-- `POST /api/auth/logout`
+Outside production the email and Turnstile settings may be empty: emails
+(confirmation and reset links) are printed to the server log and the bot check
+is skipped. In production (`NODE_ENV=production`, set by `docker-compose.yml`)
+password sign-up and reset answer `503` until all four are configured.
+
+### How password accounts work
+
+Follows NIST SP 800-63B-4 (2025) and the OWASP cheat sheets:
+
+- **Passwords**: at least 15 characters, any Unicode, no composition rules or
+  forced rotation. Passwords found in Have I Been Pwned's breach corpus are
+  refused (k-anonymity range API: only 5 hex chars of the SHA-1 leave the server).
+- **Storage**: Argon2id (Node's built-in `crypto.argon2`, 19 MiB / t=2 / p=1),
+  PHC-encoded so parameters can rise later (rehash on next sign-in).
+- **Sign-in**: username or email. Errors never say which half was wrong, and
+  unknown accounts cost the same hashing time. Throttled per IP (30 / 15 min)
+  and per account (10 failures / 15 min).
+- **Email**: required and confirmed by link (48 h). Unconfirmed accounts can
+  play right away but are deleted after 7 days (Mongo TTL index). Reset links
+  go only to confirmed addresses, expire after 30 minutes, and work once.
+  "Forgot password" gives the same reply whether or not the address has an account.
+- **Sessions**: an HttpOnly, SameSite=Lax cookie holding a random id. Every
+  sign-in gets a fresh id. A password change or reset signs out every other session.
+- **CSRF**: state-changing calls must be same-origin JSON (Origin check plus
+  `Content-Type: application/json`).
+- **Linking**: a sign-up whose email already has an account is refused, and
+  the address's owner gets an email explaining how to sign in. Accounts are
+  never merged silently. A Google sign-in with a verified email takes the
+  address from an *unconfirmed* password account (pre-hijacking defense).
+- **Usernames**: 3–20 letters, digits or `_`, unique regardless of case. They
+  are the in-game display name. Google accounts pick one on first sign-in.
+
+Auth endpoints (`src/multiplayer/auth.ts`, `accountApi.ts`):
+- `GET /api/auth/google/start` (`?link=1` adds Google to the signed-in account), `GET /api/auth/google/callback`
+- `GET /api/auth/session`, `POST /api/auth/logout`
+- `POST /api/auth/signup`, `POST /api/auth/login`
+- `POST /api/auth/verify-email`, `POST /api/auth/verify-email/resend`
+- `POST /api/auth/password/forgot`, `POST /api/auth/password/reset`, `POST /api/auth/password/change`
+- `POST /api/auth/username`
 
 In production the redirect URI / `APP_BASE_URL` are the public domain
-(`https://jambo.mooseflip.com`) instead of `localhost:5173`.
+(`https://jambo.mooseflip.com`) instead of `localhost:5173`. Email links are
+built from `APP_BASE_URL`.
 
 ## Deployment
 

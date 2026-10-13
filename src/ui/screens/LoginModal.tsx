@@ -1,326 +1,221 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { getLocalProfileId } from '../../persistence/localProfile.ts';
+import { isPasswordAuthAvailable } from '../../config/runtimeConfig.ts';
+import { authApi, startGoogleAuth } from '../auth/authApi.ts';
+import type { AuthUserProfile } from '../auth/authApi.ts';
+import {
+  AuthDialog,
+  ForgotPasswordForm,
+  GoogleIcon,
+  NewPasswordForm,
+  SignInForm,
+  SignUpForm,
+  UsernameForm,
+} from '../auth/AuthForms.tsx';
+import type { AuthSession } from '../useAuthSession.ts';
+
+export interface AuthNotice {
+  message: string;
+  isError: boolean;
+}
 
 interface LoginModalProps {
+  auth: AuthSession;
   onClose: () => void;
+  /** A message to open with (e.g. the outcome of a Google redirect or an email link). */
+  notice?: AuthNotice | null;
+  initialView?: 'signin' | 'signup';
 }
 
-interface AuthSessionResponse {
-  authenticated: boolean;
-  user?: {
-    googleSub: string;
-    email: string;
-    name: string;
-    picture: string;
-    localProfileId: string | null;
-  };
+type View = 'signin' | 'signup' | 'forgot' | 'password' | 'username';
+
+function daysLeft(expiresAt: number | null): number | null {
+  if (expiresAt === null) return null;
+  return Math.max(0, Math.ceil((expiresAt - Date.now()) / (24 * 60 * 60 * 1000)));
 }
 
-function GoogleIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 48 48" style={{ flexShrink: 0 }}>
-      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-      <path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 0 1 0-9.18l-7.98-6.19a24.0 24.0 0 0 0 0 21.56l7.98-6.19z"/>
-      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-    </svg>
-  );
-}
-
-export function LoginModal({ onClose }: LoginModalProps) {
-  const [session, setSession] = useState<AuthSessionResponse | null>(null);
-  const [loadingSession, setLoadingSession] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [authStatus, setAuthStatus] = useState<string | null>(null);
-
+export function LoginModal({ auth, onClose, notice: initialNotice = null, initialView = 'signin' }: LoginModalProps) {
   const localProfileId = useMemo(() => getLocalProfileId(), []);
+  const passwordAuth = isPasswordAuthAvailable();
+  const [view, setView] = useState<View>(passwordAuth ? initialView : 'signin');
+  const [notice, setNotice] = useState<AuthNotice | null>(initialNotice);
+  const [resendState, setResendState] = useState<'idle' | 'sending' | 'sent'>('idle');
 
-  const refreshSession = async () => {
-    setLoadingSession(true);
-    try {
-      const response = await fetch('/api/auth/session', {
-        method: 'GET',
-        credentials: 'include',
-      });
+  const user = auth.authUser;
 
-      if (!response.ok) {
-        throw new Error('Failed to load auth session');
-      }
-
-      const data = (await response.json()) as AuthSessionResponse;
-      setSession(data);
-      setError(null);
-    } catch {
-      setError('Could not load session status. Check server connection.');
-      setSession(null);
-    } finally {
-      setLoadingSession(false);
-    }
+  const onSignedIn = async (_user: AuthUserProfile, message?: string) => {
+    setNotice(message ? { message, isError: false } : null);
+    await auth.refresh();
+    if (!message) onClose();
   };
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
-    };
-
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [onClose]);
-
-  useEffect(() => {
-    void refreshSession();
-  }, []);
-
-  useEffect(() => {
-    const url = new URL(window.location.href);
-    const auth = url.searchParams.get('auth');
-    if (!auth) return;
-
-    if (auth === 'success') {
-      setAuthStatus('Google sign-in complete.');
-      void refreshSession();
-    } else if (auth === 'failed') {
-      setAuthStatus('Google sign-in failed. Please try again.');
-    } else if (auth === 'state_expired') {
-      setAuthStatus('Sign-in session expired. Please retry.');
-    } else {
-      setAuthStatus('Sign-in was canceled or invalid.');
-    }
-
-    url.searchParams.delete('auth');
-    window.history.replaceState({}, '', url.toString());
-  }, []);
-
-  const startGoogleAuth = () => {
-    const returnTo = `${window.location.origin}${window.location.pathname}${window.location.hash}`;
-    const startUrl = new URL('/api/auth/google/start', window.location.origin);
-    startUrl.searchParams.set('localProfileId', localProfileId);
-    startUrl.searchParams.set('returnTo', returnTo);
-    window.location.href = startUrl.toString();
+  const resend = async () => {
+    setResendState('sending');
+    const result = await authApi.resendVerification();
+    setResendState(result.ok ? 'sent' : 'idle');
+    if (!result.ok) setNotice({ message: result.error ?? 'Could not send the email.', isError: true });
   };
 
-  const logout = async () => {
-    try {
-      const response = await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include',
-      });
-      if (!response.ok) {
-        throw new Error('Logout failed');
-      }
-      await refreshSession();
-      setAuthStatus('Signed out.');
-      setError(null);
-    } catch {
-      setError('Sign out failed. Please try again.');
-    }
+  const signOut = async () => {
+    await auth.logout();
+    setNotice({ message: 'Signed out.', isError: false });
+    setView('signin');
   };
 
-  const isSignedIn = !loadingSession && session?.authenticated && session.user;
+  const noticeLine = notice && (
+    <div className={`auth-notice${notice.isError ? ' auth-notice-error' : ''}`} role={notice.isError ? 'alert' : 'status'}>
+      {notice.message}
+    </div>
+  );
 
-  return (
-    <div
-      onClick={onClose}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 9500,
-        background: 'rgba(20,10,5,0.90)',
-        backdropFilter: 'blur(3px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <div
-        className="dialog-pop"
-        onClick={(event) => event.stopPropagation()}
-        style={{
-          textAlign: 'center',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 16,
-          width: 'min(400px, 90vw)',
-        }}
-      >
-        {/* Label */}
-        <div style={{
-          fontSize: 14,
-          fontWeight: 700,
-          textTransform: 'uppercase',
-          letterSpacing: 1.5,
-          color: 'var(--text-muted)',
-        }}>
-          Account
-        </div>
+  // ---- Signed in -----------------------------------------------------------
+  if (user && view === 'password') {
+    return (
+      <AuthDialog eyebrow="Account" title={user.hasPassword ? 'Change Password' : 'Add a Password'} onClose={onClose}
+        lede={user.hasPassword ? 'Every other device will be signed out.' : 'Then you can sign in with your username or email, as well as Google.'}>
+        <NewPasswordForm
+          mode="change"
+          user={user}
+          onDone={() => {
+            setNotice({ message: user.hasPassword ? 'Password changed. Other devices were signed out.' : 'Password added.', isError: false });
+            setView('signin');
+            void auth.refresh();
+          }}
+          onCancel={() => setView('signin')}
+        />
+      </AuthDialog>
+    );
+  }
 
-        {/* Title */}
-        <div style={{
-          fontFamily: 'var(--font-heading)',
-          fontSize: 'clamp(28px, 6vw, 44px)',
-          color: 'var(--gold)',
-          textShadow: '0 2px 12px rgba(0,0,0,0.6)',
-        }}>
-          {isSignedIn ? 'Signed In' : 'Sign In'}
-        </div>
+  if (user && view === 'username') {
+    return (
+      <AuthDialog eyebrow="Account" title="Change Username" onClose={onClose} lede="This is the name opponents see.">
+        <UsernameForm
+          initial={user.username ?? ''}
+          onSaved={() => {
+            setNotice({ message: 'Username saved.', isError: false });
+            setView('signin');
+            void auth.refresh();
+          }}
+        />
+        <button type="button" className="auth-quiet" onClick={() => setView('signin')}>Cancel</button>
+      </AuthDialog>
+    );
+  }
 
-        {/* Gold divider */}
-        <div style={{
-          width: 60,
-          height: 3,
-          borderRadius: 2,
-          background: 'var(--gold)',
-          opacity: 0.5,
-        }} />
-
-        {/* Description */}
-        <div style={{
-          fontSize: 14,
-          lineHeight: 1.5,
-          color: 'var(--text-muted)',
-          maxWidth: 320,
-        }}>
-          {isSignedIn
-            ? 'Your Google account is linked to your local Jambo profile.'
-            : 'Sign in to link your profile and keep your multiplayer identity consistent.'}
-        </div>
-
-        {/* Signed-in user info */}
-        {isSignedIn && session.user && (
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: 4,
-          }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>
-              {session.user.name}
+  if (user) {
+    const remaining = daysLeft(user.unverifiedExpiresAt);
+    return (
+      <AuthDialog eyebrow="Account" title="Signed In" onClose={onClose}>
+        <div className="auth-identity">
+          <div className="auth-identity-name">{user.name}</div>
+          {user.email && (
+            <div className="auth-identity-email">
+              {user.email}
+              <span className={`auth-badge ${user.emailVerified ? 'auth-badge-ok' : 'auth-badge-warn'}`}>
+                {user.emailVerified ? 'Confirmed' : 'Unconfirmed'}
+              </span>
             </div>
-            <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-              {session.user.email}
+          )}
+        </div>
+        {noticeLine}
+        {!user.emailVerified && (
+          <div className="auth-actions">
+            <div className="auth-notice">
+              Check your inbox for a confirmation link.
+              {remaining !== null && ` Unconfirmed accounts are removed in ${remaining} day${remaining === 1 ? '' : 's'}.`}
             </div>
+            <button type="button" className="auth-secondary" onClick={() => void resend()} disabled={resendState !== 'idle'}>
+              {resendState === 'sent' ? 'Sent — check your inbox' : resendState === 'sending' ? 'Sending…' : 'Resend confirmation email'}
+            </button>
           </div>
         )}
-
-        {/* Loading */}
-        {loadingSession && (
-          <div style={{ fontSize: 14, color: 'var(--text-muted)' }}>Checking sign-in status...</div>
-        )}
-
-        {/* Status message */}
-        {authStatus && (
-          <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{authStatus}</div>
-        )}
-
-        {/* Error */}
-        {error && (
-          <div style={{ fontSize: 13, color: '#ff9977' }}>{error}</div>
-        )}
-
-        {/* Divider before actions */}
-        <div style={{
-          width: '100%',
-          height: 1,
-          background: 'var(--border-light)',
-          opacity: 0.4,
-        }} />
-
-        {/* Actions */}
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 10,
-          width: '100%',
-        }}>
-          {/* Google button */}
-          <button
-            onClick={startGoogleAuth}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 10,
-              width: '100%',
-              padding: '12px 16px',
-              borderRadius: 8,
-              border: '2px solid var(--gold)',
-              background: 'rgba(212,168,80,0.10)',
-              color: 'var(--gold)',
-              cursor: 'pointer',
-              fontSize: 15,
-              fontWeight: 700,
-              fontFamily: 'var(--font-heading)',
-              transition: 'background 0.15s',
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(212,168,80,0.20)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(212,168,80,0.10)'; }}
-          >
-            <GoogleIcon />
-            {isSignedIn ? 'Re-link with Google' : 'Continue with Google'}
-          </button>
-
-          {/* Sign out (when signed in) */}
-          {isSignedIn && (
-            <button
-              onClick={logout}
-              style={{
-                width: '100%',
-                padding: '10px 16px',
-                borderRadius: 8,
-                border: '1px solid rgba(255,255,255,0.06)',
-                background: 'transparent',
-                color: 'var(--text-muted)',
-                cursor: 'pointer',
-                fontSize: 14,
-                transition: 'background 0.15s, border-color 0.15s, color 0.15s',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
-                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)';
-                e.currentTarget.style.color = 'var(--text)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'transparent';
-                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
-                e.currentTarget.style.color = 'var(--text-muted)';
-              }}
-            >
-              Sign out
-            </button>
-          )}
-
-          {/* Back */}
-          <button
-            onClick={onClose}
-            style={{
-              width: '100%',
-              padding: '10px 16px',
-              borderRadius: 8,
-              border: '1px solid rgba(255,255,255,0.06)',
-              background: 'transparent',
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-              fontSize: 14,
-              transition: 'background 0.15s, border-color 0.15s, color 0.15s',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
-              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)';
-              e.currentTarget.style.color = 'var(--text)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'transparent';
-              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
-              e.currentTarget.style.color = 'var(--text-muted)';
-            }}
-          >
-            Back
-          </button>
+        <div className="auth-methods" aria-label="Sign-in methods">
+          <div className="auth-method">
+            <span>Username <span className="auth-method-state">· {user.username ?? 'not set'}</span></span>
+            <button type="button" className="auth-link" onClick={() => setView('username')}>Change</button>
+          </div>
+          <div className="auth-method">
+            <span>Password <span className="auth-method-state">{user.hasPassword ? '· set' : '· none'}</span></span>
+            {(user.hasPassword || user.emailVerified) && (
+              <button type="button" className="auth-link" onClick={() => setView('password')}>
+                {user.hasPassword ? 'Change' : 'Add'}
+              </button>
+            )}
+          </div>
+          <div className="auth-method">
+            <span>Google <span className="auth-method-state">{user.hasGoogle ? '· linked' : '· not linked'}</span></span>
+            {!user.hasGoogle && (
+              <button type="button" className="auth-link" onClick={() => startGoogleAuth(localProfileId, true)}>Link</button>
+            )}
+          </div>
         </div>
-      </div>
-    </div>
+        <div className="auth-actions">
+          <button type="button" className="auth-quiet" onClick={() => void signOut()}>Sign out</button>
+          <button type="button" className="auth-quiet" onClick={onClose}>Back</button>
+        </div>
+      </AuthDialog>
+    );
+  }
+
+  // ---- Signed out ----------------------------------------------------------
+  const google = (
+    <button type="button" className="auth-secondary" onClick={() => startGoogleAuth(localProfileId)}>
+      <GoogleIcon />
+      Continue with Google
+    </button>
+  );
+
+  if (view === 'forgot') {
+    return (
+      <AuthDialog eyebrow="Account" title="Reset Password" onClose={onClose}
+        lede="Enter the email on your account and we'll send you a link to choose a new password.">
+        <ForgotPasswordForm onBack={() => setView('signin')} />
+      </AuthDialog>
+    );
+  }
+
+  if (view === 'signup') {
+    return (
+      <AuthDialog eyebrow="Account" title="Create Account" onClose={onClose}
+        lede="Keep your record across devices and play under your own name.">
+        {noticeLine}
+        <SignUpForm
+          localProfileId={localProfileId}
+          onSignedUp={(created) => void onSignedIn(created, `Welcome, ${created.name}! We sent a confirmation link to ${created.email ?? 'your email'}.`)}
+        />
+        <div className="auth-or">or</div>
+        {google}
+        <div className="auth-switch">
+          Already have an account? <button type="button" className="auth-link" onClick={() => { setNotice(null); setView('signin'); }}>Sign in</button>
+        </div>
+        <button type="button" className="auth-quiet" onClick={onClose}>Back</button>
+      </AuthDialog>
+    );
+  }
+
+  return (
+    <AuthDialog eyebrow="Account" title="Sign In" onClose={onClose}
+      lede="Sign in to keep your record and your name across devices.">
+      {auth.isLoading && !notice && <div className="auth-hint">Checking sign-in status…</div>}
+      {noticeLine}
+      {passwordAuth && (
+        <>
+          <SignInForm
+            localProfileId={localProfileId}
+            onSignedIn={(signedIn) => void onSignedIn(signedIn)}
+            onForgot={() => { setNotice(null); setView('forgot'); }}
+          />
+          <div className="auth-or">or</div>
+        </>
+      )}
+      {google}
+      {passwordAuth && (
+        <div className="auth-switch">
+          New to Jambo? <button type="button" className="auth-link" onClick={() => { setNotice(null); setView('signup'); }}>Create an account</button>
+        </div>
+      )}
+      <button type="button" className="auth-quiet" onClick={onClose}>Back</button>
+    </AuthDialog>
   );
 }

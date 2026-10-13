@@ -36,6 +36,15 @@ services:
       # OAuth callback + public base URL on the new self-hosted domain.
       - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI:-https://jambo.mooseflip.com/api/auth/google/callback}
       - APP_BASE_URL=${APP_BASE_URL:-https://jambo.mooseflip.com}
+      # Username/password accounts — read from .env (never committed). Resend
+      # sends confirmation/reset emails; Cloudflare Turnstile guards sign-up and
+      # reset requests. With NODE_ENV=production, password sign-up answers 503
+      # (and the server logs which vars are missing) until all four are set.
+      - NODE_ENV=production
+      - RESEND_API_KEY=${RESEND_API_KEY:-}
+      - EMAIL_FROM=${EMAIL_FROM:-Jambo <no-reply@jambo.mooseflip.com>}
+      - TURNSTILE_SITE_KEY=${TURNSTILE_SITE_KEY:-}
+      - TURNSTILE_SECRET_KEY=${TURNSTILE_SECRET_KEY:-}
       # Also exposed at runtime: server.ts reads process.env.VITE_CAST_APP_ID
       # (server-side, separate from the client bundle baked in via build.args).
       - VITE_CAST_APP_ID=${VITE_CAST_APP_ID:-4E18430D}

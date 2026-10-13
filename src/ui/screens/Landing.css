@@ -479,6 +479,7 @@
 }
 
 .landing-account-name { font-family: var(--font-heading); color: var(--landing-cream); }
+.landing-account-warn { font-size: 12px; line-height: 1.35; color: #ffb39c; max-width: 200px; }
 
 /* --- Phones and narrow windows: art, wordmark, then the panel ------------- */
 @media (max-width: 899px) {

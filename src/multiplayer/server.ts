@@ -32,6 +32,9 @@ import type {
 import type { AIDifficulty } from '../ai/difficulties/index.ts';
 import { loadLocalEnv } from './loadEnv.ts';
 import { handleAuthApi } from './auth.ts';
+import { isPasswordAuthReady, logMissingAuthConfig } from './authCore.ts';
+import { PASSWORD_MIN_LENGTH } from './accountRules.ts';
+import { getTurnstileSiteKey } from './turnstile.ts';
 import { handleStatsApi } from './statsApi.ts';
 import { resolveCastPublicRoom, toCastPublicRoomPayload, validateCastRoomAccess } from './castApi.ts';
 import { recordAiDecision, recordAiGameSummary } from './aiTelemetryStore.ts';
@@ -871,6 +874,9 @@ function handleConfigApi(req: import('node:http').IncomingMessage, res: import('
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.end(JSON.stringify({
     castAppId: (process.env['VITE_CAST_APP_ID'] ?? '').trim() || null,
+    turnstileSiteKey: getTurnstileSiteKey(),
+    passwordAuth: isPasswordAuthReady(),
+    passwordMinLength: PASSWORD_MIN_LENGTH,
   }));
   return true;
 }
@@ -980,6 +986,8 @@ wss.on('connection', (ws: WebSocket) => {
 
   ws.on('close', () => handleDisconnect(ws));
 });
+
+logMissingAuthConfig();
 
 server.listen(PORT, () => {
   console.log(`Jambo Cast Server running on http://localhost:${PORT} (ws path: /ws)`);

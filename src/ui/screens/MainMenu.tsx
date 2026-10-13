@@ -98,6 +98,10 @@ export function MainMenu({
           if (!auth.authUser) onSelectOption('login');
           else setAccountOpen((o) => !o);
         }}
+        onManage={() => {
+          setAccountOpen(false);
+          onSelectOption('login');
+        }}
         onSignOut={async () => {
           setAccountOpen(false);
           await auth.logout();
@@ -228,11 +232,12 @@ export function MainMenu({
 }
 
 /** Top-right: the one place to sign in or out. */
-function AccountChip({ auth, firstName, open, onToggle, onSignOut }: {
+function AccountChip({ auth, firstName, open, onToggle, onManage, onSignOut }: {
   auth: AuthSession;
   firstName: string | null;
   open: boolean;
   onToggle: () => void;
+  onManage: () => void;
   onSignOut: () => void | Promise<void>;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
@@ -263,6 +268,10 @@ function AccountChip({ auth, firstName, open, onToggle, onSignOut }: {
       {open && auth.authUser && (
         <div className="landing-account-menu" role="menu">
           <div className="landing-account-name">{auth.authUser.name}</div>
+          {!auth.authUser.emailVerified && (
+            <div className="landing-account-warn">Confirm your email to keep this account</div>
+          )}
+          <button type="button" role="menuitem" className="landing-link" onClick={onManage}>Account</button>
           <button type="button" role="menuitem" className="landing-link" onClick={() => void onSignOut()}>Sign out</button>
         </div>
       )}
