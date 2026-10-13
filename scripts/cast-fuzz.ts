@@ -176,13 +176,14 @@ async function playGame(g: number) {
     }
   }
 
+  const finalTurn = A.pub?.turn;
   // rematch: both vote → fresh game at turn 1
   if (over) {
     A.send({ type: 'REQUEST_REMATCH' }); B.send({ type: 'REQUEST_REMATCH' });
     const fresh = await A.waitFor(() => A.pub?.phase !== 'GAME_OVER' && A.pub?.turn === 1, 4000);
     if (!fresh) finding(`game ${g}: rematch did not start a new game`);
   }
-  console.log(`game ${g}: ${over ? 'GAME_OVER' : 'unfinished'} turn ${A.pub?.turn} steps ${steps} rejected ${rejected} reconnects ${reconnects} errors seen ${A.errors.length + B.errors.length}`);
+  console.log(`game ${g}: ${over ? 'GAME_OVER' : 'unfinished'} turn ${finalTurn} steps ${steps} rejected ${rejected} reconnects ${reconnects} errors seen ${A.errors.length + B.errors.length}`);
   A.close(); B.close();
 }
 
