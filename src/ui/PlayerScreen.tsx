@@ -63,7 +63,7 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [boardRef, boardSize] = useElementSize<HTMLDivElement>();
   const [handBoxRef, handBoxSize] = useElementSize<HTMLDivElement>();
-  useAudioEvents(ws.audioEvent, ws.clearAudioEvent);
+  useAudioEvents(ws.audioEvent, ws.clearAudioEvent, pub);
   useOutcomeAudio(pub, slot ?? null);
 
   const isCardActionValidationError = (message: string) => (

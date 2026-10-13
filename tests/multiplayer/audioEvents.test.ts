@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { detectAudioEvent, detectOutcomeSounds, DUCKING_SOUNDS } from '../../src/multiplayer/audioEvents.ts';
+import { detectAudioEvent, detectOutcomeSounds, DUCKING_SOUNDS, goldGained } from '../../src/multiplayer/audioEvents.ts';
 import { createTestState, toPlayPhase, withUtility } from '../helpers/testHelpers.ts';
-import { AUDIO_FILES, newActionSounds } from '../../src/ui/useAudioEvents.ts';
+import { AUDIO_FILES, coinClinks, newActionSounds } from '../../src/ui/useAudioEvents.ts';
 import type { TaggedAction } from '../../src/hooks/useGameStore.ts';
 import type { GameAction } from '../../src/engine/types.ts';
 import { existsSync, statSync } from 'node:fs';
@@ -10,7 +10,8 @@ import { resolve } from 'node:path';
 describe('detectAudioEvent', () => {
   it('maps every sound-worthy action', () => {
     expect(detectAudioEvent({ type: 'DRAW_CARD' })).toBe('card-draw');
-    expect(detectAudioEvent({ type: 'KEEP_CARD' })).toBe('card-draw');
+    expect(detectAudioEvent({ type: 'KEEP_CARD' })).toBe('card-keep');
+    expect(detectAudioEvent({ type: 'DISCARD_DRAWN' })).toBe('card-discard');
     expect(detectAudioEvent({ type: 'PLAY_CARD', cardId: 'ware_3k_1', wareMode: 'buy' })).toBe('coin-out');
     expect(detectAudioEvent({ type: 'PLAY_CARD', cardId: 'ware_3k_1', wareMode: 'sell' })).toBe('coin');
     expect(detectAudioEvent({ type: 'PLAY_CARD', cardId: 'parrot_1' })).toBe('parrot');
@@ -54,7 +55,12 @@ describe('newActionSounds (solo/hotseat)', () => {
   });
 
   it('plays every sound in a batch once, in order', () => {
-    expect(newActionSounds(log, 0)).toEqual(['card-draw', 'coin-out', 'turn-end']);
+    expect(newActionSounds(log, 0)).toEqual(['card-draw', 'card-keep', 'coin-out', 'turn-end']);
+  });
+
+  it('keeping a drawn card plays the keep cue, not a second draw', () => {
+    expect(newActionSounds(log, 0).filter((e) => e === 'card-draw')).toHaveLength(1);
+    expect(newActionSounds(log, 1)).toEqual(['card-keep', 'coin-out', 'turn-end']);
   });
 });
 
@@ -132,5 +138,43 @@ describe('end-of-turn gold bonus is heard', () => {
     const { processAction } = await import('../../src/engine/GameEngine.ts');
     const spent = { ...toPlayPhase(createTestState()), actionsLeft: 1 };
     expect(detectOutcomeSounds(spent, processAction(spent, { type: 'END_TURN' }), 0)).not.toContain('coin');
+  });
+});
+
+describe('coin sound scales with the gold received', () => {
+  const purses = (a: number, b: number) => ({ players: [{ gold: a }, { gold: b }] as const });
+
+  it('counts gold that came into either purse, never gold paid out', () => {
+    expect(goldGained(purses(20, 20), purses(38, 20))).toBe(18);
+    expect(goldGained(purses(20, 20), purses(17, 21))).toBe(1);
+    expect(goldGained(purses(20, 20), purses(18, 22))).toBe(2);
+    expect(goldGained(null, purses(30, 20))).toBe(0);
+  });
+
+  it('a small payout is a single clink', () => {
+    expect(coinClinks(0)).toHaveLength(1);
+    expect(coinClinks(1)).toHaveLength(1); // end-of-turn bonus
+    expect(coinClinks(3)).toHaveLength(1);
+  });
+
+  it('bigger payouts repeat longer, up to a cap', () => {
+    expect(coinClinks(10)).toHaveLength(4); // cheapest sell
+    expect(coinClinks(18)).toHaveLength(6); // a 6-ware sell
+    expect(coinClinks(22)).toHaveLength(7); // with Wise Man
+    expect(coinClinks(100)).toHaveLength(7);
+    const lengths = [1, 4, 7, 10, 13, 16, 19].map((g) => coinClinks(g).length);
+    expect(lengths).toEqual([...lengths].sort((a, b) => a - b));
+  });
+
+  it('starts at once, then spaces the clinks out and lets them trail off', () => {
+    const clinks = coinClinks(18);
+    expect(clinks[0]).toEqual({ delayMs: 0, gain: 1, rate: 1 });
+    for (let i = 1; i < clinks.length; i++) {
+      expect(clinks[i].delayMs).toBeGreaterThan(clinks[i - 1].delayMs);
+      expect(clinks[i].gain).toBeLessThan(clinks[i - 1].gain);
+      expect(clinks[i].gain).toBeGreaterThan(0);
+      expect(clinks[i].rate).toBeGreaterThan(0.9);
+      expect(clinks[i].rate).toBeLessThan(1.15);
+    }
   });
 });

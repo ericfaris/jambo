@@ -72,6 +72,8 @@ export type AudioEvent =
   | 'coin-out'    // purse jingle — buying
   | 'card-play'
   | 'card-draw'
+  | 'card-keep'     // a drawn card tucked into the hand — quieter than the draw
+  | 'card-discard'  // a drawn card flicked onto the discard pile
   | 'turn-end'
   | 'attack'      // fallback animal growl
   | 'guard'

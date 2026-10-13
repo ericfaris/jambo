@@ -28,9 +28,13 @@ const UTILITY_SOUNDS: Record<string, UtilitySound> = {
  */
 export function detectAudioEvent(action: GameAction, before?: GameState): AudioEvent | null {
   switch (action.type) {
+    // The draw gets the swish; keeping or discarding it gets its own slight cue
     case 'DRAW_CARD':
-    case 'KEEP_CARD':
       return 'card-draw';
+    case 'KEEP_CARD':
+      return 'card-keep';
+    case 'DISCARD_DRAWN':
+      return 'card-discard';
     case 'PLAY_CARD': {
       if (action.wareMode) return action.wareMode === 'buy' ? 'coin-out' : 'coin';
       const card = getCard(action.cardId);
@@ -70,6 +74,12 @@ export function detectOutcomeSounds(prev: OutcomeView, next: OutcomeView, viewer
     out.push(viewer === null || winner === viewer ? 'win' : 'lose');
   }
   return out;
+}
+
+/** Gold that came into either purse between two states — sizes the coin sound. */
+export function goldGained(prev: Pick<ScoringView, 'players'> | null | undefined, next: Pick<ScoringView, 'players'>): number {
+  if (!prev) return 0;
+  return next.players.reduce((sum, p, i) => sum + Math.max(0, p.gold - prev.players[i].gold), 0);
 }
 
 /** Big moments duck the background music so they cut through. */

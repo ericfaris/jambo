@@ -33,7 +33,7 @@ export function OnlineGameScreen({ ws, onLeftToMenu }: { ws: WebSocketGameState;
   const labels = useMemo(() => onlineLabels(slot, name), [slot, name]);
 
   // The server's audio cues (plays, wares, coins) and the win/lose sting
-  useAudioEvents(ws.audioEvent, ws.clearAudioEvent);
+  useAudioEvents(ws.audioEvent, ws.clearAudioEvent, pub);
   useOutcomeAudio(pub, slot);
 
   // The reconnect countdown ticks only while someone is away

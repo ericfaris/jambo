@@ -108,7 +108,7 @@ export function TVScreen({ ws }: TVScreenProps) {
   const debugGoldCounterRef = useRef(0);
   const [telemetryEvents, setTelemetryEvents] = useState<string[]>([]);
   const [playerSectionHeight, setPlayerSectionHeight] = useState<number | null>(null);
-  useAudioEvents(ws.audioEvent, ws.clearAudioEvent);
+  useAudioEvents(ws.audioEvent, ws.clearAudioEvent, pub);
   useOutcomeAudio(pub, null);
   useBackgroundMusic();
 

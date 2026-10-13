@@ -642,8 +642,10 @@ solo/hotseat `GameScreen` plays it locally via `useLocalActionAudio()`
 
 | Event | Fires on | File | Length | Peak | Sound |
 |---|---|---|---|---|---|
-| `card-draw` | `DRAW_CARD` / `KEEP_CARD` | `card-draw.mp3` | 0.47s | -6 dB | soft paper swish |
-| `coin` | playing a ware card (buy or sell) | `coin.mp3` | 0.94s | -3 dB | brass coins clinking onto a pile |
+| `card-draw` | `DRAW_CARD` | `card-draw.mp3` | 0.47s | -6 dB | soft paper swish |
+| `card-keep` | `KEEP_CARD` | `card-keep.mp3` | 0.21s | -12 dB | card tucked into the hand, tiny tap |
+| `card-discard` | `DISCARD_DRAWN` | `card-discard.mp3` | 0.24s | -10 dB | card flicked onto the pile, light slap |
+| `coin` | selling a ware card, the +1g bonus | `coin.mp3` | 0.94s | -3 dB | brass coins clinking onto a pile — repeated by the gold received (see below) |
 | `card-play` | playing a people/utility card | `card-play.mp3` | 0.50s | -4 dB | card tapped onto a wooden table |
 | `attack` | playing an animal card | `attack.mp3` | 1.44s | -2 dB | short big-cat growl |
 | `turn-end` | `END_TURN` | `turn-end.mp3` | 1.23s | -2 dB | single deep djembe hit |
@@ -661,6 +663,13 @@ treatment, each 0.3–1.7s and < 17 KB):
 | `gavel` | an auction won | wooden knock |
 | `final-turn` | the final turn begins | low frame-drum heartbeat |
 | `win` / `lose` | game over, from the viewer's seat (hotseat: always `win`) | djembe roll into a bell / soft descending balafon |
+
+**Coins scale with the payout** (2026-10-13): `coin` plays as a burst of
+clinks, one per 3g received (`goldGained(prev, next)`), from 1 (the +1g
+bonus) up to 7 (a 20g+ sale). Clinks are ~120ms apart (slightly uneven),
+each a touch quieter with its own pitch (`coinClinks()` in
+`useAudioEvents.ts`). Cast/online size it from the public state that came
+with the server's event (`useAudioEvents(event, clear, pub)`).
 
 Outcome sounds come from `detectOutcomeSounds(prev, next, viewer)`.
 `DUCKING_SOUNDS` (animals, guard, stingers) dispatch `jambo-music-duck`;
@@ -681,6 +690,8 @@ paper, brass, wood, hide, drum; never synth/sci-fi. Prompts:
 | attack | Short aggressive big cat snarl, quick throaty growl, close-mic | a |
 | turn-end | Two soft djembe drum hits, warm deep wooden resonance, short | c (one hit + tail) |
 | guard | Wooden spear shaft striking a taut hide shield, solid thud with a leather slap | b |
+| card-keep (2026-10-13) | A single playing card softly slid into a hand of cards, gentle paper tuck with a tiny soft tap at the end, very short, close-up, dry, no reverb, no music | 1 take, cut 0–0.2s |
+| card-discard (2026-10-13) | A single playing card lightly flicked and tossed face-up onto a pile on a wooden table, quick soft paper flutter then a light flat slap, very short, close-up, dry, no reverb, no music | 1 take, cut 0.47–0.72s |
 
 Takes were chosen from waveform/spectrogram + loudness analysis (duds at
 -48/-55 LUFS, multi-hit or 4–7s takes rejected), then: leading silence
