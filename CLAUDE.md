@@ -355,11 +355,12 @@ Each ware type has a shared supply pool (not unlimited). When wares are bought, 
 decision). Playing/using a card that opens a resolution stores a snapshot of
 the state just before it (`cancellableAction.restore`); cancelling restores
 it exactly (deck order, gold, wares, hands, the action) and logs "Cancelled
-X". Cards a step already showed you (Scale, Psychic, Arabian Merchant) go back
+X". Cards a step already showed you (Psychic, Arabian Merchant) go back
 where they were — you've seen them, by design. The snapshot is dropped as
 soon as the opponent is involved (Guard decision, bid, draft pick, opponent
 choice) or the effect finishes. Scale draws its 2 cards as it starts (no
-"draw" step). The snapshot never goes into the public Cast state. Not in
+"draw" step) and is **never** cancellable, even when a Crocodile borrows it
+(2026-10-14). The snapshot never goes into the public Cast state. Not in
 `getValidActions()` — the AI never cancels.
 
 ### Endgame

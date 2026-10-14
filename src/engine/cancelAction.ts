@@ -5,12 +5,15 @@
 // Starting a card or utility that opens a resolution keeps a snapshot of the
 // state just before it. Cancelling restores that snapshot exactly — deck
 // order, gold, wares, hands, the action spent — and logs "Cancelled X".
-// Cards a step already revealed to you (Scale, Psychic, Arabian Merchant) go
+// Cards a step already revealed to you (Psychic, Arabian Merchant) go
 // back where they were; you've seen them, by design (2026-10-12 decision).
 //
 // The snapshot is dropped the moment the opponent is involved — a Guard
 // decision, an auction bid, a draft pick, an opponent choice — or the effect
 // finishes. Rewinding someone else's decision is never offered.
+//
+// Scale is the exception: it draws its 2 cards the moment it starts, so it is
+// never cancellable — not even when a Crocodile borrows it (2026-10-14).
 // ============================================================================
 
 import type { CancellableAction, GameAction, GameState } from './types.ts';
@@ -37,12 +40,19 @@ function cardName(before: GameState, action: GameAction): string | null {
   return null;
 }
 
+/** Scale's "keep 1, give 1" — its cards are already drawn, so no backing out. */
+function isScaleEffect(state: GameState): boolean {
+  const pr = state.pendingResolution;
+  return pr?.type === 'UTILITY_EFFECT' && pr.utilityDesign === 'scale';
+}
+
 /**
  * Called by processAction after every action: the cancel point `after`
  * carries. `before` is the state the action was applied to.
  */
 export function deriveCancellableAction(before: GameState, action: GameAction, after: GameState): CancellableAction | null {
   if (after.currentPlayer !== before.currentPlayer || !activePlayerToAct(after)) return null;
+  if (isScaleEffect(after)) return null;
 
   // A card or utility just opened a resolution waiting on its player
   if (action.type === 'PLAY_CARD' || action.type === 'ACTIVATE_UTILITY') {

@@ -80,7 +80,6 @@ describe('CANCEL_ACTION — utilities refund the action and the once-per-turn us
     ['Leopard Statue', 'leopard_statue_1', 'leopard_statue'],
     ['Throne', 'throne_1', 'throne'],
     ['Supplies', 'supplies_1', 'supplies'],
-    ['Scale (before drawing)', 'scale_1', 'scale'],
   ];
 
   for (const [name, cardId, design] of cases) {
@@ -208,13 +207,26 @@ describe('CANCEL_ACTION — every resolution screen, until the opponent acts', (
     expectRestores(before, afterFirst);
   });
 
-  it('Scale goes straight to "keep 1" (no draw button) and cancel puts both cards back', () => {
+  it('Scale goes straight to "keep 1" (no draw button) and is never cancellable', () => {
     const before = richState([], ['scale_1', 'scale']);
     const started = act(before, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 });
     expect(started.pendingResolution?.type).toBe('UTILITY_EFFECT');
     if (started.pendingResolution?.type === 'UTILITY_EFFECT') expect(started.pendingResolution.selectedCards).toHaveLength(2);
     expect(started.deck.length).toBe(before.deck.length - 2);
-    expectRestores(before, started);
+    expectNotCancellable(started);
+  });
+
+  it('a Crocodile that borrows the opponent’s Scale loses its cancel point', () => {
+    let before = richState(['crocodile_1']);
+    before = claim(before, ['scale_2', 'ware_3k_2']);
+    before = withHand(before, 1, ['ware_3k_2']); // opponent has no Guard
+    before = withUtility(before, 1, 'scale_2', 'scale');
+    const s = act(before, { type: 'PLAY_CARD', cardId: 'crocodile_1' });
+    expect(s.pendingResolution?.type).toBe('CROCODILE_USE');
+    expect(canCancelAction(s)).toBe(true);
+    const borrowed = resolve(s, { type: 'SELECT_UTILITY', utilityIndex: 0 });
+    expect(borrowed.pendingResolution?.type).toBe('UTILITY_EFFECT');
+    expectNotCancellable(borrowed);
   });
 
   it('once the effect has finished there is nothing to cancel', () => {
