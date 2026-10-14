@@ -59,6 +59,14 @@ describe('the draw dialog waits for the opponent’s animations', () => {
     expect(DRAW_MODAL_SETTLE_MS).toBeGreaterThan(100);
     expect(DRAW_MODAL_SETTLE_MS).toBeLessThan(500);
   });
+  it('never reopens over a pending resolution (Mask used before drawing)', () => {
+    // "Use Mask" closes the dialog; it used to reopen ~220ms later on top of
+    // the Mask panel, hiding it (playtest 2026-10-14)
+    expect(shouldOpenDrawModal({ ...base, pending: true })).toBe(false);
+    expect(shouldOpenDrawModal({ ...base, pending: true, waitExpired: true })).toBe(false);
+    // once the Mask trade resolves, the draw dialog comes back
+    expect(shouldOpenDrawModal({ ...base, pending: false })).toBe(true);
+  });
   it('never opens outside your draw phase, or twice', () => {
     expect(shouldOpenDrawModal({ ...base, myDrawPhase: false })).toBe(false);
     expect(shouldOpenDrawModal({ ...base, open: true })).toBe(false);

@@ -306,12 +306,12 @@ export function GameBoard({
       setDrawModalOpen(false);
       return;
     }
-    if (!shouldOpenDrawModal({ myDrawPhase, open: drawModalOpen, animating: boardAnimating, waitExpired: drawWaitExpired })) return;
+    if (!shouldOpenDrawModal({ myDrawPhase, open: drawModalOpen, animating: boardAnimating, waitExpired: drawWaitExpired, pending: hasPendingInteraction })) return;
     // The move that starts your turn queues its spotlight/flights a beat after
     // this render: wait a moment of stillness, so they get the chance to cancel it
     const timer = window.setTimeout(() => setDrawModalOpen(true), DRAW_MODAL_SETTLE_MS);
     return () => window.clearTimeout(timer);
-  }, [myDrawPhase, state.phase, drawModalOpen, boardAnimating, drawWaitExpired]);
+  }, [myDrawPhase, state.phase, drawModalOpen, boardAnimating, drawWaitExpired, hasPendingInteraction]);
 
   useEffect(() => {
     if (!cardError) return;

@@ -32,13 +32,15 @@ export const DRAW_MODAL_SETTLE_MS = 220;
  * opponent's spotlights and flights have played out (or the wait runs out),
  * so their last move never animates over it.
  */
-export function shouldOpenDrawModal({ myDrawPhase, open, animating, waitExpired }: {
+export function shouldOpenDrawModal({ myDrawPhase, open, animating, waitExpired, pending = false }: {
   myDrawPhase: boolean;
   open: boolean;
   animating: boolean;
   waitExpired: boolean;
+  /** A resolution is waiting (Mask used before drawing): its panel goes first. */
+  pending?: boolean;
 }): boolean {
-  return myDrawPhase && !open && (!animating || waitExpired);
+  return myDrawPhase && !open && !pending && (!animating || waitExpired);
 }
 
 export function shouldShowResolvePanel(hasPendingInteraction: boolean, isAiTurn: boolean, pendingType: string | null | undefined, spotlightActive = false): boolean {
