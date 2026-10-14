@@ -659,3 +659,22 @@ overwrites tracked files.)
   render" for the taker's side — start from the victim's hand anchor.
 - The online-preview `endgame` stage is flaky by design: the friend AI is
   random and the driver can't answer drafts / Tribal Elder discards.
+
+## 2026-10-14 — Sound pass 3, Elephant stomp, log avatars
+- **A cancel point must die with any step that reveals cards**: Scale draws
+  as it starts, so `deriveCancellableAction` refuses a Scale `UTILITY_EFFECT`
+  — checked on the *resulting* resolution, which also catches a Crocodile
+  borrowing the Scale (a check on the played card would have missed it).
+- **Per-element timelines → Web Animations API, not CSS**: "all up together,
+  then down one by one" needs different keyframe offsets per token; two
+  chained CSS animations fight (the later one's backwards fill wins from t=0).
+- **A delayed effect must outlive the component that scheduled it**: the
+  stomp waits ~1s for the trumpet, and the resolve panel remounts in that
+  window — a timer cleared on unmount (plus a once-per-draft gate) meant the
+  stomp silently never fired. The schedule and the pick lock now live at
+  module level; the panel only reads the lock.
+- **Level new SFX by loudness tier, not peak**: peak-normalizing left Ape
+  4 dB under the other animals. Measure max momentary LUFS (ebur128 over
+  short clips; integrated LUFS gates them to −70) and limit peaks.
+- Outcome sounds that ride on a log entry's public `card` field (Supplies'
+  find) work unchanged in Cast/online — the redacted public log keeps it.
