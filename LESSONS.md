@@ -640,3 +640,22 @@ overwrites tracked files.)
 - **Layer motion across elements**: button = drop-in + press (translate),
   inner board = sway/swing (rotate), so the animations never fight over one
   property.
+
+## 2026-10-13 — Spotlight holds, draw-dialog gate, animal strikes (v1.27)
+- **Passive effects run before a layout effect's re-render.** The draw dialog
+  checked "animating?" in a `useEffect` on the same commit as the AI's last
+  move, before the spotlight/flight layers had queued it (their state is set
+  in layout effects, which re-render *after* pending passive effects flush).
+  Fix: open only after a short settle (220ms of stillness), cancelled by any
+  animation that starts. Measured in a real game: 8/9 → 0/10 bad opens.
+- **Hold the board back from the queue, not the current spotlight**: hiding
+  every card still queued for the utility row (`withSpotlightHolds`) is what
+  stops a placed utility appearing early when plays stack up.
+- **Gate strikes on the viewer's own pending decision, not any pending
+  resolution**, or Snake deadlocks: the AI pauses for the strike while the
+  strike waits on the AI's keep.
+- **Multi-step resolutions log late**: Hyena's take moves the card a step
+  before HYENA_SWAP is logged, so a strike can't trust "where it was last
+  render" for the taker's side — start from the victim's hand anchor.
+- The online-preview `endgame` stage is flaky by design: the friend AI is
+  random and the driver can't answer drafts / Tribal Elder discards.

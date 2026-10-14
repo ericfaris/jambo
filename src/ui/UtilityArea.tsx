@@ -103,6 +103,7 @@ function UtilityAreaComponent({
           return (
           <div
             key={u.cardId}
+            data-utility-card={u.cardId}
             className={activatable ? 'utility-ready' : unusable ? 'utility-unusable' : undefined}
             title={unusable ? hints?.get(u.cardId)?.reason : undefined}
             aria-disabled={unusable || undefined}
@@ -186,6 +187,7 @@ export function UtilityChips({ utilities, onMegaView }: { utilities: UtilityStat
         return (
           <button
             key={u.cardId}
+            data-utility-card={u.cardId}
             type="button"
             className={`utility-chip${u.usedThisTurn ? ' utility-chip-used' : ''}`}
             onClick={onMegaView ? () => onMegaView(u.cardId) : undefined}

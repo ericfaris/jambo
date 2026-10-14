@@ -116,7 +116,7 @@ describe('flight planning — thefts, swaps, transfers', () => {
 describe('discard pile waits for the spotlight', () => {
   it('shows the card underneath while the spotlit card is still being announced', () => {
     const s = { ...createTestState(), discardPile: ['parrot_1', 'well_1'] };
-    const held = renderToStaticMarkup(createElement(CenterRow, { state: s, dispatch: () => {}, heldDiscardCard: 'parrot_1' }));
+    const held = renderToStaticMarkup(createElement(CenterRow, { state: s, dispatch: () => {}, heldDiscardCards: ['parrot_1'] }));
     expect(held).toContain('/assets/cards/well.png');
     expect(held).not.toContain('/assets/cards/parrot.png');
     const normal = renderToStaticMarkup(createElement(CenterRow, { state: s, dispatch: () => {} }));

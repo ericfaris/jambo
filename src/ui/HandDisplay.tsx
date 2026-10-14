@@ -132,6 +132,7 @@ function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaVie
     return (
       <div
         key={cardId}
+        data-hand-card={cardId}
         className={dimmed ? 'hand-card hand-card-unplayable' : 'hand-card'}
         style={tileStyle as CSSProperties}
         title={hint?.reason}

@@ -802,9 +802,6 @@ button.brown:hover:not(:disabled) {
   color: #fff;
   font-weight: 700;
   font-size: 15px;
-  box-shadow: 0 0 16px rgba(192, 64, 48, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  animation: endTurnShimmer 2s ease-in-out infinite alternate;
-  transition: transform var(--motion-fast) var(--anim-ease-emphasis), filter var(--motion-fast) var(--anim-ease-standard);
   flex-shrink: 0;
 }
 
@@ -1398,8 +1395,15 @@ button.brown:hover:not(:disabled) {
   100% { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
 }
 
+/* Anchored to the avatar: just left of it, vertically centred on the face */
+.seat-portrait-wrap { position: relative; flex-shrink: 0; }
+
 .speech-bubble {
   position: absolute;
+  top: 50%;
+  right: calc(100% + 12px);
+  translate: 0 -50%;
+  width: max-content;
   z-index: 2000;
   max-width: 240px;
   padding: 10px 16px;
@@ -1413,14 +1417,14 @@ button.brown:hover:not(:disabled) {
   line-height: 1.35;
   text-align: center;
   pointer-events: none;
-  transform-origin: 100% 30%;
+  transform-origin: 100% 50%;
   animation: bubblePop 380ms var(--life-spring) both;
 }
 
 .speech-bubble::before {
   content: '';
   position: absolute;
-  top: 16px;
+  top: calc(50% - 7px);
   right: -8px;
   width: 14px;
   height: 14px;
@@ -1925,7 +1929,7 @@ button.brown:hover:not(:disabled) {
 .final-turn-banner {
   position: fixed;
   inset: 0;
-  z-index: 8700;
+  z-index: 9250; /* above the draw dialog (9200) — a turn announcement is never hidden */
   pointer-events: none;
   display: flex;
   align-items: center;
@@ -2110,7 +2114,7 @@ button.brown:hover:not(:disabled) {
   left: 0;
   right: 0;
   top: 30%;
-  z-index: 8600;
+  z-index: 9250; /* above the draw dialog (9200) — a turn announcement is never hidden */
   pointer-events: none;
   display: flex;
   justify-content: center;
@@ -3203,3 +3207,355 @@ button.menu-abandon-link:hover:not(:disabled) { background: none; border: 0; col
 
 /* Desktop: the turn hint sits in the "Your Hand" heading row, so it never adds height */
 .hand-head-hint { margin: 0 0 0 auto; text-align: right; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+
+/* ===========================================================================
+   Center row sides, polished (2026-10-13): the Supply tray and End Turn take
+   the turn plaque's language — dark plate, gold double frame, brass studs —
+   so the row reads as one set of market furniture. Motion per DESIGN.md ›
+   Life: transform/opacity loops, staggered, off under reduced motion /
+   data-ambient="off".
+   =========================================================================== */
+
+/* --- Supply tray --------------------------------------------------------- */
+.ware-supply-tray {
+  position: relative;
+  gap: 8px;
+  padding: 10px 12px 9px;
+  border-radius: 14px;
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(217,173,91,0.12), transparent 60%),
+    repeating-linear-gradient(90deg, rgba(255,230,180,0.025) 0 3px, transparent 3px 7px),
+    linear-gradient(180deg, #2a1b10 0%, #1a100a 100%);
+  border: 1px solid rgba(217,173,91,0.45);
+  box-shadow:
+    inset 0 0 0 3px #140c07,
+    inset 0 0 0 4px rgba(217,173,91,0.32),
+    0 10px 24px rgba(0,0,0,0.5);
+}
+.ware-supply-tray .ware-supply-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-heading);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #d9ad5b;
+}
+.ware-supply-total {
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+.supply-stud {
+  position: absolute;
+  top: 9px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff1c9 0%, #d9ad5b 45%, #6e4b17 100%);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.6);
+}
+.supply-stud-l { left: 9px; }
+.supply-stud-r { right: 9px; }
+.ware-supply-tray .ware-supply-grid { gap: 10px 8px; }
+
+/* a basket: woven rim, with a gold ring that drains as the ware runs out */
+.ware-supply-tray .ware-basket {
+  width: 40px;
+  height: 40px;
+  background:
+    radial-gradient(circle, rgba(20,10,5,0.55) 0 52%, transparent 53%),
+    repeating-conic-gradient(from 0deg, rgba(150,112,72,0.9) 0deg 10deg, rgba(92,64,38,0.9) 10deg 20deg);
+  box-shadow: inset 0 0 0 2px rgba(20,10,5,0.8), 0 3px 6px rgba(0,0,0,0.45);
+  isolation: isolate;
+  transition: transform 220ms var(--life-spring), filter var(--motion-base), opacity var(--motion-base);
+}
+.ware-supply-tray .ware-basket::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: conic-gradient(#e7bf68 var(--left, 360deg), rgba(255,255,255,0.08) 0);
+  z-index: -1;
+  -webkit-mask: radial-gradient(closest-side, transparent calc(100% - 3.5px), #000 calc(100% - 3px));
+  mask: radial-gradient(closest-side, transparent calc(100% - 3.5px), #000 calc(100% - 3px));
+  transition: background 400ms ease;
+}
+.ware-supply-tray .ware-basket-low::before { background: conic-gradient(#e0893a var(--left), rgba(255,255,255,0.08) 0); }
+.ware-supply-tray .ware-basket-empty::before { background: rgba(214,90,70,0.35); }
+.ware-supply-tray .ware-basket img { width: 28px; height: 28px; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.55)); }
+.ware-basket-token { display: grid; place-items: center; animation: basketBob 4.6s ease-in-out calc(var(--i, 0) * -0.77s) infinite; }
+@keyframes basketBob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -1.5px; } }
+/* a ware leaves the basket (bought) or lands in it (sold back) */
+.ware-basket-took { animation: basketTook 520ms var(--life-spring) both, basketBob 4.6s ease-in-out 520ms infinite; }
+.ware-basket-got { animation: basketGot 520ms var(--life-spring) both, basketBob 4.6s ease-in-out 520ms infinite; }
+@keyframes basketTook { 0% { translate: 0 -10px; scale: 1.15; opacity: 0.4; } 60% { translate: 0 1px; scale: 0.96; opacity: 1; } 100% { translate: 0 0; scale: 1; } }
+@keyframes basketGot { 0% { translate: 0 -14px; scale: 0.8; opacity: 0; } 55% { translate: 0 2px; scale: 1.08; opacity: 1; } 100% { translate: 0 0; scale: 1; } }
+/* the count: a brass tag */
+.ware-supply-tray .ware-basket-count {
+  right: -7px;
+  bottom: -5px;
+  min-width: 17px;
+  height: 17px;
+  line-height: 15px;
+  font-size: 10.5px;
+  color: #2a1608;
+  background: radial-gradient(circle at 35% 30%, #fff1c9 0%, #e2b866 50%, #a87a2c 100%);
+  border: 1px solid #6e4b17;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.6);
+}
+.ware-supply-tray .ware-basket-low .ware-basket-count { color: #fff; background: radial-gradient(circle at 35% 30%, #ffc89a 0%, #d0702c 55%, #8a3c10 100%); border-color: #5a2408; }
+.ware-supply-tray .ware-basket-empty .ware-basket-count { color: #fff; background: #8a2a1e; border-color: #4a120a; }
+.ware-basket-count-changed { animation: basketCount 420ms var(--life-spring) both; }
+@keyframes basketCount { 0% { scale: 1.6; } 100% { scale: 1; } }
+@media (hover: hover) {
+  .ware-supply-tray .ware-basket:hover { transform: translateY(-2px) scale(1.06); }
+}
+
+/* --- End Turn: a red lacquer plaque -------------------------------------- */
+.end-turn-button {
+  position: relative;
+  isolation: isolate;
+  background:
+    linear-gradient(105deg, transparent 38%, rgba(255,236,210,0.32) 50%, transparent 62%) -160% 0 / 250% 100% no-repeat,
+    radial-gradient(120% 90% at 50% 0%, rgba(255,170,140,0.35), transparent 60%),
+    linear-gradient(180deg, #c8402c 0%, #9c2618 58%, #7e1c10 100%);
+  border: 1px solid #f3c06a;
+  border-radius: 12px;
+  box-shadow:
+    inset 0 0 0 2px #5a140a,
+    inset 0 0 0 3px rgba(243,192,106,0.55),
+    inset 0 1px 0 4px rgba(255,255,255,0.06),
+    0 3px 0 #4a1008,
+    0 10px 22px rgba(0,0,0,0.5);
+  font-family: var(--font-heading);
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 0 rgba(60,8,2,0.8);
+  animation: endTurnSheen 5.5s ease-in-out 1.2s infinite;
+  transition: transform 180ms var(--life-spring), filter var(--motion-fast) var(--anim-ease-standard), box-shadow 180ms ease;
+}
+/* the breathing glow, on a pseudo-element so only its opacity animates */
+.end-turn-button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  box-shadow: 0 0 22px 3px rgba(255,110,80,0.6);
+  opacity: 0.45;
+  animation: endTurnGlow 2.6s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+@keyframes endTurnGlow { from { opacity: 0.35; } to { opacity: 1; } }
+@keyframes endTurnSheen { 0%, 70% { background-position: -160% 0, 0 0, 0 0; } 100% { background-position: 260% 0, 0 0, 0 0; } }
+.end-turn-button:hover:not(:disabled) {
+  background:
+    linear-gradient(105deg, transparent 38%, rgba(255,236,210,0.32) 50%, transparent 62%) -160% 0 / 250% 100% no-repeat,
+    radial-gradient(120% 90% at 50% 0%, rgba(255,190,160,0.45), transparent 60%),
+    linear-gradient(180deg, #d4482f 0%, #a82a1a 58%, #861e12 100%);
+  border-color: #ffd98a;
+  transform: translateY(-2px);
+  filter: none;
+}
+.end-turn-button:hover:not(:disabled)::before { opacity: 1; animation-play-state: paused; }
+.end-turn-button:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: inset 0 0 0 2px #5a140a, inset 0 0 0 3px rgba(243,192,106,0.55), 0 1px 0 #4a1008, 0 4px 10px rgba(0,0,0,0.45);
+}
+.end-turn-button:disabled::before { display: none; }
+.end-turn-button:focus-visible { outline: 2px solid #ffd98a; outline-offset: 3px; }
+
+/* the pips: the plaque's own gold coins and empty sockets */
+.end-turn-button .action-pips { gap: 5px; margin-top: 6px; }
+.end-turn-button .action-pip {
+  width: 11px;
+  height: 11px;
+  border: none;
+  background: radial-gradient(circle at 35% 30%, #fff1b8 0 18%, #f0c35a 42%, #b8862e 100%);
+  box-shadow: 0 1px 1px rgba(40,6,2,0.6), inset 0 0 0 1px rgba(120,80,20,0.6);
+}
+.end-turn-button .action-pip-spent {
+  background: rgba(40,6,2,0.45);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.6), 0 1px 0 rgba(255,200,170,0.18);
+}
+
+/* the bonus: a real gold coin that catches the light now and then */
+.end-turn-button .end-turn-bonus {
+  position: relative;
+  overflow: hidden;
+  height: 1.7em;
+  min-width: 2.6em;
+  padding: 0 0.45em;
+  background: radial-gradient(circle at 35% 28%, #fff4c6 0 14%, #f2c75c 46%, #b88328 100%);
+  color: #5a2a06;
+  box-shadow: 0 2px 3px rgba(40,6,2,0.55), inset 0 0 0 1.5px #8a5a14, inset 0 0 0 3px rgba(255,236,170,0.55);
+  text-shadow: 0 1px 0 rgba(255,240,200,0.6);
+  animation: endTurnCoin 4.2s ease-in-out 2s infinite;
+}
+@keyframes endTurnCoin {
+  0%, 82%, 100% { rotate: 0deg; scale: 1; }
+  87% { rotate: -9deg; scale: 1.12; }
+  92% { rotate: 7deg; scale: 1.08; }
+  96% { rotate: -3deg; scale: 1.02; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ware-basket-token, .ware-basket-took, .ware-basket-got, .ware-basket-count-changed,
+  .end-turn-button, .end-turn-button::before, .end-turn-button .end-turn-bonus { animation: none !important; }
+}
+:root[data-ambient='off'] .ware-basket-token,
+:root[data-ambient='off'] .end-turn-button,
+:root[data-ambient='off'] .end-turn-button::before,
+:root[data-ambient='off'] .end-turn-button .end-turn-bonus { animation: none !important; }
+:root[data-ambient='off'] .ware-basket-took { animation: basketTook 520ms var(--life-spring) both !important; }
+:root[data-ambient='off'] .ware-basket-got { animation: basketGot 520ms var(--life-spring) both !important; }
+
+/* ===========================================================================
+   Animal strikes (2026-10-13; strikes.ts / StrikeLayer.tsx / cardDamage.tsx).
+   The target lifts and glows, takes the hit, holds, then travels where the
+   effect sends it, keeping its mark. Under the spotlight (8800) — strikes
+   wait for it — and above the board. No jaw graphic: the damage is the story.
+   =========================================================================== */
+.strike-layer { position: fixed; inset: 0; z-index: 8750; pointer-events: none; }
+.strike { position: absolute; transform-origin: 50% 50%; will-change: transform, opacity; }
+.strike-card { width: 100%; height: 100%; }
+.strike-card .card-face { width: 100% !important; height: 100% !important; }
+
+/* lift: the target rises with a red glow */
+.strike-lift, .strike-hit { animation: strikeLift 260ms var(--life-spring) both; }
+@keyframes strikeLift {
+  from { transform: none; filter: none; }
+  to { transform: translateY(-10px) scale(1.08); filter: drop-shadow(0 0 12px rgba(200,48,36,0.9)) drop-shadow(0 10px 14px rgba(0,0,0,0.5)); }
+}
+/* the hit: a jolt, then it holds, still glowing */
+.strike-hit { animation: strikeHit 420ms ease-out both; }
+@keyframes strikeHit {
+  0% { transform: translateY(-10px) scale(1.08) rotate(0); filter: drop-shadow(0 0 16px rgba(230,60,40,1)) drop-shadow(0 10px 14px rgba(0,0,0,0.5)); }
+  20% { transform: translateY(-8px) scale(1.05) rotate(-5deg); }
+  40% { transform: translateY(-11px) scale(1.07) rotate(4deg); }
+  65% { transform: translateY(-10px) scale(1.07) rotate(-2deg); }
+  100% { transform: translateY(-10px) scale(1.08) rotate(0); filter: drop-shadow(0 0 8px rgba(200,48,36,0.6)) drop-shadow(0 10px 14px rgba(0,0,0,0.5)); }
+}
+/* travel: to the discard / the taker / the thief's slot */
+.strike-travel { animation: strikeTravel 600ms cubic-bezier(0.45, 0, 0.25, 1) var(--stagger, 0ms) both; }
+@keyframes strikeTravel {
+  0% { transform: translateY(-10px) scale(1.08); opacity: 1; filter: drop-shadow(0 10px 14px rgba(0,0,0,0.5)); }
+  85% { opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(var(--to-scale)) rotate(8deg); opacity: 0.2; }
+}
+
+/* Hyena: shaken side to side as it's gnawed */
+.strike-gnaw.strike-hit { animation: strikeShake 520ms ease-in-out both; }
+@keyframes strikeShake {
+  0%, 100% { transform: translateY(-14px) rotate(0); filter: drop-shadow(0 0 12px rgba(200,48,36,0.8)); }
+  15% { transform: translateY(-18px) rotate(-7deg); }
+  32% { transform: translateY(-13px) rotate(6deg); }
+  50% { transform: translateY(-17px) rotate(-5deg); }
+  68% { transform: translateY(-14px) rotate(4deg); }
+  84% { transform: translateY(-15px) rotate(-2deg); }
+}
+
+/* Snake: the poisoned cards wilt as they go */
+.strike-venom.strike-hit { animation: strikeWilt 640ms ease-in both; }
+@keyframes strikeWilt {
+  from { transform: translateY(-10px) scale(1.08); filter: drop-shadow(0 0 12px rgba(111,174,60,0.9)); }
+  to { transform: translateY(-4px) scale(1.0) skewX(-3deg); filter: saturate(0.4) brightness(0.85) drop-shadow(0 0 6px rgba(111,174,60,0.6)); }
+}
+.strike-kept { position: absolute; border-radius: 10px; box-shadow: 0 0 0 2px rgba(240,200,110,0.95), 0 0 22px 6px rgba(240,200,110,0.55); animation: strikeKept 1.5s ease-in-out both; }
+@keyframes strikeKept { 0%, 100% { opacity: 0; } 25%, 70% { opacity: 1; } }
+
+/* Parrot: three pecks wobble the token, feathers fall */
+.strike-token { position: relative; width: 100%; height: 100%; }
+.strike-token > span:first-child { display: block; }
+.strike-peck.strike-lift { animation: strikePecks 320ms ease-in-out both; }
+@keyframes strikePecks {
+  0% { transform: none; }
+  25% { transform: translateY(-3px) rotate(-14deg); }
+  50% { transform: translateY(1px) rotate(11deg); }
+  75% { transform: translateY(-2px) rotate(-9deg); }
+  100% { transform: translateY(-12px) scale(1.18); filter: drop-shadow(0 0 10px rgba(212,168,80,0.9)); }
+}
+.strike-peck.strike-hit { animation: none; transform: translateY(-12px) scale(1.18); filter: drop-shadow(0 0 10px rgba(212,168,80,0.9)); }
+.strike-feathers i {
+  position: absolute; left: 50%; top: 20%; width: 8px; height: 18px;
+  border-radius: 50% 50% 50% 50% / 70% 70% 30% 30%;
+  opacity: 0;
+  box-shadow: inset -1px 0 0 rgba(0,0,0,0.25);
+}
+/* the parrot on the card: black, red and white */
+.strike-feathers i:nth-child(1) { background: #1c1a1a; --fx: -34px; --fy: 46px; --fr: 170deg; }
+.strike-feathers i:nth-child(2) { background: #c8322a; --fx: 24px; --fy: 54px; --fr: -150deg; }
+.strike-feathers i:nth-child(3) { background: #f4f1ea; --fx: -10px; --fy: 66px; --fr: 230deg; }
+.strike-feathers i:nth-child(4) { background: #c8322a; --fx: 40px; --fy: 30px; --fr: 120deg; width: 6px; height: 13px; }
+.strike-hit .strike-feathers i, .strike-travel .strike-feathers i { animation: strikeFeather 1.3s ease-out both; }
+.strike-feathers i:nth-child(2) { animation-delay: 60ms !important; }
+.strike-feathers i:nth-child(3) { animation-delay: 120ms !important; }
+@keyframes strikeFeather {
+  0% { opacity: 0; transform: none; }
+  12% { opacity: 1; }
+  45% { transform: translate(calc(var(--fx) * 0.6), calc(var(--fy) * 0.4)) rotate(calc(var(--fr) * 0.5)); }
+  85% { opacity: 0.9; }
+  100% { opacity: 0; transform: translate(var(--fx), var(--fy)) rotate(var(--fr)); }
+}
+
+/* Cheetah: three claw rakes across the coins, then they streak away */
+.strike-coins { position: relative; display: flex; gap: 4px; align-items: center; justify-content: center; width: 100%; height: 100%; }
+.strike-coin { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-family: var(--font-heading); font-weight: 700; font-size: 13px; color: #4a3008; background: radial-gradient(circle at 35% 30%, #fff1b8 0 16%, #f0c35a 42%, #a8782a 100%); box-shadow: inset 0 0 0 2px #e8ac52, 0 3px 6px rgba(0,0,0,0.5); }
+.strike-claws { position: absolute; inset: -6px -10px; width: calc(100% + 20px); height: calc(100% + 12px); fill: none; stroke: #f6e9cc; stroke-width: 3.5; stroke-linecap: round; opacity: 0; filter: drop-shadow(0 0 3px rgba(200,48,36,0.9)); }
+.strike-hit .strike-claws { animation: strikeClaws 600ms ease-out both; }
+@keyframes strikeClaws { 0% { opacity: 0; clip-path: inset(0 100% 0 0); } 30% { opacity: 1; clip-path: inset(0 0 0 0); } 70% { opacity: 1; } 100% { opacity: 0; } }
+.strike-speed { position: absolute; left: -40px; top: 8px; bottom: 8px; width: 40px; opacity: 0; background: repeating-linear-gradient(180deg, transparent 0 5px, rgba(246,233,204,0.6) 5px 7px); -webkit-mask: linear-gradient(90deg, transparent, #000); mask: linear-gradient(90deg, transparent, #000); }
+.strike-travel .strike-speed { opacity: 1; }
+.strike-claw.strike-travel { animation-duration: 380ms; }
+
+/* Guard: the shield slides in front, the strike clangs off it */
+.strike-shield { position: relative; width: 100%; height: 100%; }
+.strike-guard.strike-rest { opacity: 0; }
+.strike-guard.strike-lift { animation: strikeShieldIn 260ms var(--life-spring) both; }
+@keyframes strikeShieldIn { from { opacity: 0; transform: translateX(90px) rotate(8deg); } to { opacity: 1; transform: none; } }
+.strike-guard.strike-hit { animation: strikeShieldClang 420ms ease-out both; }
+@keyframes strikeShieldClang { 0% { transform: none; } 25% { transform: translateX(-10px) rotate(-4deg); } 55% { transform: translateX(3px) rotate(1deg); } 100% { transform: none; } }
+.strike-guard.strike-travel { animation: strikeShieldOut 420ms ease-in both; }
+@keyframes strikeShieldOut { to { opacity: 0; transform: translateX(110px) rotate(10deg); } }
+.strike-spark { position: absolute; left: -22px; top: 30%; width: 50px; height: 50px; opacity: 0; background: radial-gradient(circle, #fff6d0 0 12%, rgba(255,214,120,0.85) 26%, transparent 62%); }
+.strike-guard.strike-hit .strike-spark { animation: strikeSpark 420ms ease-out both; }
+@keyframes strikeSpark { 0% { opacity: 0; transform: scale(0.3); } 15% { opacity: 1; transform: scale(1.5); } 100% { opacity: 0; transform: scale(2); } }
+
+/* --- Lasting marks on a card face (the cut-outs are masks) ------------- */
+.card-face.card-damage { position: relative; }
+.card-face.card-damage-bite {
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 128' preserveAspectRatio='none'%3E%3Cpath d='M0 0H34L40 12L46 5L50 18L57 10L60 24L67 17L69 31L77 27L77 40L86 38L84 50L96 50V128H0Z' fill='%23fff'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 128' preserveAspectRatio='none'%3E%3Cpath d='M0 0H34L40 12L46 5L50 18L57 10L60 24L67 17L69 31L77 27L77 40L86 38L84 50L96 50V128H0Z' fill='%23fff'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+}
+.card-damage-torn { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.card-damage-torn path { fill: none; stroke: #5a3a1c; stroke-width: 2.2; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.card-face.card-damage-gnaw {
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 128' preserveAspectRatio='none'%3E%3Cpath d='M0 0H30A6 6 0 0 0 42 0A5 5 0 0 0 52 0A6 6 0 0 0 64 0H96V128H0Z' fill='%23fff'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 128' preserveAspectRatio='none'%3E%3Cpath d='M0 0H30A6 6 0 0 0 42 0A5 5 0 0 0 52 0A6 6 0 0 0 64 0H96V128H0Z' fill='%23fff'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+}
+.card-damage-slobber { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: radial-gradient(ellipse 34% 18% at 50% 5%, rgba(205,232,255,0.6), transparent 70%), radial-gradient(ellipse 8% 16% at 60% 12%, rgba(205,232,255,0.55), transparent 70%); }
+.card-face.card-damage-venom { filter: saturate(0.55) sepia(0.15); }
+.card-damage-venom { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: radial-gradient(circle at 50% 26%, rgba(111,174,60,0.7), rgba(111,174,60,0.22) 42%, transparent 68%); mix-blend-mode: multiply; }
+.card-damage-fangs { position: absolute; left: 34%; right: 34%; top: 22%; height: 9%; pointer-events: none; }
+.card-damage-fangs::before, .card-damage-fangs::after { content: ''; position: absolute; top: 0; height: 100%; aspect-ratio: 1; border-radius: 50%; background: #1a0d06; box-shadow: 0 0 0 2px rgba(184,50,42,0.75); }
+.card-damage-fangs::before { left: 0; }
+.card-damage-fangs::after { right: 0; }
+/* the damage appears with a jolt the moment the strike lands on an overlay */
+.strike .card-damage { animation: damageIn 260ms ease-out both; }
+@keyframes damageIn { from { filter: brightness(1.8); } to { filter: none; } }
+.strike-venom .card-damage-venom { animation: venomSpread 600ms ease-out both; transform-origin: 50% 26%; }
+@keyframes venomSpread { from { opacity: 0; transform: scale(0.2); } to { opacity: 1; transform: scale(1); } }
+
+/* a pecked ware keeps a chip out of its rim while it sits in that slot */
+.ware-chipped {
+  -webkit-mask: radial-gradient(circle at 82% 14%, transparent 0 16%, #000 17%);
+  mask: radial-gradient(circle at 82% 14%, transparent 0 16%, #000 17%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .strike-layer { display: none; }
+}

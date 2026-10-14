@@ -27,7 +27,7 @@ interface CenterRowProps {
   endTurnSlot?: ReactNode;
   /** A card still being announced by the spotlight: the pile shows what was
    *  under it until the spotlight lands, so the hand-off reads. */
-  heldDiscardCard?: string | null;
+  heldDiscardCards?: readonly string[];
   /** Desktop: the ware supply, pinned to the left end of the row. */
   supplySlot?: ReactNode;
   /** Seat whose face-up plays get the big spotlight — skip the duplicate recap pill. */
@@ -36,7 +36,9 @@ interface CenterRowProps {
   viewer?: 0 | 1;
 }
 
-export function CenterRow({ state, isLocalMode = true, showGlow = false, visualFeedback, actorLabels = ['Player 1', 'Player 2'], hiddenPlayer = null, compact = false, endTurnSlot, supplySlot, spotlitPlayer = null, heldDiscardCard = null, viewer = 0 }: CenterRowProps) {
+const NO_HELD: readonly string[] = [];
+
+export function CenterRow({ state, isLocalMode = true, showGlow = false, visualFeedback, actorLabels = ['Player 1', 'Player 2'], hiddenPlayer = null, compact = false, endTurnSlot, supplySlot, spotlitPlayer = null, heldDiscardCards = NO_HELD, viewer = 0 }: CenterRowProps) {
   const pileScale = compact ? 0.62 : 1;
   const pileW = Math.round(96 * pileScale);
   const pileH = Math.round(128 * pileScale);
@@ -56,8 +58,8 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
     ? state.discardPile[0]
     : null;
   const [trailDiscardCard, setDisplayDiscardCard] = useState(topDiscard);
-  const displayDiscardCard = heldDiscardCard && trailDiscardCard === heldDiscardCard
-    ? (state.discardPile.find((c) => c !== heldDiscardCard) ?? null)
+  const displayDiscardCard = trailDiscardCard && heldDiscardCards.includes(trailDiscardCard)
+    ? (state.discardPile.find((c) => !heldDiscardCards.includes(c)) ?? null)
     : trailDiscardCard;
   const [actionTag, setActionTag] = useState<string | null>(null);
   const [lastActionRecap, setLastActionRecap] = useState<string | null>(null);
@@ -120,7 +122,9 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
 
   const latestLog = state.log.length > 0 ? state.log[state.log.length - 1] : null;
   const showTrail = !!visualFeedback?.trail && !!trailPath
-    && !(visualFeedback.trail.kind === 'discard' && spotlightCoversDiscard(latestLog, spotlitPlayer));
+    && !(visualFeedback.trail.kind === 'discard' && spotlightCoversDiscard(latestLog, spotlitPlayer))
+    // an animal strike carries this card to the pile itself
+    && !(visualFeedback.trail.kind === 'discard' && !!visualFeedback.trail.cardId && heldDiscardCards.includes(visualFeedback.trail.cardId));
 
   const trailKind = visualFeedback?.trail?.kind;
   const trailActor = visualFeedback?.trail?.actor;

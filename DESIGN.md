@@ -517,6 +517,47 @@ New phone components:
   9px and coins 12px. Named sizes on desktop (140/120/96) render exactly as
   before.
 
+### Animal strikes (2026-10-13)
+
+When an animal hits one card or ware, the target takes visible damage on the
+table before it moves (`strikes.ts` plans from the log + state change,
+`StrikeLayer.tsx` animates, `cardDamage.tsx` keeps the marks). A strike waits
+until the opponent's spotlight queue is empty and no panel is waiting on you
+(4.5s cap), then: lift + red glow → hit → hold → travel. The AI holds its next
+move while one is queued or playing. z 8750 (under the spotlight).
+
+| Animal | Target | Damage | Then | Lasts |
+|---|---|---|---|---|
+| Crocodile | the used utility | ragged bite cut out of the top-right corner (mask + torn edge), jaw-snap sfx | flies to the discard | while in the discard |
+| Hyena | the card taken | three tooth notches in the top edge, slobber sheen, shaken | out of the victim's hand into the taker's | while in **your** hand |
+| Snake | every discarded utility | fang punctures, venom spreads, card wilts/desaturates; kept cards glow gold | slide to the discard, staggered | while in the discard |
+| Parrot | the stolen ware | three pecks, a chip out of the rim, black/red/white feathers | hops to the thief's slot (hidden until it lands) | while in that slot |
+| Cheetah | the gold paid (not on "draw 2") | three claw rakes across the coins | streak to the payee | — |
+| Guard | — | the Guard slides in front, the strike clangs off with a spark | slides away | — |
+
+Elephant, Ape and Lion pool everything (no single target): no strike. A
+strike replaces the plain flight for its move (`strikeOwnsFlight`) and the
+discard trail for its card. Reduced motion: marks only, no animation.
+
+### Center row sides: Supply tray and End Turn (2026-10-13)
+
+- **Supply tray** (`.ware-supply-tray`, `WareSupply.tsx`): the turn plaque's
+  dark plate, gold double frame and brass studs; "— SUPPLY —" eyebrow and
+  "N wares left" under it. Each 40px woven basket has a gold ring that drains
+  with what's left of that ware (`--left` = n/initial × 360°; amber when low,
+  red when out), a brass count tag, a 1.5px staggered bob, and a token that
+  lifts out / drops in when its count changes (`supplyChanges()` remembers
+  the direction until the count moves again, so re-renders don't cut it).
+- **End Turn** (`.end-turn-button`): a red lacquer plaque in the same frame,
+  glow breathing on `::before` (opacity only), a slow sheen every ~5s, the
+  pips as the plaque's gold coins / empty sockets, and the +1g bonus as a gold
+  coin that wobbles to catch the eye. Hover lifts 2px, press sinks.
+- **Opponent plays never land early**: while a spotlight is queued, the
+  board holds the card back (`withSpotlightHolds`: a placed utility isn't in
+  their row, a card for their hand isn't counted). The draw dialog opens only
+  after the spotlight queue and flights finish, plus a 220ms settle (5s cap),
+  and sits at z 9200 above both (turn sweep / final-turn banner at 9250).
+
 ### Landing panel: market signs (2026-10-13)
 
 - **Play modes are hanging market signs** (`.landing-signs` > `.landing-sign` >
@@ -567,7 +608,7 @@ never competes with game feedback. Rules:
 | Active panel | `.turn-emphasis-active::after` | Gold glow breathes (opacity 0.35↔1) | `--life-glow` 3.4s |
 | Ready utility | `.utility-ready` | Slow gold ember ring on utilities you can still use this turn | 2.8s |
 | Opponent hand | `OpponentHandFan`, `.opp-hand-card` | Card backs sway; shuffle faster while it's their turn (`-thinking`) | — |
-| AI speech | `.speech-bubble` | Parchment bubble (replaces the white comic PNG), pops in with a wobble; sits left of the opponent's name, inside their panel | — |
+| AI speech | `.speech-bubble` | Parchment bubble (replaces the white comic PNG), pops in with a wobble; anchored 12px left of the trader's avatar (`SeatInfo` `bubble` → `.seat-portrait-wrap`), centred on it, tail pointing at the face (2026-10-13; was a guessed offset from the panel edge) | — |
 | Draw reveal | `.card-reveal` | Drawn card turns over (rotateY 90°→−8°→0) | 460ms |
 | Ambience | `AmbientLayer` (`.ambient-lamp`, `.ambient-mote` × 9) | Warm lamp pool that drifts and flickers, dust motes rising through the light; fixed, `z-index:-1`, `aria-hidden` | 7s flicker, 23s drift, 24–39s motes |
 

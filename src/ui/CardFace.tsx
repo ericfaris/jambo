@@ -4,6 +4,8 @@ import { getCard } from '../engine/cards/CardDatabase.ts';
 import { buttonProps } from './a11y.ts';
 import { WareCoin, wareCoinPrices } from './WareCoin.tsx';
 import type { PriceModifiers } from './WareCoin.tsx';
+import { DamageOverlays, useCardDamage } from './cardDamage.tsx';
+import type { CardDamage } from './strikes.ts';
 
 const CARD_TYPE_COLORS: Record<string, string> = {
   people: 'var(--card-people)',
@@ -52,10 +54,18 @@ interface CardFaceProps {
   priceModifiers?: PriceModifiers | null;
   /** Fill the container's width at the card's 3:4 shape; the caption scales with it. */
   fill?: boolean;
+  /** An animal strike's mark. Omitted: whatever the board's damage context says for this card. */
+  damage?: CardDamage | null;
+  /** A strike overlay drawing this card: never hidden by its own strike. */
+  strikeOverlay?: boolean;
 }
 
-export function CardFace({ cardId, onClick, selected, small, medium, large, extraLarge, faceDown, scale = 1, onMegaView, priceModifiers = null, fill = false }: CardFaceProps) {
+export function CardFace({ cardId, onClick, selected, small, medium, large, extraLarge, faceDown, scale = 1, onMegaView, priceModifiers = null, fill = false, damage: damageProp, strikeOverlay = false }: CardFaceProps) {
   const [imgError, setImgError] = useState(false);
+  const board = useCardDamage();
+  const damage = damageProp !== undefined ? damageProp : (board.marks.get(cardId)?.damage ?? null);
+  // its strike is still playing: the spot waits empty until the card lands
+  const heldByStrike = !strikeOverlay && board.hidden.has(cardId);
   const baseFaceWidth = small ? 96 : medium ? 120 : extraLarge ? 364 : large ? 180 : 140;
   const baseFaceHeight = small ? 128 : medium ? 160 : extraLarge ? 485 : large ? 240 : 187;
   const baseFallbackWidth = small ? 80 : medium ? 100 : extraLarge ? 364 : large ? 150 : 116;
@@ -135,8 +145,9 @@ export function CardFace({ cardId, onClick, selected, small, medium, large, extr
         title={tooltip}
         onClick={onClick}
         {...buttonProps(onClick, card.name)}
-        className={faceClass('linen-texture')}
+        className={faceClass(`linen-texture${damage ? ` card-damage card-damage-${damage}` : ''}`)}
         style={{
+          visibility: heldByStrike ? 'hidden' : undefined,
           width: fill ? '100%' : faceWidth,
           height: fill ? 'auto' : faceHeight,
           aspectRatio: fill ? '3 / 4' : undefined,
@@ -287,6 +298,7 @@ export function CardFace({ cardId, onClick, selected, small, medium, large, extr
             </div>
           )}
         </div>
+        {damage && <DamageOverlays damage={damage} />}
       </div>
     </>);
   }

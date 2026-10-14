@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { useCardDamage } from './cardDamage.tsx';
 import type { CSSProperties, ReactNode } from 'react';
 import type { WareType } from '../engine/types.ts';
 import { WareToken } from './CardFace.tsx';
@@ -37,6 +38,7 @@ interface MarketDisplayProps {
 }
 
 function MarketDisplayComponent({ market, onSlotClick, selectedSlots, flashSlots, flashVariant = 'normal', label, columns, slotSize = 48, tokenSize, borderless, dashedBorder, compact = false, disabledSlots, disabledReason, owner, labelAside }: MarketDisplayProps) {
+  const { chips } = useCardDamage();
   const isInteractive = !!onSlotClick;
 
   const sixthSpace = getSixthSpaceIndex(market);
@@ -91,7 +93,7 @@ function MarketDisplayComponent({ market, onSlotClick, selectedSlots, flashSlots
           >
             {ware ? (
               // keyed by ware so a new arrival (or a swap) settles in
-              <span key={ware} className="ware-in-slot" style={{ '--i': i } as CSSProperties}>
+              <span key={ware} className={`ware-in-slot${owner !== undefined && chips.some((c) => c.player === owner && c.index === i && c.ware === ware) ? ' ware-chipped' : ''}`} style={{ '--i': i } as CSSProperties}>
                 <WareToken type={ware} size={tokenSize} />
               </span>
             ) : i === sixthSpace ? (

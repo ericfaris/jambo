@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { getCard } from '../engine/cards/CardDatabase.ts';
 import { validatePlayCard, validateActivateUtility } from '../engine/validation/actionValidator.ts';
@@ -13,7 +13,9 @@ import { HandDisplay } from './HandDisplay.tsx';
 import { ActionButtons, CardPlayDialog, DrawModal } from './ActionButtons.tsx';
 import { InteractionPanel } from './InteractionPanel.tsx';
 import { ActionLogButton, ActionLogDrawer } from './ActionLogDrawer.tsx';
-import { OpponentPlaySpotlight } from './OpponentPlaySpotlight.tsx';
+import { OpponentPlaySpotlight, withSpotlightHolds } from './OpponentPlaySpotlight.tsx';
+import { useStrikes } from './StrikeLayer.tsx';
+import { CardDamageContext } from './cardDamage.tsx';
 import { countUnread } from './actionLog.ts';
 import type { PlaySpotlight } from './actionLog.ts';
 import { GoldTrack } from './GoldTrack.tsx';
@@ -33,7 +35,7 @@ import { ResolveMegaView } from './ResolveMegaView.tsx';
 import { isHandInteraction } from './HandReferenceStrip.tsx';
 import { MegaView } from './MegaView.tsx';
 import { ActionPips, AmbientLayer, GoldCount } from './life.tsx';
-import { isWareDialogValid, shouldShowResolvePanel, quoteForSpotlight } from './gameScreenLogic.ts';
+import { DRAW_MODAL_MAX_WAIT_MS, DRAW_MODAL_SETTLE_MS, isWareDialogValid, shouldOpenDrawModal, shouldShowResolvePanel, quoteForSpotlight } from './gameScreenLogic.ts';
 import type { TraderLine } from './gameScreenLogic.ts';
 import { useVisualFeedback } from './useVisualFeedback.ts';
 import { getDrawDisabledReason, getPlayDisabledReason, friendlyPlayError } from './uiHints.ts';
@@ -155,9 +157,28 @@ export function GameBoard({
   const [spotlightActive, setSpotlightActiveState] = useState(false);
   const setSpotlightActive = useCallback((active: boolean) => {
     setSpotlightActiveState(active);
-    onSpotlightActiveChange?.(active);
-  }, [onSpotlightActiveChange]);
+  }, []);
   const [spotlitDiscard, setSpotlitDiscard] = useState<DeckCardId | null>(null);
+  // Every opponent play still on its way: their board holds those cards back
+  const [spotlightQueue, setSpotlightQueue] = useState<readonly PlaySpotlight[]>([]);
+  const [flightsBusy, setFlightsBusy] = useState(false);
+  // Animal strikes: after the spotlight (and any panel waiting on you) is gone
+  const strikes = useStrikes({
+    state,
+    viewer: viewerPlayer,
+    blocked: spotlightQueue.length > 0 || (hasPendingInteraction && responder === viewerPlayer),
+    enabled: state.phase !== 'GAME_OVER',
+  });
+  // The AI holds its next move while a spotlight or a strike is on
+  useEffect(() => {
+    onSpotlightActiveChange?.(spotlightActive || strikes.busy);
+  }, [spotlightActive, strikes.busy, onSpotlightActiveChange]);
+  useEffect(() => () => onSpotlightActiveChange?.(false), [onSpotlightActiveChange]);
+  const cardDamage = useMemo(() => ({ marks: strikes.marks, hidden: strikes.hidden, chips: strikes.chips }), [strikes.marks, strikes.hidden, strikes.chips]);
+  const heldDiscardCards = useMemo(
+    () => (spotlitDiscard ? [spotlitDiscard, ...strikes.heldDiscard] : [...strikes.heldDiscard]),
+    [spotlitDiscard, strikes.heldDiscard],
+  );
   // A utility the opponent is using stays upright on the board until its
   // spotlight clears, so you see it turn there too
   const [spotlitUtility, setSpotlitUtility] = useState<DeckCardId | null>(null);
@@ -206,6 +227,11 @@ export function GameBoard({
   // Wise Man: your ware coins show this turn's prices
   const priceModifiers = viewerPriceModifiers(state.turnModifiers, state.currentPlayer, viewerPlayer);
   const opponentPlayer: 0 | 1 = viewerPlayer === 0 ? 1 : 0;
+  // A card still in the opponent's spotlight hasn't reached their utilities/hand yet
+  const heldOpponentState = useMemo(
+    () => withSpotlightHolds(state.players[opponentPlayer], spotlightQueue),
+    [state.players, opponentPlayer, spotlightQueue],
+  );
 
   useEffect(() => {
     // While open, everything is read; a shorter log means a new game started
@@ -260,14 +286,28 @@ export function GameBoard({
     }
   }, [dispatch, state]);
 
-  // Auto-open draw modal when entering draw phase
+  // Auto-open the draw dialog when your draw phase starts — after the
+  // opponent's last spotlights and flights finish (capped), never over them
+  const myDrawPhase = state.phase === 'DRAW' && state.currentPlayer === viewerPlayer;
+  const boardAnimating = spotlightQueue.length > 0 || flightsBusy || strikes.busy;
+  const [drawWaitExpired, setDrawWaitExpired] = useState(false);
   useEffect(() => {
-    if (state.phase === 'DRAW' && state.currentPlayer === viewerPlayer && !drawModalOpen) {
-      setDrawModalOpen(true);
-    } else if (state.phase !== 'DRAW' && drawModalOpen) {
+    setDrawWaitExpired(false);
+    if (!myDrawPhase) return;
+    const timer = window.setTimeout(() => setDrawWaitExpired(true), DRAW_MODAL_MAX_WAIT_MS);
+    return () => window.clearTimeout(timer);
+  }, [myDrawPhase, state.turn]);
+  useEffect(() => {
+    if (state.phase !== 'DRAW' && drawModalOpen) {
       setDrawModalOpen(false);
+      return;
     }
-  }, [state.phase, state.currentPlayer, drawModalOpen, viewerPlayer]);
+    if (!shouldOpenDrawModal({ myDrawPhase, open: drawModalOpen, animating: boardAnimating, waitExpired: drawWaitExpired })) return;
+    // The move that starts your turn queues its spotlight/flights a beat after
+    // this render: wait a moment of stillness, so they get the chance to cancel it
+    const timer = window.setTimeout(() => setDrawModalOpen(true), DRAW_MODAL_SETTLE_MS);
+    return () => window.clearTimeout(timer);
+  }, [myDrawPhase, state.phase, drawModalOpen, boardAnimating, drawWaitExpired]);
 
   useEffect(() => {
     if (!cardError) return;
@@ -443,6 +483,7 @@ export function GameBoard({
   const toast = shownExternalError ?? null;
 
   return (
+    <CardDamageContext.Provider value={cardDamage}>
     <div className={`game-root${showUxDebug ? ' ux-debug' : ''}`} style={isPhone ? { position: 'relative' } : {
       display: 'flex',
       gap: 16,
@@ -519,7 +560,7 @@ export function GameBoard({
               <OpponentArea
                 seat={opponentPlayer}
                 compact
-                player={opponentState}
+                player={heldOpponentState}
                 aiMessage={opponentBubble}
                 onMessageHide={onOpponentBubbleHide}
                 goldDelta={visualFeedback.goldDeltas[opponentPlayer]}
@@ -533,7 +574,7 @@ export function GameBoard({
               />
             </div>
 
-            <CenterRow compact state={state} dispatch={dispatch} isLocalMode={true} showGlow={false} visualFeedback={visualFeedback} actorLabels={logLabels} hiddenPlayer={opponentPlayer} spotlitPlayer={localMultiplayer ? null : opponentPlayer} heldDiscardCard={spotlitDiscard} viewer={viewerPlayer} />
+            <CenterRow compact state={state} dispatch={dispatch} isLocalMode={true} showGlow={false} visualFeedback={visualFeedback} actorLabels={logLabels} hiddenPlayer={opponentPlayer} spotlitPlayer={localMultiplayer ? null : opponentPlayer} heldDiscardCards={heldDiscardCards} viewer={viewerPlayer} />
             <WareSupply supply={state.wareSupply} compact highlight={supplyAlert} />
 
             {hintText && (
@@ -646,7 +687,7 @@ export function GameBoard({
           <TableauCorners />
           <OpponentArea
             seat={opponentPlayer}
-            player={state.players[opponentPlayer]}
+            player={heldOpponentState}
             aiMessage={opponentBubble}
             onMessageHide={onOpponentBubbleHide}
             goldDelta={visualFeedback.goldDeltas[opponentPlayer]}
@@ -672,7 +713,7 @@ export function GameBoard({
             actorLabels={logLabels}
             hiddenPlayer={opponentPlayer}
             spotlitPlayer={localMultiplayer ? null : opponentPlayer}
-            heldDiscardCard={spotlitDiscard}
+            heldDiscardCards={heldDiscardCards}
             viewer={viewerPlayer}
             supplySlot={<WareSupply supply={state.wareSupply} highlight={supplyAlert} />}
             endTurnSlot={state.phase === 'PLAY' && state.currentPlayer === viewerPlayer ? (
@@ -953,6 +994,7 @@ export function GameBoard({
         actorLabel={opponent.kind === 'trader' ? opponent.trader.name : opponent.kind === 'human' ? opponent.name : 'Opponent'}
         enabled={!localMultiplayer && state.phase !== 'GAME_OVER'}
         onActiveChange={setSpotlightActive}
+        onQueueChange={setSpotlightQueue}
         unobtrusive={state.currentPlayer === viewerPlayer}
         onCurrentChange={handleSpotlightCurrent}
         portrait={opponent.kind === 'hotseat' ? undefined : opponentPortraitFor(opponent, 44)}
@@ -970,6 +1012,7 @@ export function GameBoard({
         spotlightEnabled={!localMultiplayer}
         spotlightActive={spotlightActive}
         onLand={handleFlightLand}
+        onBusyChange={setFlightsBusy}
       />
 
       {/* Action log: left tab on desktop, topbar button on phones */}
@@ -991,7 +1034,11 @@ export function GameBoard({
         <MegaView cardId={megaCardId} onClose={() => setMegaCardId(null)} market={state.players[viewerPlayer].market} priceModifiers={priceModifiers} />
       )}
 
+      {/* Animal strikes: the target takes the hit on the table, then moves */}
+      {strikes.layer}
+
       {overlays}
     </div>
+    </CardDamageContext.Provider>
   );
 }
