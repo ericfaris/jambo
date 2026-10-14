@@ -600,6 +600,13 @@ export function getFallbackInteractionResponses(state: GameState): InteractionRe
             : [{ type: 'RETURN_WARE', wareIndex: 0 }];
         }
 
+        // Scale keeps one of the 2 cards it drew — never a hand card. (A
+        // hand-card fallback looped forever once Scale stopped being
+        // cancellable: the online phone policy had no way out.)
+        if (pr.utilityDesign === 'scale' && pr.selectedCards && pr.selectedCards.length > 0) {
+          return pr.selectedCards.map(cardId => ({ type: 'SELECT_CARD', cardId }));
+        }
+
         return hand.length > 0
           ? hand.map(cardId => ({ type: 'SELECT_CARD', cardId }))
           : [{ type: 'SELECT_CARD', cardId: '' }];
