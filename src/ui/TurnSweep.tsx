@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import type { GameState } from '../engine/types.ts';
+import { DRAW_MODAL_MAX_WAIT_MS, DRAW_MODAL_SETTLE_MS } from './gameScreenLogic.ts';
 
 export const TURN_SWEEP_MS = 1300;
+
+/** A waiting sweep plays once the board has been still for a beat, or the wait runs out. */
+export function sweepReady({ held, waitedMs }: { held: boolean; waitedMs: number }): boolean {
+  return !held || waitedMs >= DRAW_MODAL_MAX_WAIT_MS;
+}
 
 /**
  * Should "Your turn" sweep in? Only on a live hand-over to the viewer — not
@@ -14,11 +20,26 @@ export function shouldSweepTurn(prev: Pick<GameState, 'currentPlayer' | 'turn'> 
   return next.currentPlayer === viewer && prev.currentPlayer !== viewer && next.turn > 0;
 }
 
-/** A brief click-through "Your turn" band when the turn comes back to you. */
-export function TurnSweep({ state, viewer, enabled = true }: { state: GameState; viewer: 0 | 1; enabled?: boolean }) {
+/**
+ * A brief click-through "Your turn" band when the turn comes back to you —
+ * held, like the draw dialog, until the opponent's last move has finished
+ * animating (spotlight, flights, strikes), so it never sweeps over them.
+ */
+export function TurnSweep({ state, viewer, enabled = true, held = false, onActiveChange }: {
+  state: GameState;
+  viewer: 0 | 1;
+  enabled?: boolean;
+  /** The opponent's last move is still on screen. */
+  held?: boolean;
+  /** Waiting or sweeping — the draw dialog opens after it. */
+  onActiveChange?: (active: boolean) => void;
+}) {
   const prevRef = useRef<Pick<GameState, 'currentPlayer' | 'turn'> | null>(null);
   const [key, setKey] = useState(0);
   const [shown, setShown] = useState(false);
+  // a hand-over waiting for the board to go still (when it started)
+  const [pendingSince, setPendingSince] = useState<number | null>(null);
+  const [recheck, setRecheck] = useState(0);
 
   useEffect(() => {
     const prev = prevRef.current;
@@ -26,12 +47,37 @@ export function TurnSweep({ state, viewer, enabled = true }: { state: GameState;
     // never over the results (or once switched off)
     if (!enabled || state.phase === 'GAME_OVER') {
       setShown(false);
+      setPendingSince(null);
       return;
     }
+    // the turn moved on before it could sweep: drop it
+    if (state.currentPlayer !== viewer) setPendingSince(null);
     if (!shouldSweepTurn(prev, state, viewer)) return;
-    setKey((k) => k + 1);
-    setShown(true);
+    setPendingSince(Date.now());
   }, [state.currentPlayer, state.turn, state.phase, enabled, viewer]);
+
+  // Sweep once the board has been still for a beat (cancelled if it moves again)
+  useEffect(() => {
+    if (pendingSince === null) return;
+    const waited = Date.now() - pendingSince;
+    if (!sweepReady({ held, waitedMs: waited })) {
+      // look again when the wait runs out, even if `held` never changes
+      const t = window.setTimeout(() => setRecheck((n) => n + 1), Math.max(200, DRAW_MODAL_MAX_WAIT_MS - waited));
+      return () => window.clearTimeout(t);
+    }
+    const t = window.setTimeout(() => {
+      setPendingSince(null);
+      setKey((k) => k + 1);
+      setShown(true);
+    }, held ? 0 : DRAW_MODAL_SETTLE_MS);
+    return () => window.clearTimeout(t);
+  }, [pendingSince, held, recheck]);
+
+  const active = pendingSince !== null || shown;
+  useEffect(() => {
+    onActiveChange?.(active);
+  }, [active, onActiveChange]);
+  useEffect(() => () => onActiveChange?.(false), [onActiveChange]);
 
   // The band's own timer: a quick turn change mustn't cancel it and leave
   // the band stuck on screen

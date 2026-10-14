@@ -554,9 +554,10 @@ discard trail for its card. Reduced motion: marks only, no animation.
   coin that wobbles to catch the eye. Hover lifts 2px, press sinks.
 - **Opponent plays never land early**: while a spotlight is queued, the
   board holds the card back (`withSpotlightHolds`: a placed utility isn't in
-  their row, a card for their hand isn't counted). The draw dialog opens only
-  after the spotlight queue and flights finish, plus a 220ms settle (5s cap),
-  and sits at z 9200 above both (turn sweep / final-turn banner at 9250).
+  their row, a card for their hand isn't counted). The "Your turn" sweep
+  waits the same way (spotlight queue, flights and strikes finished, 220ms
+  settle, 5s cap); the draw dialog opens after the sweep, at z 9200 above the
+  animation layers (turn sweep / final-turn banner at 9250).
 
 ### Landing panel: market signs (2026-10-13)
 

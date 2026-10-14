@@ -62,3 +62,16 @@ describe('used utilities are tapped, not hidden', () => {
     expect(html).not.toContain('rgba(20,10,5,0.7)');
   });
 });
+
+describe('"Your turn" waits for the opponent’s last move, like the draw dialog', () => {
+  it('holds while their move is still animating, and sweeps once it is still', async () => {
+    const { sweepReady } = await import('../../src/ui/TurnSweep.tsx');
+    expect(sweepReady({ held: true, waitedMs: 0 })).toBe(false);
+    expect(sweepReady({ held: false, waitedMs: 0 })).toBe(true);
+  });
+  it('never waits forever on a stuck animation', async () => {
+    const { sweepReady } = await import('../../src/ui/TurnSweep.tsx');
+    const { DRAW_MODAL_MAX_WAIT_MS } = await import('../../src/ui/gameScreenLogic.ts');
+    expect(sweepReady({ held: true, waitedMs: DRAW_MODAL_MAX_WAIT_MS })).toBe(true);
+  });
+});

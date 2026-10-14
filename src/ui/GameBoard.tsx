@@ -162,6 +162,7 @@ export function GameBoard({
   // Every opponent play still on its way: their board holds those cards back
   const [spotlightQueue, setSpotlightQueue] = useState<readonly PlaySpotlight[]>([]);
   const [flightsBusy, setFlightsBusy] = useState(false);
+  const [sweepActive, setSweepActive] = useState(false);
   // Animal strikes: after the spotlight (and any panel waiting on you) is gone
   const strikes = useStrikes({
     state,
@@ -289,7 +290,10 @@ export function GameBoard({
   // Auto-open the draw dialog when your draw phase starts — after the
   // opponent's last spotlights and flights finish (capped), never over them
   const myDrawPhase = state.phase === 'DRAW' && state.currentPlayer === viewerPlayer;
-  const boardAnimating = spotlightQueue.length > 0 || flightsBusy || strikes.busy;
+  // the opponent's last move still on screen — the turn sweep waits for it,
+  // and the draw dialog waits for the sweep too
+  const opponentMoveAnimating = spotlightQueue.length > 0 || flightsBusy || strikes.busy;
+  const boardAnimating = opponentMoveAnimating || sweepActive;
   const [drawWaitExpired, setDrawWaitExpired] = useState(false);
   useEffect(() => {
     setDrawWaitExpired(false);
@@ -1003,7 +1007,7 @@ export function GameBoard({
 
       <FinalTurnBanner state={state} labels={logLabels} />
       {/* hotseat: the pass-device screen already says whose turn it is */}
-      <TurnSweep state={state} viewer={viewerPlayer} enabled={!localMultiplayer} />
+      <TurnSweep state={state} viewer={viewerPlayer} enabled={!localMultiplayer} held={opponentMoveAnimating} onActiveChange={setSweepActive} />
 
       {/* Wares, coins and cards travel between markets, supply, gold and hands */}
       <FlightLayer
