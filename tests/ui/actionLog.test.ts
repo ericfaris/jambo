@@ -201,6 +201,24 @@ describe('action log drawer', () => {
     expect(html).not.toContain('AUTO_TRANSITION');
   });
 
+  it('shows each seat\'s portrait on its turns and on reactions in the other\'s turn', () => {
+    const faces = [createElement('i', { className: 'face-0' }), createElement('i', { className: 'face-1' })] as const;
+    const html = renderToStaticMarkup(createElement(ActionLogDrawer, {
+      open: true, onClose: () => {}, log, labels: LABELS, hiddenPlayer: 1, viewer: 0, portraits: faces,
+    }));
+    expect(html).toContain('class="log-avatar" aria-hidden="true"><i class="face-1">');
+    expect(html).toContain('class="log-avatar" aria-hidden="true"><i class="face-0">');
+    expect(html).toContain('log-avatar-small');
+    expect(html).toContain('You: </span>');
+  });
+
+  it('without portraits (hotseat) the log has no faces', () => {
+    const html = renderToStaticMarkup(createElement(ActionLogDrawer, {
+      open: true, onClose: () => {}, log, labels: LABELS, hiddenPlayer: 1, viewer: 0,
+    }));
+    expect(html).not.toContain('log-avatar');
+  });
+
   it('is hidden from assistive tech while closed', () => {
     const html = renderToStaticMarkup(createElement(ActionLogDrawer, {
       open: false, onClose: () => {}, log, labels: LABELS, hiddenPlayer: 1, viewer: 0,

@@ -1816,6 +1816,12 @@ button.brown:hover:not(:disabled) {
   margin-bottom: 4px;
 }
 .log-turn-theirs .log-turn-head > span:first-child { color: #d4a574; }
+.log-turn-head { align-items: center; }
+.log-turn-who { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+/* Seat portraits in the log: the board's avatar / trader face, shrunk */
+.log-avatar { display: inline-flex; flex: none; width: 24px; height: 24px; vertical-align: middle; }
+.log-avatar > .trader-portrait { width: 100% !important; height: 100% !important; border-width: 1.5px; box-shadow: none; }
+.log-avatar-small { width: 18px; height: 18px; margin-right: 4px; vertical-align: -4px; }
 .log-turn-num { font-weight: 400; }
 .log-lines { list-style: none; margin: 0; padding: 0; font-size: 14px; line-height: 1.5; }
 .log-line { color: var(--text); padding: 1px 0; }

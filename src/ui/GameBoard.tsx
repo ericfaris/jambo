@@ -374,6 +374,12 @@ export function GameBoard({
   const turnBonus = endTurnBonus(state.actionsLeft);
   const supplyAlert = supplyWareFromError(cardError?.message);
   const logLabels = labels;
+  // Hotseat has no faces; otherwise the same portraits as the board, by seat
+  const viewerFace = opponent.kind === 'hotseat' ? null : <PlayerAvatar avatarUrl={avatarUrl} size={24} />;
+  const opponentFace = opponent.kind === 'trader'
+    ? <TraderPortrait trader={opponent.trader} size={24} />
+    : opponent.kind === 'human' ? <PlayerAvatar avatarUrl={opponent.avatarUrl} size={24} label={opponent.name} /> : null;
+  const logPortraits: [ReactNode, ReactNode] = viewerPlayer === 0 ? [viewerFace, opponentFace] : [opponentFace, viewerFace];
   const logUnread = logVisible ? 0 : countUnread(state.log, logSeenLength, opponentPlayer);
   const visualFeedback = useVisualFeedback({
     phase: state.phase,
@@ -1031,6 +1037,7 @@ export function GameBoard({
         hiddenPlayer={opponentPlayer}
         viewer={viewerPlayer}
         onMegaView={setMegaCardId}
+        portraits={logPortraits}
       />
 
       {/* Mega view */}

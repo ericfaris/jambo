@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
+import type { ReactNode } from 'react';
 import type { DeckCardId, GameLogEntry } from '../engine/types.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
 import { groupLogByTurn } from './actionLog.ts';
@@ -17,6 +18,8 @@ interface ActionLogDrawerProps {
   pinned?: boolean;
   /** Shows the pin toggle (desktop only — a phone has no room to dock). */
   onTogglePin?: () => void;
+  /** Each seat's small portrait (avatar or trader face), by seat; hotseat has none. */
+  portraits?: readonly [ReactNode, ReactNode];
 }
 
 /**
@@ -24,7 +27,7 @@ interface ActionLogDrawerProps {
  * near-full-width sheet on phones). Newest turn first; cards that were played
  * face-up are tappable to zoom.
  */
-export function ActionLogDrawer({ open, onClose, log, labels, hiddenPlayer, viewer, onMegaView, pinned = false, onTogglePin }: ActionLogDrawerProps) {
+export function ActionLogDrawer({ open, onClose, log, labels, hiddenPlayer, viewer, onMegaView, pinned = false, onTogglePin, portraits }: ActionLogDrawerProps) {
   const closeRef = useRef<HTMLButtonElement | null>(null);
   const visible = open || pinned;
   const turns = useMemo(() => (visible ? groupLogByTurn(log, labels, hiddenPlayer) : []), [visible, log, labels, hiddenPlayer]);
@@ -72,13 +75,21 @@ export function ActionLogDrawer({ open, onClose, log, labels, hiddenPlayer, view
           {turns.map((t) => (
             <section key={`${t.turn}-${t.lines[0]?.index ?? 0}`} className={`log-turn${t.owner === viewer ? ' log-turn-mine' : ' log-turn-theirs'}`}>
               <header className="log-turn-head">
-                <span>{labels[t.owner] === 'You' ? 'Your turn' : `${labels[t.owner]}'s turn`}</span>
+                <span className="log-turn-who">
+                  {portraits?.[t.owner] && <span className="log-avatar" aria-hidden="true">{portraits[t.owner]}</span>}
+                  <span>{labels[t.owner] === 'You' ? 'Your turn' : `${labels[t.owner]}'s turn`}</span>
+                </span>
                 <span className="log-turn-num">Turn {t.turn + 1}</span>
               </header>
               <ol className="log-lines">
                 {t.lines.map((line) => (
                   <li key={line.index} className={`log-line${line.isPlay ? ' log-line-play' : ''}${line.isTurnEnd ? ' log-line-end' : ''}`}>
-                    {line.player !== t.owner && <span className="log-line-actor">{labels[line.player]}: </span>}
+                    {line.player !== t.owner && (
+                      <span className="log-line-actor">
+                        {portraits?.[line.player] && <span className="log-avatar log-avatar-small" aria-hidden="true">{portraits[line.player]}</span>}
+                        {`${labels[line.player]}: `}
+                      </span>
+                    )}
                     <span>{line.text}</span>
                     {line.cardId && onMegaView && (
                       <button className="log-card-chip" onClick={() => onMegaView(line.cardId!)} aria-label={`Zoom ${cardName(line.cardId)}`}>
