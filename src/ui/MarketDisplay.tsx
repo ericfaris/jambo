@@ -90,6 +90,8 @@ function MarketDisplayComponent({ market, onSlotClick, selectedSlots, flashSlots
           } as CSSProperties}
           onClick={pickable ? () => onSlotClick(i) : undefined}
           {...buttonProps(pickable ? () => onSlotClick(i) : undefined, `${ware} in slot ${i + 1}`)}
+          // a toggleable pick (Dancer, Portuguese…) says whether it's chosen
+          aria-pressed={pickable && selectedSlots ? selected : undefined}
           >
             {ware ? (
               // keyed by ware so a new arrival (or a swap) settles in

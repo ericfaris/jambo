@@ -27,12 +27,14 @@ describe('Dancer: exactly 3 wares are pre-selected', () => {
   it('with 3 wares the panel opens at 3/3, Confirm enabled', () => {
     const html = render(dancerState(['tea', null, 'salt', null, 'silk', null]));
     expect(html).toContain('3/3 selected');
+    expect(html.match(/aria-pressed="true"/g)).toHaveLength(3); // announced as chosen
     expect(html).not.toMatch(/<button[^>]*disabled[^>]*>\s*Confirm/);
   });
 
   it('with more than 3 the player chooses', () => {
     const html = render(dancerState(['tea', 'salt', 'silk', 'tea', null, null]));
     expect(html).toContain('0/3 selected');
+    expect(html.match(/aria-pressed="false"/g)).toHaveLength(4);
     expect(html).toMatch(/<button[^>]*disabled[^>]*>\s*Confirm/);
   });
 });
