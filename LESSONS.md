@@ -678,3 +678,20 @@ overwrites tracked files.)
   short clips; integrated LUFS gates them to −70) and limit peaks.
 - Outcome sounds that ride on a log entry's public `card` field (Supplies'
   find) work unchanged in Cast/online — the redacted public log keeps it.
+
+## 2026-10-14 — Playtest after v1.28.0
+- **Removing an escape hatch exposes the paths that leaned on it**: making
+  Scale non-cancellable turned a wrong fallback (hand cards for Scale) into
+  an infinite loop for the online phone policy, which had been escaping via
+  its 10% cancel. When a rule removes an option, grep the fallbacks/policies
+  that might have relied on it.
+- **An auto-open effect must check for pending resolutions**: the draw
+  dialog reopened over Mask's panel because "my draw phase, not open" was
+  its whole condition. Any dialog that reopens itself needs "nothing else is
+  waiting on this player".
+- Driver: label-based lookups (aria-label "<ware> in slot N") survive
+  component restructuring better than walking React fibers up; a child
+  WareToken is invisible to an upward walk.
+- Don't `pkill -f "PORT=3031"` — it also matches `JAMBO_API_PORT=3031` (Vite).
+  Kill dev servers by PID. Prod's container holds :3001 on this machine, so
+  the playtest server runs on :3031 with `JAMBO_API_PORT=3031` for Vite.
