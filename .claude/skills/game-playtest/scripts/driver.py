@@ -164,9 +164,11 @@ class Game:
         # The draw dialog opens from a React effect one render after the turn
         # starts; under the frozen fake clock the first scan can land before
         # it. Advance time and rescan before treating it as a UI gap.
-        if t in ('DRAW_CARD', 'SKIP_DRAW', 'KEEP_CARD', 'DISCARD_DRAWN'):
+        # Mask before drawing lives in that same dialog.
+        in_draw = t == 'ACTIVATE_UTILITY' and self.ev('() => window.__ptFull().phase') == 'DRAW'
+        if t in ('DRAW_CARD', 'SKIP_DRAW', 'KEEP_CARD', 'DISCARD_DRAWN') or in_draw:
             for _ in range(3):
-                if any(c['tag'] == 'BUTTON' and c['text'].startswith(('Draw Card', 'Skip Draw', 'Keep Card', 'Discard')) for c in cs):
+                if any(c['tag'] == 'BUTTON' and c['text'].startswith(('Draw Card', 'Skip Draw', 'Keep Card', 'Discard', 'Use Mask')) for c in cs):
                     break
                 self.tick(600)
                 cs = self.scan()
@@ -247,7 +249,9 @@ class Game:
         # inside resolution panel (ResolveMegaView), excluding the reference hand strip + zoom helpers
         # (skip the Cancel ✕ — exploring it just loops play→cancel, which wasted
         #  ~2,300 actions per batch once CANCEL_ACTION existed)
-        inside = self.ev("""() => [...document.querySelectorAll('[data-pt]')].filter(e => e.closest('.panel-slide') && !e.closest('.panel-cancel-x')).map(e => e.getAttribute('data-pt'))""")
+        # (and the "Cancel — take it back" link, for the same reason: when the
+        #  ware scan missed the Dancer's slots, exploring clicked it ~1,300x)
+        inside = self.ev("""() => [...document.querySelectorAll('[data-pt]')].filter(e => e.closest('.panel-slide') && !e.closest('.panel-cancel-x') && !(e.tagName === 'BUTTON' && /^Cancel\\b/.test(e.innerText.trim()))).map(e => e.getAttribute('data-pt'))""")
         ids = set(inside)
         out = [c for c in cs if c['id'] in ids and 'HandReferenceStrip' not in c['comps']]
         # drop zoom-only (tiny) elements within cards
@@ -327,6 +331,15 @@ class Game:
             if resp['utilityIndex'] < len(ucards):
                 plan = [ucards[resp['utilityIndex']]]
 
+        if rt in ('SELECT_WARES', 'SELL_WARES') and by_slot:
+            # Slots can start selected (Dancer pre-selects exactly 3 wares):
+            # clicking those would toggle them off. Deselect what isn't
+            # wanted, select only what isn't already on.
+            pressed = lambda w: self.pg.evaluate("""(id) => { const e = document.querySelector(`[data-pt="${id}"]`);
+                const s = e && e.closest('[aria-label*=" in slot "]');
+                return !!s && s.getAttribute('aria-pressed') === 'true'; }""", w['id'])
+            want = set(indices)
+            plan = [w for n, w in by_slot.items() if (n in want) != pressed(w)]
         for c in plan:
             self.click(c)
             clicked_any = True

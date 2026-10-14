@@ -24,6 +24,12 @@
       if (info.ware === undefined && typeof p.type === 'string' && typeof f.type === 'function' && f.type.name === 'WareToken') info.ware = p.type;
       if (info.key === undefined && f.key != null) info.key = f.key;
     }
+    // A market slot holds its WareToken as a child, so the walk up never
+    // meets it: read the slot's "<ware> in slot N" label instead
+    if (info.ware === undefined) {
+      const m = (el.getAttribute('aria-label') || '').match(/^(\w+) in slot \d+$/);
+      if (m) info.ware = m[1];
+    }
     info.comps = comps.slice(0, 6).join('>');
     const id = String(n++);
     el.setAttribute('data-pt', id);
