@@ -49,8 +49,8 @@ describe('stale buy/sell dialog closes itself', () => {
 describe('AI speech bubble stays clear of the opponent gold', () => {
   it('sits left of the gold block, is click-through, and is announced politely', () => {
     const html = renderToStaticMarkup(createElement(SpeechBubble, { message: 'Hello', visible: true, onHide: noop }));
-    expect(html).not.toContain('right:80px');
-    expect(html).toContain('right:clamp(200px, 22vw, 260px)');
+    // placed by CSS beside the avatar, not by a guessed inline offset
+    expect(html).not.toMatch(/style="[^"]*right:/);
     expect(html).toContain('pointer-events:none');
     expect(html).toContain('role="status"');
   });
@@ -186,5 +186,18 @@ describe('pile titles have room to breathe', () => {
   it('desktop piles keep their title clear of the deck edge', () => {
     const html = renderToStaticMarkup(createElement(CenterRow, { state: createTestState(), dispatch: noopDispatch, actorLabels: ['You', 'Baraka'] }));
     expect(html.match(/flex-direction:column;align-items:center;gap:16px/g)?.length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe('AI speech bubble sits beside the avatar', () => {
+  it('renders inside the portrait wrapper when there is a portrait', async () => {
+    const { SeatInfo } = await import('../../src/ui/SeatInfo.tsx');
+    const bubble = createElement(SpeechBubble, { message: 'Hello', visible: true, onHide: noop });
+    const withPortrait = renderToStaticMarkup(createElement(SeatInfo, { label: 'Amara', gold: 20, handCount: 5, portrait: createElement('img', { className: 'trader-portrait' }), bubble }));
+    expect(withPortrait).toMatch(/class="seat-portrait-wrap"><img class="trader-portrait"\/><div[^>]*class="speech-bubble"/);
+    // no portrait: still inside the seat block, left of the name
+    const without = renderToStaticMarkup(createElement(SeatInfo, { label: 'Opponent', gold: 20, handCount: 5, bubble }));
+    expect(without).not.toContain('seat-portrait-wrap');
+    expect(without.indexOf('speech-bubble')).toBeLessThan(without.indexOf('seat-name'));
   });
 });

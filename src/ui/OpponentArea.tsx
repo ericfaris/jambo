@@ -95,12 +95,6 @@ function OpponentAreaComponent({ player, aiMessage, onMessageHide, goldDelta = 0
 
   return (
     <div style={{ position: 'relative' }}>
-      <SpeechBubble
-        message={aiMessage || ''}
-        visible={!!aiMessage}
-        onHide={onMessageHide || (() => {})}
-        right={portrait ? 'clamp(290px, 30vw, 350px)' : undefined}
-      />
       <div style={{
         padding: '10px 16px',
         display: 'flex',
@@ -113,7 +107,11 @@ function OpponentAreaComponent({ player, aiMessage, onMessageHide, goldDelta = 0
           <UtilityArea utilities={player.utilities} disabled label="Utilities" labelAside={`${player.utilities.length}/3`} cardSize="small" maxSlots={3} onMegaView={onMegaView} untappedCardId={untappedUtility} />
         </div>
         {/* rightInset keeps the name clear of the fixed avatar/settings button, when it overlaps */}
-        <SeatInfo seat={seat} label={label} subtitle={subtitle} portrait={portrait} gold={player.gold} goldDelta={goldDelta} handCount={player.hand.length} isActive={isActive} rightInset={rightInset} handAnchor />
+        <SeatInfo
+          seat={seat} label={label} subtitle={subtitle} portrait={portrait} gold={player.gold} goldDelta={goldDelta}
+          handCount={player.hand.length} isActive={isActive} rightInset={rightInset} handAnchor
+          bubble={<SpeechBubble message={aiMessage || ''} visible={!!aiMessage} onHide={onMessageHide || (() => {})} />}
+        />
       </div>
     </div>
   );

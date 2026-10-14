@@ -6,7 +6,7 @@ import { GoldTrack } from './GoldTrack.tsx';
  * A seat's portrait, name, gold, gold track and hand-size fan. The opponent's
  * panel and yours share it on desktop so the two blocks read and line up the same.
  */
-export function SeatInfo({ seat, label, subtitle, portrait, gold, goldDelta = 0, handCount, isActive = false, rightInset = 0, handAnchor = false, children }: {
+export function SeatInfo({ seat, label, subtitle, portrait, gold, goldDelta = 0, handCount, isActive = false, rightInset = 0, handAnchor = false, bubble, children }: {
   seat?: 0 | 1;
   label: string;
   /** Under the name, e.g. "Spice merchant · Hard". */
@@ -23,10 +23,12 @@ export function SeatInfo({ seat, label, subtitle, portrait, gold, goldDelta = 0,
   handAnchor?: boolean;
   /** Extra lines under the fan, e.g. Wise Man modifiers. */
   children?: ReactNode;
+  /** The trader's speech bubble: sits just left of the avatar (or the name block, without one). */
+  bubble?: ReactNode;
 }) {
   return (
-    <div className="seat-info" style={{ marginLeft: 'auto', flexShrink: 0, display: 'flex', gap: 14, alignItems: 'flex-start', paddingRight: rightInset }}>
-      {portrait}
+    <div className="seat-info" style={{ position: 'relative', marginLeft: 'auto', flexShrink: 0, display: 'flex', gap: 14, alignItems: 'flex-start', paddingRight: rightInset }}>
+      {portrait ? <div className="seat-portrait-wrap">{portrait}{bubble}</div> : bubble}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, paddingTop: 2 }}>
         <span className={`seat-name${isActive ? ' seat-name-active' : ''}`}>
           {label}
