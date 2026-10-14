@@ -82,6 +82,10 @@ export type AudioEvent =
   | 'lose'
   | 'final-turn'
   | 'gavel'       // auction won
+  | 'card-found'    // Supplies turns up its ware: basket rustle + kalimba pluck
+  | 'market-stand'  // a Small Market Stand going up: mallets, timber, workers
+  | 'drummer'       // the Drummer card: a short djembe / talking-drum phrase
+  | 'elephant-stomp' // the Elephant's stomp that throws every ware into the air
   | AnimalSound
   | UtilitySound;
 

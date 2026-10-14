@@ -733,6 +733,38 @@ treatment, each 0.3–1.7s and < 17 KB):
 | `final-turn` | the final turn begins | low frame-drum heartbeat |
 | `win` / `lose` | game over, from the viewer's seat (hotseat: always `win`) | djembe roll into a bell / soft descending balafon |
 
+**Sound pass 3** (2026-10-14, flow "Jambo SFX 3"; levels below are max
+momentary loudness):
+
+| Event | Fires on | Sound | Level |
+|---|---|---|---|
+| `crocodile` (replaced) | Crocodile | a raspy, gravelly hiss that swells in (0.35s) and holds, then the lunge at 1.15s: splash + jaw snap. Hiss modeled on a user-supplied wildlife video (its long hiss's envelope and band balance, EQ-matched: peak ~1–2 kHz, top −5 to −11 dB), generated fresh — no audio taken from the video. Attack layer: "alligator… attacks… splash… jaw snap" | −12.7 |
+| `elephant-stomp` | an Elephant ware draft opening, **after the trumpet** | deep boom (low shelf +4 dB, compressed) + goods crashing 150ms later ("clay pots clattering… wooden bowls… baskets and fruit tumbling") | −10.0 |
+| `card-found` | Supplies turns up its ware (`SUPPLIES_PAY`/`SUPPLIES_DRAW` log entry with a `card`) | straw rustle as a basket lid lifts, soft two-note kalimba pluck | −26 |
+| `market-stand` | playing a Small Market Stand | mallet knocks on timber, plank, a worker's grunt | −20 |
+| `drummer` | playing the Drummer | short djembe + talking-drum phrase | −18.5 |
+
+`card-play` was tried softer and kept as it was. `ape` (+3 dB) and `cheetah`
+(+1.6 dB) were raised to sit with the other animals.
+
+**Mix tiers** (max momentary LUFS, peaks limited to −0.5/−1 dBFS):
+big moments −10…−13 (animals, stomp, victory); confrontations −14…−18
+(guard, weapons, final turn, gavel, Drummer); economy and utilities
+−19…−26 (coins, utilities, stand, Supplies find, turn end); table taps
+−27…−39 (card play/draw/keep/discard, ware landing). A new effect is
+leveled into its tier with `alimiter`, never just peak-normalized — peak
+normalizing is what left Ape 4 dB under the other animals.
+
+**Elephant stomp** (`src/ui/elephantStomp.ts`): the trumpet plays on the
+card; when the fresh ware draft opens, the stomp waits until 1.15s after the
+trumpet started (`msSinceSfx('elephant')`, full lead if the trumpet hasn't
+played yet — online it arrives with the same state), then plays, `#root`
+shakes for 520ms, every pooled ware is tossed up out of sight and falls back
+into the draft slots one by one (130ms apart, a ware tap on each landing).
+Web Animations API per token; picks wait until the last lands.
+`claimElephantStomp` keeps a remount of the same draft from replaying it.
+Reduced motion: sounds only.
+
 **Coins scale with the payout** (2026-10-13): `coin` plays as a burst of
 clinks, one per 3g received (`goldGained(prev, next)`), from 1 (the +1g
 bonus) up to 7 (a 20g+ sale). Clinks are ~120ms apart (slightly uneven),
@@ -799,7 +831,7 @@ through `getEffectiveVolume()`.
 |---|---|---|
 | `public/audio/sfx/{coin,card-play,card-draw,turn-end,attack,guard}.mp3` | Sound effects, all modes (see Sound) | Generated 2026-10-04 (ElevenLabs), 3–15 KB each |
 | `design-system.html` | Static showcase page, tokens/components rendered live from the app's stylesheets (`index.css`, `MainMenu.css`, `Landing.css`, `Tutorial.css`, `SettingsPanel.css`, `FriendLobby.css`) | Added 2026-09-24; 2026-10-13 sections for the 2026-10-12 board and the friend game |
-| `public/audio/sfx/*.mp3` (26) | Every `AUDIO_FILES` event: coin, coin-out, card-play/draw, turn-end, attack, guard, ware-land, win, lose, final-turn, gavel, each animal, each utility | `tests/ui/designSystem.test.ts` keeps the showcase list equal to `AUDIO_FILES` |
+| `public/audio/sfx/*.mp3` (32) | Every `AUDIO_FILES` event: coin, coin-out, card-play/draw, turn-end, attack, guard, ware-land, win, lose, final-turn, gavel, each animal, each utility | `tests/ui/designSystem.test.ts` keeps the showcase list equal to `AUDIO_FILES` |
 | `public/audio/Golden_Hour_Kalimba.mp3` | 6th music track | ElevenLabs Music v2.5, 2026-10-12 |
 | `public/audio/Market_Ambience_Bed.mp3` | Ambience bed under the music | ElevenLabs SFX v2 layers, v2 2026-10-12 |
 | `public/audio/traders/baraka-v2-*` | Baraka's re-voiced lines | 2026-10-12 (drier voice) |

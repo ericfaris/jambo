@@ -178,3 +178,39 @@ describe('coin sound scales with the gold received', () => {
     }
   });
 });
+
+describe('sound pass 3', () => {
+  it('Drummer and the Small Market Stand have their own sounds; other people keep the tap', () => {
+    expect(detectAudioEvent({ type: 'PLAY_CARD', cardId: 'drummer_1' })).toBe('drummer');
+    expect(detectAudioEvent({ type: 'PLAY_CARD', cardId: 'small_market_stand_1' })).toBe('market-stand');
+    expect(detectAudioEvent({ type: 'PLAY_CARD', cardId: 'shaman_1' })).toBe('card-play');
+  });
+
+  it('a Supplies search that finds a ware plays the find cue; finding nothing stays quiet', () => {
+    const base = createTestState();
+    const found = { ...base, log: [...base.log, { turn: 3, player: 0 as const, action: 'SUPPLIES_PAY', details: 'Paid 1g, found', card: 'ware_3k_1' as const }] };
+    expect(detectOutcomeSounds(base, found, 0)).toEqual(['card-found']);
+    const drawn = { ...base, log: [...base.log, { turn: 3, player: 1 as const, action: 'SUPPLIES_DRAW', details: 'found', card: 'ware_3k_1' as const }] };
+    expect(detectOutcomeSounds(base, drawn, 0)).toEqual(['card-found']);
+    const none = { ...base, log: [...base.log, { turn: 3, player: 0 as const, action: 'SUPPLIES_PAY', details: 'no ware card left to find' }] };
+    expect(detectOutcomeSounds(base, none, 0)).toEqual([]);
+  });
+
+  it('the find cue survives the public (Cast / online) log', async () => {
+    const { extractPublicState } = await import('../../src/multiplayer/stateSplitter.ts');
+    const base = createTestState();
+    const found = { ...base, log: [...base.log, { turn: 3, player: 0 as const, action: 'SUPPLIES_DRAW', details: 'Discarded guard_1, revealed cards until a ware card: found ware_3k_1', card: 'ware_3k_1' as const }] };
+    expect(detectOutcomeSounds(extractPublicState(base), extractPublicState(found), 1)).toEqual(['card-found']);
+  });
+});
+
+describe('msSinceSfx', () => {
+  it('reports how long ago a sound started, Infinity if never', async () => {
+    const { msSinceSfx, playSfx } = await import('../../src/ui/useAudioEvents.ts');
+    expect(msSinceSfx('lion')).toBe(Infinity);
+    const before = Date.now();
+    playSfx('lion'); // no Audio in tests: recorded, nothing plays
+    expect(msSinceSfx('lion', before + 500)).toBeGreaterThanOrEqual(0);
+    expect(msSinceSfx('lion', before + 500)).toBeLessThanOrEqual(500);
+  });
+});

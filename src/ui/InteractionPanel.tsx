@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useReducer, useState } from 'react';
 import { nameTheOpponent } from './onlineScreenLogic.ts';
 import { throneGiveOptions, throneStealOptions } from '../engine/market/throneSwap.ts';
 import type { GameState, PendingResolution, InteractionResponse, WareType, DeckCardId } from '../engine/types.ts';
@@ -10,6 +10,8 @@ import { formatResolutionBreadcrumb } from './uiHints.ts';
 import { isAuctionBidding } from '../engine/responder.ts';
 import { canCancelAction } from '../engine/cancelAction.ts';
 import { wareChoiceBlocked, binaryChoiceBlocked } from './choiceAvailability.ts';
+import { claimElephantStomp, scheduleElephantStomp, stompDelayAfterTrumpet, stompLockRemaining } from './elephantStomp.ts';
+import { msSinceSfx, playSfx } from './useAudioEvents.ts';
 
 interface InteractionPanelProps {
   state: GameState;
@@ -724,10 +726,20 @@ function DiscardPickPanel({ pr, dispatch, onMegaView }: { pr: Extract<PendingRes
   );
 }
 
+/** Dancer sells exactly 3 wares: with exactly 3 in the market there's nothing to choose. */
+export function dancerPreselectedSlots(market: readonly (string | null)[]): number[] {
+  const filled = filledMarketSlots(market);
+  return filled.length === 3 ? filled : [];
+}
+
 function WareCashPanel({ state, pr, dispatch, onMegaView }: { state: GameState; pr: Extract<PendingResolution, { type: 'WARE_CASH_CONVERSION' }>; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
-  const [selectedWares, setSelectedWares] = useState<number[]>([]);
+  // null until the player touches a slot: until then the selection is the pre-pick
+  const [picked, setPicked] = useState<number[] | null>(null);
   const cp = state.currentPlayer;
   const player = state.players[cp];
+  const selectedWares = picked ?? dancerPreselectedSlots(player.market);
+  const setSelectedWares = (next: number[] | ((prev: number[]) => number[])) =>
+    setPicked(typeof next === 'function' ? next(selectedWares) : next);
 
   if (pr.step === 'SELECT_CARD') {
     const wareCards = player.hand.filter(id => getCard(id).type === 'ware');
@@ -761,7 +773,7 @@ function WareCashPanel({ state, pr, dispatch, onMegaView }: { state: GameState; 
           You currently have {player.market.filter(w => w !== null).length} ware(s) in market.
         </div>
         <MarketDisplay market={player.market} onSlotClick={toggleSlot} selectedSlots={selectedWares} />
-        <button className="primary" disabled={selectedWares.length !== 3} onClick={() => { resolve(dispatch, { type: 'SELECT_WARES', wareIndices: selectedWares }); setSelectedWares([]); }} style={{ margin: '8px auto 0', display: 'block' }}>
+        <button className="primary" disabled={selectedWares.length !== 3} onClick={() => { resolve(dispatch, { type: 'SELECT_WARES', wareIndices: selectedWares }); setPicked(null); }} style={{ margin: '8px auto 0', display: 'block' }}>
           Confirm
         </button>
       </div>
@@ -989,13 +1001,43 @@ function OpponentDiscardPanel({ state, pr, viewerPlayer, dispatch, onMegaView }:
   );
 }
 
+/**
+ * The Elephant's stomp as its ware draft opens (see elephantStomp.ts): the
+ * screen shakes and the pooled wares fly up, then drop into their slots one
+ * by one. Picks wait until the last one lands.
+ */
+function useElephantStomp(pr: Extract<PendingResolution, { type: 'DRAFT' }>) {
+  const [, rerender] = useReducer((n: number) => n + 1, 0);
+  useLayoutEffect(() => {
+    if (!claimElephantStomp(pr)) return;
+    const reduced = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    // The trumpet goes first; the stomp lands as it fades. Scheduled outside
+    // the panel's lifetime: the panel can remount while the trumpet plays.
+    scheduleElephantStomp(stompDelayAfterTrumpet(msSinceSfx('elephant')), !reduced, {
+      sound: (event, gain, rate) => playSfx(event, gain, rate),
+      pool: () => Array.from(document.querySelectorAll<HTMLElement>('[data-elephant-pool] .ware-pick')),
+      shake: () => document.getElementById('root'),
+    });
+    rerender();
+  }, [pr]);
+  // Picks wait until the last ware lands
+  const lockedFor = stompLockRemaining();
+  useEffect(() => {
+    if (lockedFor <= 0) return;
+    const t = window.setTimeout(rerender, lockedFor + 20);
+    return () => window.clearTimeout(t);
+  }, [lockedFor]);
+  return { stomping: lockedFor > 0 };
+}
+
 function DraftPanel({ pr, viewerPlayer, dispatch, onMegaView }: { pr: Extract<PendingResolution, { type: 'DRAFT' }>; viewerPlayer: 0 | 1; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
   const { Name } = useOpponentName();
   const isMyPick = pr.currentPicker === viewerPlayer;
+  const { stomping } = useElephantStomp(pr);
 
   if (pr.draftMode === 'wares') {
     return (
-      <div>
+      <div data-elephant-pool="" style={stomping ? { pointerEvents: 'none' } : undefined}>
         <div className="ui-prompt-text">
           {isMyPick
             ? `Pick 1 ware to keep — you and your opponent alternate. (${pr.availableWares.length} in pool)`

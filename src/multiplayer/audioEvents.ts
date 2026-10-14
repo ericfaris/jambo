@@ -11,7 +11,13 @@ import { getWinner } from '../engine/endgame/EndgameManager.ts';
 import type { ScoringView } from '../engine/endgame/EndgameManager.ts';
 
 /** What outcome sounds read — GameState or the Cast public state. */
-export type OutcomeView = ScoringView & { log: readonly { action: string }[] };
+export type OutcomeView = ScoringView & { log: readonly { action: string; card?: string }[] };
+
+/** People/stand cards with a sound of their own (the rest get the card tap). */
+const CARD_SOUNDS: Record<string, AudioEvent> = {
+  drummer: 'drummer',
+  small_market_stand: 'market-stand',
+};
 
 const ANIMAL_SOUNDS: Record<string, AnimalSound> = {
   parrot: 'parrot', elephant: 'elephant', snake: 'snake', hyena: 'hyena',
@@ -39,7 +45,7 @@ export function detectAudioEvent(action: GameAction, before?: GameState): AudioE
       if (action.wareMode) return action.wareMode === 'buy' ? 'coin-out' : 'coin';
       const card = getCard(action.cardId);
       if (card.type === 'animal') return ANIMAL_SOUNDS[card.designId] ?? 'attack';
-      return 'card-play';
+      return CARD_SOUNDS[card.designId] ?? 'card-play';
     }
     case 'ACTIVATE_UTILITY': {
       if (!before) return null;
@@ -66,6 +72,8 @@ export function detectOutcomeSounds(prev: OutcomeView, next: OutcomeView, viewer
   const out: AudioEvent[] = [];
   const fresh = next.log.length > prev.log.length ? next.log.slice(prev.log.length) : [];
   if (fresh.some((e) => e.action === 'AUCTION_WON')) out.push('gavel');
+  // Supplies turned up its ware (the found card is public in the log)
+  if (fresh.some((e) => (e.action === 'SUPPLIES_PAY' || e.action === 'SUPPLIES_DRAW') && e.card)) out.push('card-found');
   // Ending a turn with 2+ actions to spare pays +1g: let it be heard
   if (fresh.some((e) => e.action === 'ACTION_BONUS')) out.push('coin');
   if (next.endgame?.isFinalTurn && !prev.endgame?.isFinalTurn && next.phase !== 'GAME_OVER') out.push('final-turn');
@@ -85,5 +93,5 @@ export function goldGained(prev: Pick<ScoringView, 'players'> | null | undefined
 /** Big moments duck the background music so they cut through. */
 export const DUCKING_SOUNDS: ReadonlySet<AudioEvent> = new Set<AudioEvent>([
   'attack', 'guard', 'win', 'lose', 'final-turn',
-  'parrot', 'elephant', 'snake', 'hyena', 'crocodile', 'ape', 'lion', 'cheetah',
+  'elephant-stomp', 'parrot', 'elephant', 'snake', 'hyena', 'crocodile', 'ape', 'lion', 'cheetah',
 ]);

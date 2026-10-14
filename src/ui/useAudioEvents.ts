@@ -33,6 +33,10 @@ export const AUDIO_FILES: Record<AudioEvent, string> = {
   'lose': sfx('lose'),
   'final-turn': sfx('final-turn'),
   'gavel': sfx('gavel'),
+  'card-found': sfx('card-found'),
+  'market-stand': sfx('market-stand'),
+  'drummer': sfx('drummer'),
+  'elephant-stomp': sfx('elephant-stomp'),
   'parrot': sfx('parrot'),
   'elephant': sfx('elephant'),
   'snake': sfx('snake'),
@@ -54,8 +58,17 @@ export const MUSIC_DUCK_MS = 1600;
 
 const SFX_BASE_VOLUME = 0.5;
 
+const lastPlayedAt = new Map<AudioEvent, number>();
+
+/** How long ago `event` last started (Infinity if never) — lets one sound wait for another. */
+export function msSinceSfx(event: AudioEvent, now: number = Date.now()): number {
+  const at = lastPlayedAt.get(event);
+  return at === undefined ? Infinity : now - at;
+}
+
 /** Play one sound effect at the user's volume (respects mute). */
 export function playSfx(event: AudioEvent, gain = 1, rate = 1): void {
+  lastPlayedAt.set(event, Date.now());
   if (typeof Audio === 'undefined') return;
   const volume = getEffectiveVolume() * SFX_BASE_VOLUME * gain;
   if (volume <= 0) return;
