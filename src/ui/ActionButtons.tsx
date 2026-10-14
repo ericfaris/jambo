@@ -183,7 +183,8 @@ export function DrawModal({ state, dispatch, disabled, disabledReason, onClose, 
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 150,
+        // above the opponent's spotlight (8800) and flights (9100): it opens once they finish, and nothing may play over it
+        zIndex: 9200,
         background: 'var(--megaview-scrim)',
         backdropFilter: 'var(--megaview-blur)',
         display: 'flex',

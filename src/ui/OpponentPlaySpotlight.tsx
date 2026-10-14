@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
-import type { GameLogEntry } from '../engine/types.ts';
+import type { GameLogEntry, PlayerState } from '../engine/types.ts';
 import { CardFace } from './CardFace.tsx';
 import { collectSpotlights } from './actionLog.ts';
 import type { PlaySpotlight } from './actionLog.ts';
@@ -62,6 +62,23 @@ function prefersReducedMotion(): boolean {
   return typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 }
 
+/**
+ * The actor's seat as the board should show it while spotlights are still
+ * queued: a card on its way to their utility row or hand isn't there yet, so
+ * it never lands before the big card flies to it. (The discard pile holds
+ * its own top card the same way: CenterRow's heldDiscardCard.)
+ */
+export function withSpotlightHolds(player: PlayerState, queue: readonly Pick<PlaySpotlight, 'cardId' | 'destination'>[]): PlayerState {
+  const arriving = new Set(queue.filter((s) => s.destination === 'utilities').map((s) => s.cardId));
+  const toHand = queue.filter((s) => s.destination === 'hand').length;
+  if (arriving.size === 0 && toHand === 0) return player;
+  return {
+    ...player,
+    utilities: arriving.size > 0 ? player.utilities.filter((u) => !arriving.has(u.cardId)) : player.utilities,
+    hand: toHand > 0 ? player.hand.slice(0, Math.max(0, player.hand.length - toHand)) : player.hand,
+  };
+}
+
 /** Where a spotlit card lands: the real pile, or the actor's own hand / utility row. */
 export function spotlightTargetSelectors(destination: PlaySpotlight['destination'], actor: 0 | 1): string[] {
   switch (destination) {
@@ -101,6 +118,8 @@ interface OpponentPlaySpotlightProps {
   /** Fires true while a card is on screen, so the caller can hold its own
    *  overlays (a response panel) until the announcement lands. */
   onActiveChange?: (active: boolean) => void;
+  /** Every play still to show or finish (current first) — the board holds those cards back. */
+  onQueueChange?: (queue: readonly PlaySpotlight[]) => void;
   /** The viewer is mid-turn (e.g. the opponent reacted with Rain Maker):
    *  show a smaller card up over the opponent's side and let every tap
    *  through, so the announcement never blocks the viewer's own moves. */
@@ -122,7 +141,7 @@ type Phase = 'enter' | 'hold' | 'exit';
  * opponent's utility row for utilities). Purely presentational: it never
  * blocks input — tap the card to skip ahead.
  */
-export function OpponentPlaySpotlight({ log, viewer, actorLabel, enabled = true, onActiveChange, unobtrusive = false, onCurrentChange, portrait, quote }: OpponentPlaySpotlightProps) {
+export function OpponentPlaySpotlight({ log, viewer, actorLabel, enabled = true, onActiveChange, onQueueChange, unobtrusive = false, onCurrentChange, portrait, quote }: OpponentPlaySpotlightProps) {
   // the seat whose plays are announced
   const actor: 0 | 1 = viewer === 0 ? 1 : 0;
   // Entries already in the log when we mount (a resumed game) are history.
@@ -132,7 +151,8 @@ export function OpponentPlaySpotlight({ log, viewer, actorLabel, enabled = true,
   const [exitTransform, setExitTransform] = useState<string | null>(null);
   const cardRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
+  // Before paint: the board holds a queued card back on this same frame
+  useLayoutEffect(() => {
     if (log.length < seenRef.current) {
       // new game / rematch — the log restarted
       seenRef.current = log.length;
@@ -153,6 +173,11 @@ export function OpponentPlaySpotlight({ log, viewer, actorLabel, enabled = true,
 
   const current = queue[0] ?? null;
   const queued = queue.length > 1;
+
+  useLayoutEffect(() => {
+    onQueueChange?.(queue);
+  }, [queue, onQueueChange]);
+  useEffect(() => () => onQueueChange?.([]), [onQueueChange]);
 
   useEffect(() => {
     // Released as the card starts flying off (the exit overlaps the next move)

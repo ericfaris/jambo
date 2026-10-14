@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { GameState } from '../engine/types.ts';
 import { CardFace } from './CardFace.tsx';
 import { anchorSelector, planFlights, snapshotForFlights } from './flights.ts';
+import { planStrikes, strikeOwnsFlight } from './strikes.ts';
 import type { Flight, FlightAnchor, FlightSnapshot } from './flights.ts';
 
 export const FLIGHT_DURATION_MS = { ware: 560, coin: 480, card: 620 } as const;
@@ -32,6 +33,8 @@ interface FlightLayerProps {
   spotlightActive: boolean;
   /** Called as each flight lands (sound hook). */
   onLand?: (flight: Flight) => void;
+  /** True while any flight is waiting or in the air (the draw dialog waits for it). */
+  onBusyChange?: (busy: boolean) => void;
 }
 
 function prefersReducedMotion(): boolean {
@@ -93,8 +96,9 @@ interface PendingGroup {
  * between hands. Purely presentational and click-through; skipped under
  * reduced motion.
  */
-export function FlightLayer({ state, viewer, spotlightEnabled, spotlightActive, onLand }: FlightLayerProps) {
+export function FlightLayer({ state, viewer, spotlightEnabled, spotlightActive, onLand, onBusyChange }: FlightLayerProps) {
   const prevRef = useRef<FlightSnapshot>(snapshotForFlights(state));
+  const prevStateRef = useRef<GameState>(state);
   const nextIdRef = useRef(1);
   const pendingRef = useRef<PendingGroup[]>([]);
   const [launched, setLaunched] = useState<LaunchedFlight[]>([]);
@@ -108,11 +112,16 @@ export function FlightLayer({ state, viewer, spotlightEnabled, spotlightActive, 
     const prev = prevRef.current;
     const next = snapshotForFlights(state);
     prevRef.current = next;
+    const prevState = prevStateRef.current;
+    prevStateRef.current = state;
     const lastDraftCards = draftCardsRef.current;
     draftCardsRef.current = measureDraftCards();
     if (prefersReducedMotion()) return;
-    const flights: PlannedFlight[] = planFlights(prev, next, nextIdRef.current).map((f) =>
-      f.from.type === 'draft-card' ? { ...f, fromPoint: lastDraftCards.get(f.from.cardId) } : f);
+    // an animal strike animates its own move (the stolen ware, the clawed coins)
+    const strikes = planStrikes(prevState, state);
+    const flights: PlannedFlight[] = planFlights(prev, next, nextIdRef.current)
+      .filter((f) => !strikeOwnsFlight(strikes, f))
+      .map((f) => f.from.type === 'draft-card' ? { ...f, fromPoint: lastDraftCards.get(f.from.cardId) } : f);
     if (flights.length === 0) return;
     nextIdRef.current = flights[flights.length - 1].id + 1;
     for (const f of flights) {
@@ -157,6 +166,12 @@ export function FlightLayer({ state, viewer, spotlightEnabled, spotlightActive, 
     const timer = window.setTimeout(() => setTick((t) => t + 1), 400);
     return () => window.clearTimeout(timer);
   }, [spotlightActive, tick]);
+
+  const busy = launched.length > 0 || pendingRef.current.length > 0;
+  useEffect(() => {
+    onBusyChange?.(busy);
+  }, [busy, tick, onBusyChange]);
+  useEffect(() => () => onBusyChange?.(false), [onBusyChange]);
 
   // Stable identity: sprites key their animation effect on it
   const land = useCallback((f: LaunchedFlight) => {

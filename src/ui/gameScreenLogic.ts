@@ -22,6 +22,25 @@ export function isWareDialogValid(wareDialog: DeckCardId | null, canTakePlayActi
  * only for drafts and auctions, which stay visible read-only so the human
  * can follow the pool / the bidding (the panels render a "waiting" state).
  */
+/** The longest the draw dialog waits for the opponent's last moves to finish animating. */
+export const DRAW_MODAL_MAX_WAIT_MS = 5000;
+/** How long the board must sit still before the draw dialog opens. */
+export const DRAW_MODAL_SETTLE_MS = 220;
+
+/**
+ * Open the draw dialog at the start of your turn — but only once the
+ * opponent's spotlights and flights have played out (or the wait runs out),
+ * so their last move never animates over it.
+ */
+export function shouldOpenDrawModal({ myDrawPhase, open, animating, waitExpired }: {
+  myDrawPhase: boolean;
+  open: boolean;
+  animating: boolean;
+  waitExpired: boolean;
+}): boolean {
+  return myDrawPhase && !open && (!animating || waitExpired);
+}
+
 export function shouldShowResolvePanel(hasPendingInteraction: boolean, isAiTurn: boolean, pendingType: string | null | undefined, spotlightActive = false): boolean {
   if (!hasPendingInteraction) return false;
   // Let the opponent's card announcement land before asking for a response
