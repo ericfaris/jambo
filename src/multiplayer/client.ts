@@ -245,78 +245,79 @@ export function useWebSocketGame(): WebSocketGameState {
     }
   }, [getReconnectStorageKey]);
 
-  const connect = useCallback(() => {
-    // Determine WebSocket URL (use /ws path for Vite proxy)
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
-
-    const ws = new WebSocket(wsUrl);
-    wsRef.current = ws;
-    // Only the newest socket may touch state. A replaced one (StrictMode's
-    // remount, a reconnect) must not flip `connected` while wsRef points at a
-    // socket still connecting — sends would be dropped and never retried.
-    const isCurrent = () => wsRef.current === ws;
-
-    ws.onopen = () => {
-      if (!isCurrent()) return;
-      setConnected(true);
-      reconnectAttempt.current = 0;
-
-      // After a page refresh nothing is pending yet — rejoin the room this
-      // tab was in, with its stored reconnect token (keeps the same seat).
-      if (!pendingJoin.current) {
-        const last = readLastRoom();
-        // An invite link to a different room wins: its screen joins that one
-        const invited = parseInviteHash(window.location.hash);
-        if (last && (!invited || invited === last.code)) {
-          const reconnectToken = window.sessionStorage.getItem(getReconnectStorageKey(last.code, last.role)) ?? undefined;
-          const cachedCastToken = window.sessionStorage.getItem(getCastTokenStorageKey(last.code));
-          if (cachedCastToken) setCastAccessToken((current) => current ?? cachedCastToken);
-          pendingJoin.current = { ...last, reconnectToken };
-          setRoomCode(last.code);
-        }
-      }
-
-      // Re-join room on reconnect
-      if (pendingJoin.current) {
-        sendRaw({
-          type: 'JOIN_ROOM',
-          code: pendingJoin.current.code,
-          role: pendingJoin.current.role,
-          reconnectToken: pendingJoin.current.reconnectToken,
-          localProfileId: getLocalProfileId(),
-        });
-      }
-    };
-
-    ws.onmessage = (event) => {
-      if (!isCurrent()) return;
-      try {
-        const msg = JSON.parse(event.data as string) as ServerMessage;
-        handleMessage(msg);
-      } catch {
-        // Ignore malformed messages
-      }
-    };
-
-    ws.onclose = () => {
-      // A socket closed on purpose (unmount) or already replaced: no reconnect
-      if (!isCurrent()) return;
-      setConnected(false);
-      wsRef.current = null;
-
-      // Exponential backoff reconnect
-      const delay = Math.min(1000 * Math.pow(2, reconnectAttempt.current), 30000);
-      reconnectAttempt.current++;
-      reconnectTimer.current = setTimeout(() => connect(), delay);
-    };
-
-    ws.onerror = () => {
-      // onclose will fire after onerror
-    };
-  }, [handleMessage, sendRaw]);
-
   useEffect(() => {
+    // Declared inside the effect so the backoff timer can call it again
+    function connect() {
+      // Determine WebSocket URL (use /ws path for Vite proxy)
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/ws`;
+
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+      // Only the newest socket may touch state. A replaced one (StrictMode's
+      // remount, a reconnect) must not flip `connected` while wsRef points at a
+      // socket still connecting — sends would be dropped and never retried.
+      const isCurrent = () => wsRef.current === ws;
+
+      ws.onopen = () => {
+        if (!isCurrent()) return;
+        setConnected(true);
+        reconnectAttempt.current = 0;
+
+        // After a page refresh nothing is pending yet — rejoin the room this
+        // tab was in, with its stored reconnect token (keeps the same seat).
+        if (!pendingJoin.current) {
+          const last = readLastRoom();
+          // An invite link to a different room wins: its screen joins that one
+          const invited = parseInviteHash(window.location.hash);
+          if (last && (!invited || invited === last.code)) {
+            const reconnectToken = window.sessionStorage.getItem(getReconnectStorageKey(last.code, last.role)) ?? undefined;
+            const cachedCastToken = window.sessionStorage.getItem(getCastTokenStorageKey(last.code));
+            if (cachedCastToken) setCastAccessToken((current) => current ?? cachedCastToken);
+            pendingJoin.current = { ...last, reconnectToken };
+            setRoomCode(last.code);
+          }
+        }
+
+        // Re-join room on reconnect
+        if (pendingJoin.current) {
+          sendRaw({
+            type: 'JOIN_ROOM',
+            code: pendingJoin.current.code,
+            role: pendingJoin.current.role,
+            reconnectToken: pendingJoin.current.reconnectToken,
+            localProfileId: getLocalProfileId(),
+          });
+        }
+      };
+
+      ws.onmessage = (event) => {
+        if (!isCurrent()) return;
+        try {
+          const msg = JSON.parse(event.data as string) as ServerMessage;
+          handleMessage(msg);
+        } catch {
+          // Ignore malformed messages
+        }
+      };
+
+      ws.onclose = () => {
+        // A socket closed on purpose (unmount) or already replaced: no reconnect
+        if (!isCurrent()) return;
+        setConnected(false);
+        wsRef.current = null;
+
+        // Exponential backoff reconnect
+        const delay = Math.min(1000 * Math.pow(2, reconnectAttempt.current), 30000);
+        reconnectAttempt.current++;
+        reconnectTimer.current = setTimeout(() => connect(), delay);
+      };
+
+      ws.onerror = () => {
+        // onclose will fire after onerror
+      };
+    }
+
     connect();
     return () => {
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
@@ -324,7 +325,7 @@ export function useWebSocketGame(): WebSocketGameState {
       wsRef.current = null;
       ws?.close();
     };
-  }, [connect]);
+  }, [handleMessage, sendRaw, getReconnectStorageKey, getCastTokenStorageKey]);
 
   const createRoom = useCallback((mode: RoomMode, aiDifficulty?: AIDifficulty, kind?: RoomKind) => {
     resetRoomState();

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { GameState } from '../engine/types.ts';
 import { finalTurnCopy } from './endgameHints.ts';
 
@@ -12,21 +12,20 @@ export const FINAL_TURN_BANNER_MS = 3200;
 export function FinalTurnBanner({ state, labels }: { state: GameState; labels: readonly [string, string] }) {
   const isFinal = !!state.endgame?.isFinalTurn && state.phase !== 'GAME_OVER';
   // Only announce a transition seen live, not a resumed save already in it
-  const prevRef = useRef(isFinal);
+  const [wasFinal, setWasFinal] = useState(isFinal);
   const [shown, setShown] = useState<{ headline: string; detail: string } | null>(null);
 
+  // state is read only at the transition moment
+  if (isFinal !== wasFinal) {
+    setWasFinal(isFinal);
+    setShown(isFinal ? finalTurnCopy(state, labels) : null);
+  }
+
   useEffect(() => {
-    const was = prevRef.current;
-    prevRef.current = isFinal;
-    if (isFinal && !was) {
-      setShown(finalTurnCopy(state, labels));
-      const timer = window.setTimeout(() => setShown(null), FINAL_TURN_BANNER_MS);
-      return () => window.clearTimeout(timer);
-    }
-    if (!isFinal) setShown(null);
-    return undefined;
-    // state is read only at the transition moment
-  }, [isFinal]);
+    if (!shown) return;
+    const timer = window.setTimeout(() => setShown(null), FINAL_TURN_BANNER_MS);
+    return () => window.clearTimeout(timer);
+  }, [shown]);
 
   if (!shown) return null;
   return (

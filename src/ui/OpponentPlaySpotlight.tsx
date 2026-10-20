@@ -167,9 +167,7 @@ export function OpponentPlaySpotlight({ log, viewer, actorLabel, enabled = true,
 
   // Switched off (game over, hotseat): drop anything still waiting so it
   // never plays over the results screen
-  useEffect(() => {
-    if (!enabled) setQueue([]);
-  }, [enabled]);
+  if (!enabled && queue.length > 0) setQueue([]);
 
   const current = queue[0] ?? null;
   const queued = queue.length > 1;
@@ -226,15 +224,18 @@ export function OpponentPlaySpotlight({ log, viewer, actorLabel, enabled = true,
   // On enter, grow out of where the card came from (their hand, a utility,
   // the deck). Measured off the card's untransformed slot before first paint.
   const slotRef = useRef<HTMLDivElement | null>(null);
-  const [enterFrom, setEnterFrom] = useState<{ x: number; y: number; scale: number } | null>(null);
+  // Measured per card: a stale measurement never carries over to the next one
+  const [measuredEnter, setMeasuredEnter] = useState<{ key: PlaySpotlight['key']; x: number; y: number; scale: number } | null>(null);
+  const enterFrom = current && measuredEnter?.key === current.key ? measuredEnter : null;
   useLayoutEffect(() => {
-    if (!current) { setEnterFrom(null); return; }
+    if (!current) return;
     const slot = slotRef.current;
     const source = firstVisible(spotlightOriginSelectors(current.origin, actor));
-    if (!slot || !source) { setEnterFrom(null); return; }
+    if (!slot || !source) return;
     const to = slot.getBoundingClientRect();
     const from = source.getBoundingClientRect();
-    setEnterFrom({
+    setMeasuredEnter({
+      key: current.key,
       x: Math.round(from.left + from.width / 2 - (to.left + to.width / 2)),
       y: Math.round(from.top + from.height / 2 - (to.top + to.height / 2)),
       scale: Math.max(0.12, Math.min(0.5, from.height / Math.max(1, to.height))),

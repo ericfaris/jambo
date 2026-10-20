@@ -29,24 +29,25 @@ export function countUpFrame(from: number, to: number, t: number): number {
 export function useCountUp(value: number, durationMs = 650): { shown: number; rising: boolean } {
   const [shown, setShown] = useState(value);
   const [rising, setRising] = useState(false);
-  const fromRef = useRef(value);
+  // The value being shown/rolled to, and where the current roll started
+  const [target, setTarget] = useState(value);
+  const [from, setFrom] = useState(value);
+  const animates = !prefersReducedMotion() && typeof requestAnimationFrame === 'function';
+  if (value !== target) {
+    setTarget(value);
+    setFrom(animates ? target : value);
+    if (!animates) setShown(value);
+  }
 
   useEffect(() => {
-    const from = fromRef.current;
-    fromRef.current = value;
-    if (from === value) return;
-    if (prefersReducedMotion() || typeof requestAnimationFrame !== 'function') {
-      setShown(value);
-      return;
-    }
-    setRising(value > from);
+    if (from === value || !animates) return;
     const start = performance.now();
     let raf = 0;
     const tick = (now: number) => {
       const t = (now - start) / durationMs;
       setShown(countUpFrame(from, value, t));
+      setRising(t < 1 && value > from);
       if (t < 1) raf = requestAnimationFrame(tick);
-      else setRising(false);
     };
     raf = requestAnimationFrame(tick);
     return () => {
@@ -54,7 +55,7 @@ export function useCountUp(value: number, durationMs = 650): { shown: number; ri
       setShown(value);
       setRising(false);
     };
-  }, [value, durationMs]);
+  }, [value, from, durationMs, animates]);
 
   return { shown, rising };
 }

@@ -50,14 +50,11 @@ export function MainMenu({
   const [accountOpen, setAccountOpen] = useState(false);
   const { prefs, setPref } = usePreferences();
 
-  const refreshStats = useCallback(async () => {
-    try {
-      setStatsSummary(await fetchUserStatsSummary());
-    } catch (error) {
-      // a visitor doesn't need to hear the stats service is down
-      console.warn('[Menu] Stats unavailable', error);
-    }
-  }, []);
+  // State is set once the request settles, never synchronously
+  const refreshStats = useCallback(() => fetchUserStatsSummary().then(setStatsSummary, (error: unknown) => {
+    // a visitor doesn't need to hear the stats service is down
+    console.warn('[Menu] Stats unavailable', error);
+  }), []);
 
   useEffect(() => {
     void refreshStats();

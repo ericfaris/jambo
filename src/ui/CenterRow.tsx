@@ -57,72 +57,65 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
   const topDiscard = state.discardPile.length > 0
     ? state.discardPile[0]
     : null;
-  const [trailDiscardCard, setDisplayDiscardCard] = useState(topDiscard);
+  const trail = visualFeedback?.trail;
+  // A discard trail keeps the card it carries off the pile until it lands
+  const [revealedTrail, setRevealedTrail] = useState<typeof trail | null>(null);
+  const trailDiscardCard = trail?.kind === 'discard' && trail.cardId && revealedTrail !== trail
+    ? (state.discardPile.length > 1 ? state.discardPile[1] : null)
+    : topDiscard;
   const displayDiscardCard = trailDiscardCard && heldDiscardCards.includes(trailDiscardCard)
     ? (state.discardPile.find((c) => !heldDiscardCards.includes(c)) ?? null)
     : trailDiscardCard;
-  const [actionTag, setActionTag] = useState<string | null>(null);
-  const [lastActionRecap, setLastActionRecap] = useState<string | null>(null);
+  // Which trail's action tag and which log length's recap have timed out
+  const [expiredTagTrail, setExpiredTagTrail] = useState<typeof trail | null>(null);
+  const [expiredRecapAt, setExpiredRecapAt] = useState<number | null>(null);
   const rowRef = useRef<HTMLDivElement | null>(null);
   // Both ends of the current trail, measured from the board before it paints
   const [trailPath, setTrailPath] = useState<TrailPath | null>(null);
 
   useEffect(() => {
-    const trail = visualFeedback?.trail;
-    if (trail?.kind === 'discard' && trail.cardId) {
-      const previousTop = state.discardPile.length > 1 ? state.discardPile[1] : null;
-      setDisplayDiscardCard(previousTop);
-      const timer = window.setTimeout(() => {
-        setDisplayDiscardCard(state.discardPile.length > 0 ? state.discardPile[0] : null);
-      }, FEEDBACK_TIMINGS.discardPileRevealDelayMs);
-      return () => window.clearTimeout(timer);
-    }
-
-    setDisplayDiscardCard(topDiscard);
-    return;
-  }, [visualFeedback?.trail, state.discardPile, topDiscard]);
-
-  useEffect(() => {
-    const trail = visualFeedback?.trail;
-    if (!trail) return;
-
-    // Phones show only the recap pill — two labels stacked over the slim
-    // center row read as noise (2026-10-11 review).
-    if (compact) return;
-    setActionTag(describeTrailTag(trail.kind, actorLabels[trail.actor], state.log.slice(-6)));
-
-    const timer = window.setTimeout(() => setActionTag(null), FEEDBACK_TIMINGS.actionTagDurationMs);
+    if (!(trail?.kind === 'discard' && trail.cardId)) return;
+    const timer = window.setTimeout(() => setRevealedTrail(trail), FEEDBACK_TIMINGS.discardPileRevealDelayMs);
     return () => window.clearTimeout(timer);
-  }, [visualFeedback?.trail]);
+  }, [trail]);
+
+  // Phones show only the recap pill — two labels stacked over the slim
+  // center row read as noise (2026-10-11 review).
+  const actionTag = trail && !compact && expiredTagTrail !== trail
+    ? describeTrailTag(trail.kind, actorLabels[trail.actor], state.log.slice(-6))
+    : null;
 
   useEffect(() => {
-    if (state.log.length === 0) return;
-    const latest = state.log[state.log.length - 1];
-    if (latest.card && latest.player === spotlitPlayer) {
-      setLastActionRecap(null);
-      return;
-    }
-    setLastActionRecap(formatLogRecap(latest, actorLabels, hiddenPlayer));
+    if (!trail || compact) return;
+    const timer = window.setTimeout(() => setExpiredTagTrail(trail), FEEDBACK_TIMINGS.actionTagDurationMs);
+    return () => window.clearTimeout(timer);
+  }, [trail]);
 
-    const timer = window.setTimeout(() => setLastActionRecap(null), 2500);
+  const latestEntry = state.log.length > 0 ? state.log[state.log.length - 1] : null;
+  const lastActionRecap = latestEntry && expiredRecapAt !== state.log.length && !(latestEntry.card && latestEntry.player === spotlitPlayer)
+    ? formatLogRecap(latestEntry, actorLabels, hiddenPlayer)
+    : null;
+
+  useEffect(() => {
+    const logLength = state.log.length;
+    if (logLength === 0) return;
+    const timer = window.setTimeout(() => setExpiredRecapAt(logLength), 2500);
     return () => window.clearTimeout(timer);
   }, [state.log.length]);
 
   // Measured in a layout effect so the first painted frame already starts on
   // the deck / the actor's hand — never at a placeholder spot
   useLayoutEffect(() => {
-    const trail = visualFeedback?.trail;
     const rowEl = rowRef.current;
-    if (!trail || !rowEl) { setTrailPath(null); return; }
+    if (!trail || !rowEl) return;
+    setTrailPath(measureTrailPath(trail, rowEl.getBoundingClientRect()));
     const update = () => setTrailPath(measureTrailPath(trail, rowEl.getBoundingClientRect()));
-    update();
     window.addEventListener('resize', update);
     return () => window.removeEventListener('resize', update);
-  }, [visualFeedback?.trail]);
+  }, [trail]);
 
-  const latestLog = state.log.length > 0 ? state.log[state.log.length - 1] : null;
   const showTrail = !!visualFeedback?.trail && !!trailPath
-    && !(visualFeedback.trail.kind === 'discard' && spotlightCoversDiscard(latestLog, spotlitPlayer))
+    && !(visualFeedback.trail.kind === 'discard' && spotlightCoversDiscard(latestEntry, spotlitPlayer))
     // an animal strike carries this card to the pile itself
     && !(visualFeedback.trail.kind === 'discard' && !!visualFeedback.trail.cardId && heldDiscardCards.includes(visualFeedback.trail.cardId));
 

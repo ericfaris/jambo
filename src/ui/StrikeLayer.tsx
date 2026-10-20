@@ -150,11 +150,14 @@ export function useStrikes({ state, viewer, blocked, enabled }: {
     // enabled/applyMarks are read at plan time on purpose
   }, [state]);
 
-  // Marks heal once their card or ware leaves where it was left
-  useEffect(() => {
+  // Marks heal once their card or ware leaves where it was left (pruned as
+  // the table changes, during render rather than in an effect)
+  const [prunedFor, setPrunedFor] = useState({ state, viewer });
+  if (prunedFor.state !== state || prunedFor.viewer !== viewer) {
+    setPrunedFor({ state, viewer });
     setMarks((cur) => (cur.size === 0 ? cur : pruneMarks(cur, state.discardPile, state.players[viewer].hand)));
     setChips((cur) => (cur.length === 0 ? cur : pruneChips(cur, [state.players[0].market, state.players[1].market])));
-  }, [state, viewer]);
+  }
 
   // Start the head of the queue once the board is clear (or the wait runs out)
   const current = queue[0] ?? null;

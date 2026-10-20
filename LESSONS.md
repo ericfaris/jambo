@@ -695,3 +695,20 @@ overwrites tracked files.)
 - Don't `pkill -f "PORT=3031"` — it also matches `JAMBO_API_PORT=3031` (Vite).
   Kill dev servers by PID. Prod's container holds :3001 on this machine, so
   the playtest server runs on :3031 with `JAMBO_API_PORT=3031` for Vite.
+
+## 2026-10-19 — React 19 + eslint-plugin-react-hooks 7 (PR #34)
+- hooks v7's `recommended` turns on React Compiler rules. The ones that bit:
+  `set-state-in-effect`, `refs` (no `ref.current` read/write during render),
+  `preserve-manual-memoization`.
+- `set-state-in-effect` flags a setState called straight from the effect
+  body, or a component-level function (incl. `useCallback`, incl. an
+  `async` one after an `await`) that does. Fine: setState in callbacks
+  (timers, `.then`, listeners), with an argument read from a ref, or under
+  an `if` that tests a ref value (the *immediate* condition only).
+- Fixes used: derive in render ("expired trail" / "expired log length"
+  state instead of copying props into state); adjust state during render
+  with a stored previous value (`if (x !== prevX) { setPrevX(x); ... }`);
+  latest-callback refs assigned in `useLayoutEffect`; fetches as promise
+  chains. Never `Date.now()` during render — key on a counter instead.
+- `useCallback(() => ws.send(x), [ws.send])` fails preserve-memo (a method
+  call depends on `ws`): destructure `const { send } = ws` first.

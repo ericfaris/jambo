@@ -102,9 +102,13 @@ export function FlightLayer({ state, viewer, spotlightEnabled, spotlightActive, 
   const nextIdRef = useRef(1);
   const pendingRef = useRef<PendingGroup[]>([]);
   const [launched, setLaunched] = useState<LaunchedFlight[]>([]);
+  const [plannedThrough, setPlannedThrough] = useState(0);
+  // Re-check timer for groups still waiting on a spotlight
   const [tick, setTick] = useState(0);
   const onLandRef = useRef(onLand);
-  onLandRef.current = onLand;
+  useLayoutEffect(() => {
+    onLandRef.current = onLand;
+  }, [onLand]);
   const draftCardsRef = useRef<Map<string, { x: number; y: number }>>(new Map());
 
   // Plan on every state change, before paint, so arriving slots never flash.
@@ -130,7 +134,8 @@ export function FlightLayer({ state, viewer, spotlightEnabled, spotlightActive, 
     const newEntries = state.log.slice(prev.logLength);
     const waitForSpotlight = spotlightEnabled && newEntries.some((e) => e.card && e.player !== viewer);
     pendingRef.current.push({ flights, waitForSpotlight, sawSpotlight: false, plannedAt: Date.now() });
-    setTick((t) => t + 1);
+    // Wakes the launch effect: the newest plan is identified by the next flight id
+    setPlannedThrough(nextIdRef.current);
     // spotlightEnabled/viewer are read at plan time on purpose
   }, [state]);
 
@@ -139,8 +144,8 @@ export function FlightLayer({ state, viewer, spotlightEnabled, spotlightActive, 
     if (pendingRef.current.length === 0) return;
     const ready: PlannedFlight[] = [];
     const waiting: PendingGroup[] = [];
-    for (const g of pendingRef.current) {
-      if (g.waitForSpotlight && spotlightActive) g.sawSpotlight = true;
+    for (const pending of pendingRef.current) {
+      const g = pending.waitForSpotlight && spotlightActive ? { ...pending, sawSpotlight: true } : pending;
       const timedOut = Date.now() - g.plannedAt > SPOTLIGHT_WAIT_FALLBACK_MS;
       if (!g.waitForSpotlight || (g.sawSpotlight && !spotlightActive) || timedOut) ready.push(...g.flights);
       else waiting.push(g);
@@ -159,18 +164,20 @@ export function FlightLayer({ state, viewer, spotlightEnabled, spotlightActive, 
         // a card flying into the draft pool: its spot stays empty until it lands
         if (f.to.type === 'draft-card') draftCardElement(f.to.cardId)?.setAttribute('data-incoming', '');
       }
-      if (out.length > 0) setLaunched((cur) => [...cur, ...out]);
+      // DOM was measured above; commit the sprites from a microtask, not the effect body
+      if (out.length > 0) queueMicrotask(() => setLaunched((cur) => [...cur, ...out]));
     }
     if (waiting.length === 0) return;
     // re-check for the fallback even if the spotlight flag never changes
     const timer = window.setTimeout(() => setTick((t) => t + 1), 400);
     return () => window.clearTimeout(timer);
-  }, [spotlightActive, tick]);
+  }, [spotlightActive, plannedThrough, tick]);
 
-  const busy = launched.length > 0 || pendingRef.current.length > 0;
+  // Pending groups live in a ref, so busy is read after the launch effect ran
+  const flying = launched.length > 0;
   useEffect(() => {
-    onBusyChange?.(busy);
-  }, [busy, tick, onBusyChange]);
+    onBusyChange?.(flying || pendingRef.current.length > 0);
+  }, [flying, plannedThrough, tick, onBusyChange]);
   useEffect(() => () => onBusyChange?.(false), [onBusyChange]);
 
   // Stable identity: sprites key their animation effect on it

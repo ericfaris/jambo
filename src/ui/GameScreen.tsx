@@ -91,9 +91,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   // One voice per moment: the spotlight caption replaces the AI's line about
   // the same play (a hidden bubble would otherwise pop up stale afterwards).
   // A trader line outlives a short spotlight: it carries on in the bubble.
-  useEffect(() => {
-    if (spotlightActive) setAiMessage('');
-  }, [spotlightActive]);
+  if (spotlightActive && aiMessage) setAiMessage('');
   useEffect(() => {
     if (!traderLine) return;
     const t = window.setTimeout(() => setTraderLine(null), TRADER_LINE_MS);
@@ -102,25 +100,20 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
 
   useEffect(() => {
     let isMounted = true;
-    const loadStats = async () => {
-      try {
-        const [summary, breakdown] = await Promise.all([
-          fetchUserStatsSummary(),
-          fetchDifficultyBreakdown(),
-        ]);
-        if (isMounted) {
-          setStatsSummary(summary);
-          setDiffBreakdown(breakdown);
-          setStatsError(null);
-        }
-      } catch {
-        if (isMounted) {
-          setStatsError('Stats unavailable');
-        }
+    Promise.all([
+      fetchUserStatsSummary(),
+      fetchDifficultyBreakdown(),
+    ]).then(([summary, breakdown]) => {
+      if (isMounted) {
+        setStatsSummary(summary);
+        setDiffBreakdown(breakdown);
+        setStatsError(null);
       }
-    };
-
-    void loadStats();
+    }).catch(() => {
+      if (isMounted) {
+        setStatsError('Stats unavailable');
+      }
+    });
     return () => {
       isMounted = false;
     };
@@ -252,11 +245,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
     };
   }, [isAiTurn, state, dispatch, error, aiDifficulty, showTutorial, spotlightActive, aiSpeed, rematchReveal, trader]);
 
-  useEffect(() => {
-    if (state.phase === 'GAME_OVER' && aiMessage) {
-      setAiMessage('');
-    }
-  }, [state.phase, aiMessage]);
+  if (state.phase === 'GAME_OVER' && aiMessage) setAiMessage('');
 
   const handleAiMessageHide = useCallback(() => {
     setAiMessage('');

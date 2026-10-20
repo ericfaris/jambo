@@ -1,7 +1,7 @@
 // Cloudflare Turnstile challenge. Renders nothing when the server has no site
 // key (dev), in which case the server skips the check too.
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { getTurnstileSiteKey } from '../../config/runtimeConfig.ts';
 
 interface TurnstileApi {
@@ -47,7 +47,9 @@ export function TurnstileWidget({ onToken, resetKey = 0 }: TurnstileWidgetProps)
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
   const onTokenRef = useRef(onToken);
-  onTokenRef.current = onToken;
+  useLayoutEffect(() => {
+    onTokenRef.current = onToken;
+  }, [onToken]);
 
   useEffect(() => {
     if (!siteKey || !containerRef.current) return;

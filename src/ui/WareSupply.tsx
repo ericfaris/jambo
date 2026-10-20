@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { WareType } from '../engine/types.ts';
 import { INITIAL_WARE_SUPPLY, WARE_TYPES } from '../engine/types.ts';
@@ -42,9 +42,10 @@ export function WareSupply({ supply, compact = false, highlight = null }: {
   highlight?: WareType | null;
 }) {
   const total = WARE_TYPES.reduce((n, w) => n + supply[w], 0);
-  const changesRef = useRef<Record<WareType, { n: number; change: SupplyChange }> | null>(null);
-  const changes = supplyChanges(changesRef.current, supply);
-  changesRef.current = changes;
+  // Last render's changes live in state, updated during render when a count moves
+  const [lastChanges, setLastChanges] = useState(() => supplyChanges(null, supply));
+  const changes = supplyChanges(lastChanges, supply);
+  if (WARE_TYPES.some((w) => changes[w] !== lastChanges[w])) setLastChanges(changes);
   return (
     <div className={compact ? 'ware-supply ware-supply-compact' : 'ware-supply ware-supply-tray'} aria-label={`Ware supply: ${WARE_TYPES.map((w) => `${supply[w]} ${w}`).join(', ')}`}>
       {!compact && (
