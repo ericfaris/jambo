@@ -106,7 +106,7 @@ export function chooseAction(pub: PublicGameState, priv: PrivateGameState, me: 0
     const fallback = getFallbackInteractionResponses(board)[0];
     return { type: 'RESOLVE_INTERACTION', response: fallback ?? { type: 'SELECT_CARD', cardId: '' } };
   }
-  let valid: GameAction[] = [];
+  let valid: GameAction[];
   try { valid = getValidActions(board); } catch { valid = []; }
   if (valid.length === 0) return pub.phase === 'PLAY' ? { type: 'END_TURN' } : { type: 'SKIP_DRAW' };
   const endTurn = valid.find((a) => a.type === 'END_TURN');

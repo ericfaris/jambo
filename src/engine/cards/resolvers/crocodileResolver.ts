@@ -92,7 +92,7 @@ export function resolveCrocodileUse(
     }
 
     // For other utilities, initialize their effect resolution
-    let innerPending: ReturnType<typeof initializeResolution> = null;
+    let innerPending: ReturnType<typeof initializeResolution>;
     try {
       innerPending = initializeResolution(next, selectedUtility.cardId);
     } catch (error) {
