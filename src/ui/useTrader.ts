@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { GameState } from '../engine/types.ts';
 import type { BarkEvent, Trader, TraderMood } from '../ai/traders.ts';
 import { barkUrl, traderReaction } from '../ai/traders.ts';
@@ -116,9 +116,11 @@ export function useTrader({ state, trader, seat, voices, ready = true, onLine }:
   const greetTimer = useRef<number | null>(null);
   const greetedGame = useRef<number | null>(null);
   const onLineRef = useRef(onLine);
-  onLineRef.current = onLine;
+  useLayoutEffect(() => {
+    onLineRef.current = onLine;
+  }, [onLine]);
 
-  const hush = useCallback(() => {
+  const stopVoice = useCallback(() => {
     if (speakTimer.current !== null) window.clearTimeout(speakTimer.current);
     speakTimer.current = null;
     if (audioRef.current) {
@@ -127,8 +129,12 @@ export function useTrader({ state, trader, seat, voices, ready = true, onLine }:
       audioRef.current.pause();
       audioRef.current = null;
     }
-    setSpeaking(false);
   }, []);
+
+  const hush = useCallback(() => {
+    stopVoice();
+    setSpeaking(false);
+  }, [stopVoice]);
 
   const bark = useCallback((event: BarkEvent) => {
     if (!trader) return;
@@ -204,8 +210,9 @@ export function useTrader({ state, trader, seat, voices, ready = true, onLine }:
 
   // Voices switched off mid-line: stop talking
   useEffect(() => {
-    if (!voices) hush();
-  }, [voices, hush]);
+    if (!voices) stopVoice();
+  }, [voices, stopVoice]);
+  if (!voices && speaking) setSpeaking(false);
 
   useEffect(() => () => {
     if (moodTimer.current !== null) window.clearTimeout(moodTimer.current);

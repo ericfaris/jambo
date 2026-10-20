@@ -26,19 +26,18 @@ export function useAuthSession(): AuthSession {
   const [isLoading, setIsLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  const refresh = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetch('/api/auth/session', {
-        method: 'GET',
-        credentials: 'include',
-      });
-
+  // Fetch the session; state is only set once the request settles
+  const load = useCallback(() => fetch('/api/auth/session', {
+    method: 'GET',
+    credentials: 'include',
+  })
+    .then(async (response) => {
       if (!response.ok) {
         throw new Error('Failed to load auth session');
       }
-
-      const data = (await response.json()) as AuthSessionResponse;
+      return (await response.json()) as AuthSessionResponse;
+    })
+    .then((data) => {
       if (!data.authenticated || !data.user) {
         setAuthUser(null);
         setAvatarUrl(null);
@@ -52,13 +51,18 @@ export function useAuthSession(): AuthSession {
       const firstChar = data.user.name.trim().charAt(0).toUpperCase();
       setAvatarLabel(firstChar || 'U');
       setAuthError(null);
-    } catch {
+    }, () => {
       setAuthUser(null);
       setAuthError('Profile unavailable');
-    } finally {
+    })
+    .finally(() => {
       setIsLoading(false);
-    }
-  }, []);
+    }), []);
+
+  const refresh = useCallback(async () => {
+    setIsLoading(true);
+    await load();
+  }, [load]);
 
   const logout = useCallback(async () => {
     try {
@@ -75,10 +79,10 @@ export function useAuthSession(): AuthSession {
     }
   }, []);
 
-  // Fetch on mount
+  // Fetch on mount (isLoading starts true)
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    void load();
+  }, [load]);
 
   // Re-fetch on window focus
   useEffect(() => {

@@ -1,4 +1,4 @@
-import { memo, useState, useEffect, useRef } from 'react';
+import { memo, useState, useEffect } from 'react';
 import type { CSSProperties } from 'react';
 import type { DeckCardId } from '../engine/types.ts';
 import { CardFace } from './CardFace.tsx';
@@ -46,8 +46,8 @@ export const SCROLL_HAND_SIZE = 12;
 function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaView, useWoodBackground = true, transparentBackground = false, showBorder = true, mat = false, showHelperText = true, cardScale = 1, paddingBottom = 14, paddingX = 14, paddingLeft, paddingRight, paddingTop = 14, layoutMode = 'fan', fixedOverlapPx, rows = 1, gapPx = 8, hints = null, priceModifiers = null }: HandDisplayProps) {
   const [isMobile, setIsMobile] = useState(false);
   // The opening hand deals in one card after another; later draws arrive alone
-  const dealtRef = useRef(false);
-  useEffect(() => { dealtRef.current = true; }, []);
+  const [openingHand] = useState(hand);
+  const dealing = hand === openingHand;
 
   // Detect mobile screen size
   // Mouse/pen only: on touch a tap plays the card, so it shouldn't wobble
@@ -121,7 +121,7 @@ function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaVie
       zIndex,
       position: 'relative',
       '--i': index,
-      '--deal-i': dealtRef.current ? 0 : index,
+      '--deal-i': dealing ? index : 0,
     };
     if (fanned) {
       tileStyle['--fan-rot'] = `${(offset * fanStep).toFixed(2)}deg`;

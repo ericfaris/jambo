@@ -41,7 +41,6 @@ export function OnlineGameScreen({ ws, onLeftToMenu }: { ws: WebSocketGameState;
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (!someoneAway) return;
-    setNow(Date.now());
     const t = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(t);
   }, [someoneAway]);
@@ -50,12 +49,15 @@ export function OnlineGameScreen({ ws, onLeftToMenu }: { ws: WebSocketGameState;
   // Server errors (a move that lost a race, an invalid action) — the same toast as a play error
   const [externalError, setExternalError] = useState<{ message: string; key: number } | null>(null);
   const { error, clearError } = ws;
+  const [lastError, setLastError] = useState<string | null>(null);
+  if (error !== lastError) {
+    setLastError(error);
+    const message = error ? friendServerError(error, name, friendlyPlayError) : null;
+    if (message) setExternalError((current) => ({ message, key: (current?.key ?? 0) + 1 }));
+  }
   useEffect(() => {
-    if (!error) return;
-    const message = friendServerError(error, name, friendlyPlayError);
-    if (message) setExternalError({ message, key: Date.now() });
-    clearError();
-  }, [error, clearError, name]);
+    if (error) clearError();
+  }, [error, clearError]);
 
   // Coin toss: once per game per tab (a refresh doesn't replay it). It
   // starts on a fresh game and then plays out even if the friend, going
@@ -65,16 +67,14 @@ export function OnlineGameScreen({ ws, onLeftToMenu }: { ws: WebSocketGameState;
   const pending = ws.gameNumber !== null && ws.gameNumber !== revealDone;
   const freshGame = !!pub && pub.log.length === 0 && pub.phase !== 'GAME_OVER';
   const showReveal = pending && (freshGame || revealing === ws.gameNumber);
+  if (pub && pending && ws.gameNumber !== null && revealing !== ws.gameNumber) {
+    if (freshGame) setRevealing(ws.gameNumber);
+    // Joined mid-game: there's nothing to toss for
+    else setRevealDone(ws.gameNumber);
+  }
   useEffect(() => {
-    if (!pub || !pending || ws.gameNumber === null) return;
-    if (freshGame) {
-      if (revealing !== ws.gameNumber) setRevealing(ws.gameNumber);
-    } else if (revealing !== ws.gameNumber) {
-      // Joined mid-game: there's nothing to toss for
-      writeRevealed(ws.roomCode, ws.gameNumber);
-      setRevealDone(ws.gameNumber);
-    }
-  }, [pub, pending, freshGame, revealing, ws.gameNumber, ws.roomCode]);
+    if (revealDone !== null) writeRevealed(ws.roomCode, revealDone);
+  }, [revealDone, ws.roomCode]);
   const handleRevealDone = useCallback(() => {
     if (ws.gameNumber === null) return;
     writeRevealed(ws.roomCode, ws.gameNumber);
@@ -88,7 +88,8 @@ export function OnlineGameScreen({ ws, onLeftToMenu }: { ws: WebSocketGameState;
     onLeftToMenu();
   }, [leaveRoom, onLeftToMenu]);
 
-  const dispatch = useCallback((action: GameAction) => ws.sendAction(action), [ws.sendAction]);
+  const { sendAction } = ws;
+  const dispatch = useCallback((action: GameAction) => sendAction(action), [sendAction]);
 
   // Dev only: the E2E driver reads the views and plays through this hook
   useEffect(() => {

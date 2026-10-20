@@ -31,26 +31,28 @@ export function PresenceBanner({ name, seat, elapsedMs, selfConnected }: {
   elapsedMs: number;
   selfConnected: boolean;
 }) {
-  const [backUntil, setBackUntil] = useState<number | null>(null);
-  const wasAway = useRef(false);
+  const [back, setBack] = useState(false);
   const status = seat?.status ?? null;
-  useEffect(() => {
+  const [wasAway, setWasAway] = useState(status === 'reconnecting');
+  const [prevStatus, setPrevStatus] = useState(status);
+  if (status !== prevStatus) {
+    setPrevStatus(status);
     if (status === 'reconnecting') {
-      wasAway.current = true;
-      setBackUntil(null);
-    } else if (status === 'connected' && wasAway.current) {
-      wasAway.current = false;
-      setBackUntil(Date.now() + BACK_NOTICE_MS);
+      setWasAway(true);
+      setBack(false);
+    } else if (status === 'connected' && wasAway) {
+      setWasAway(false);
+      setBack(true);
     } else if (status === 'left') {
-      wasAway.current = false;
-      setBackUntil(null);
+      setWasAway(false);
+      setBack(false);
     }
-  }, [status]);
+  }
   useEffect(() => {
-    if (backUntil === null) return;
-    const t = window.setTimeout(() => setBackUntil(null), Math.max(0, backUntil - Date.now()));
+    if (!back) return;
+    const t = window.setTimeout(() => setBack(false), BACK_NOTICE_MS);
     return () => window.clearTimeout(t);
-  }, [backUntil]);
+  }, [back]);
 
   let line: string | null = null;
   let tone: 'away' | 'back' | 'self' = 'away';
@@ -59,7 +61,7 @@ export function PresenceBanner({ name, seat, elapsedMs, selfConnected }: {
     tone = 'self';
   } else if (status === 'reconnecting') {
     line = presenceBannerLine(name, seat, elapsedMs);
-  } else if (backUntil !== null) {
+  } else if (back) {
     line = `${name} is back`;
     tone = 'back';
   }

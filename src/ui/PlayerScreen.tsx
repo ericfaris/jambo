@@ -72,13 +72,11 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
   );
 
   // Auto-open draw modal when entering draw phase
-  useEffect(() => {
-    if (pub && pub.phase === 'DRAW' && pub.currentPlayer === slot && !drawModalOpen) {
-      setDrawModalOpen(true);
-    } else if (pub && pub.phase !== 'DRAW' && drawModalOpen) {
-      setDrawModalOpen(false);
-    }
-  }, [pub?.phase, pub?.currentPlayer, slot, drawModalOpen]);
+  if (pub && pub.phase === 'DRAW' && pub.currentPlayer === slot && !drawModalOpen) {
+    setDrawModalOpen(true);
+  } else if (pub && pub.phase !== 'DRAW' && drawModalOpen) {
+    setDrawModalOpen(false);
+  }
 
   useEffect(() => {
     if (!cardError) return;
@@ -140,27 +138,30 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
     lastLog: lastLog ? { player: lastLog.player, action: lastLog.action } : null,
   });
 
+  const newTelemetryEvents: string[] = [];
+  if (visualFeedback.trail) {
+    newTelemetryEvents.push(`[trail] ${visualFeedback.trail.actor === slot ? 'you' : 'opponent'} ${visualFeedback.trail.kind}`);
+  }
+  if (visualFeedback.goldDeltas[0] !== 0 || visualFeedback.goldDeltas[1] !== 0) {
+    const myDelta = visualFeedback.goldDeltas[slot];
+    const oppDelta = visualFeedback.goldDeltas[slot === 0 ? 1 : 0];
+    newTelemetryEvents.push(`[gold] you ${myDelta}, opp ${oppDelta}`);
+  }
+  if (visualFeedback.marketFlashSlots[0].length > 0 || visualFeedback.marketFlashSlots[1].length > 0) {
+    const mySlots = visualFeedback.marketFlashSlots[slot];
+    const oppSlots = visualFeedback.marketFlashSlots[slot === 0 ? 1 : 0];
+    newTelemetryEvents.push(`[market] you ${mySlots.join(',') || '-'} | opp ${oppSlots.join(',') || '-'}`);
+  }
+  // Collect telemetry as the feedback changes (adjusted during render, not in an effect)
+  const telemetrySource = [visualFeedback.trail, visualFeedback.goldDeltas, visualFeedback.marketFlashSlots] as const;
+  const [lastTelemetrySource, setLastTelemetrySource] = useState(telemetrySource);
+  if (telemetrySource.some((value, i) => value !== lastTelemetrySource[i])) {
+    setLastTelemetrySource(telemetrySource);
+    if (showDevTelemetry && newTelemetryEvents.length > 0) setTelemetryEvents((previous) => [...newTelemetryEvents, ...previous].slice(0, 8));
+  }
   useEffect(() => {
     if (!showDevTelemetry) return;
-
-    const newEvents: string[] = [];
-    if (visualFeedback.trail) {
-      newEvents.push(`[trail] ${visualFeedback.trail.actor === slot ? 'you' : 'opponent'} ${visualFeedback.trail.kind}`);
-    }
-    if (visualFeedback.goldDeltas[0] !== 0 || visualFeedback.goldDeltas[1] !== 0) {
-      const myDelta = visualFeedback.goldDeltas[slot];
-      const oppDelta = visualFeedback.goldDeltas[slot === 0 ? 1 : 0];
-      newEvents.push(`[gold] you ${myDelta}, opp ${oppDelta}`);
-    }
-    if (visualFeedback.marketFlashSlots[0].length > 0 || visualFeedback.marketFlashSlots[1].length > 0) {
-      const mySlots = visualFeedback.marketFlashSlots[slot];
-      const oppSlots = visualFeedback.marketFlashSlots[slot === 0 ? 1 : 0];
-      newEvents.push(`[market] you ${mySlots.join(',') || '-'} | opp ${oppSlots.join(',') || '-'}`);
-    }
-
-    if (newEvents.length === 0) return;
-    newEvents.forEach((entry) => console.debug(`[JamboPlayer] ${entry}`));
-    setTelemetryEvents((previous) => [...newEvents, ...previous].slice(0, 8));
+    newTelemetryEvents.forEach((entry) => console.debug(`[JamboPlayer] ${entry}`));
   }, [showDevTelemetry, visualFeedback.trail, visualFeedback.goldDeltas, visualFeedback.marketFlashSlots, slot]);
 
   useEffect(() => {

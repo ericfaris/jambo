@@ -37,14 +37,15 @@ function HostLobby({ ws, aiDifficulty, roomMode }: { ws: WebSocketGameState; aiD
     castAccessToken: ws.castAccessToken,
   });
 
+  const { createRoom } = ws;
   const requestCreateRoom = useCallback(() => {
     const now = Date.now();
     if (now - lastCreateAttemptAt.current < 1200) {
       return;
     }
     lastCreateAttemptAt.current = now;
-    ws.createRoom(roomMode, aiDifficulty);
-  }, [ws.createRoom, roomMode, aiDifficulty]);
+    createRoom(roomMode, aiDifficulty);
+  }, [createRoom, roomMode, aiDifficulty]);
 
   useEffect(() => {
     if (!ws.connected) {

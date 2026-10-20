@@ -28,7 +28,7 @@ import { useAuthSession } from './useAuthSession.ts';
 import { useWebSocketGame, readLastRoom, forgetLastRoom } from '../multiplayer/client.ts';
 import type { WebSocketGameState } from '../multiplayer/client.ts';
 import type { AIDifficulty } from '../ai/difficulties/index.ts';
-import type { RoomMode } from '../multiplayer/types.ts';
+import type { PublicGameState, RoomMode } from '../multiplayer/types.ts';
 import { useGameStore } from '../hooks/useGameStore.ts';
 import { extractPublicState } from '../multiplayer/stateSplitter.ts';
 import { getCastSessionController, isCastSdkEnabled } from '../cast/factory.ts';
@@ -55,6 +55,14 @@ function goHome(): void {
   window.location.href = homeUrl(window.location);
 }
 
+const LANDING_PARAMS = ['auth', 'verify', 'reset'] as const;
+
+/** What a Google redirect (?auth=), confirmation (?verify=) or reset (?reset=) link brought. */
+function readLandingParams(): { authStatus: string | null; verifyToken: string | null; reset: string | null } {
+  const params = new URL(window.location.href).searchParams;
+  return { authStatus: params.get('auth'), verifyToken: params.get('verify'), reset: params.get('reset') };
+}
+
 function getRandomFirstPlayer(): 0 | 1 {
   return Math.random() < 0.5 ? 0 : 1;
 }
@@ -67,23 +75,33 @@ function isDevTVMode(): boolean {
 /** Dev-only: renders TVScreen using local game store state (no server needed). */
 function DevTVPreview() {
   const gameState = useGameStore((store) => store.state);
-  const publicState = useMemo(() => {
+  const publicState = useMemo((): PublicGameState => {
     const pub = extractPublicState(gameState);
     // Inject dummy data so we can preview all element sizes
-    pub.players[0].market = ['trinkets', 'hides', 'tea', null, 'silk', null, 'fruit', 'salt', null];
-    pub.players[0].utilities = [
-      { cardId: 'well_1', designId: 'well', usedThisTurn: false },
-      { cardId: 'drums_1', designId: 'drums', usedThisTurn: false },
-      { cardId: 'throne_1', designId: 'throne', usedThisTurn: true },
-    ];
-    pub.players[0].gold = 35;
-    pub.players[1].market = ['fruit', null, 'salt', 'trinkets', null, null];
-    pub.players[1].utilities = [
-      { cardId: 'boat_1', designId: 'boat', usedThisTurn: false },
-      { cardId: 'scale_1', designId: 'scale', usedThisTurn: false },
-    ];
-    pub.players[1].gold = 28;
-    return pub;
+    return {
+      ...pub,
+      players: [
+        {
+          ...pub.players[0],
+          market: ['trinkets', 'hides', 'tea', null, 'silk', null, 'fruit', 'salt', null],
+          utilities: [
+            { cardId: 'well_1', designId: 'well', usedThisTurn: false },
+            { cardId: 'drums_1', designId: 'drums', usedThisTurn: false },
+            { cardId: 'throne_1', designId: 'throne', usedThisTurn: true },
+          ],
+          gold: 35,
+        },
+        {
+          ...pub.players[1],
+          market: ['fruit', null, 'salt', 'trinkets', null, null],
+          utilities: [
+            { cardId: 'boat_1', designId: 'boat', usedThisTurn: false },
+            { cardId: 'scale_1', designId: 'scale', usedThisTurn: false },
+          ],
+          gold: 28,
+        },
+      ],
+    };
   }, [gameState]);
 
   const mockWs: WebSocketGameState = useMemo(() => ({
@@ -154,7 +172,13 @@ function RouterInner() {
     if (saved) useGameStore.getState().restore(saved);
     return saved;
   });
-  const [screen, setScreen] = useState<Screen>(autoResume ? autoResume.mode : 'menu');
+  // Landing from a Google redirect, an email confirmation or a password-reset
+  // link: read once on load (the effect below strips it from the address bar)
+  const [landing] = useState(() => {
+    const params = readLandingParams();
+    return { ...params, googleOutcome: params.authStatus ? describeGoogleOutcome(params.authStatus) : null };
+  });
+  const [screen, setScreen] = useState<Screen>(landing.googleOutcome ? 'login' : autoResume ? autoResume.mode : 'menu');
   const handleBackFromSettings = useCallback(() => setScreen('menu'), []);
   const [aiDifficulty, setAiDifficulty] = useState<AIDifficulty>(autoResume?.aiDifficulty ?? 'medium');
   const [savedGame, setSavedGame] = useState<SavedGame | null>(() => autoResume ?? loadLocalGame());
@@ -164,8 +188,8 @@ function RouterInner() {
   const [pendingScreen, setPendingScreen] = useState<'solo' | 'multiplayer' | null>(null);
   const [castRoomMode, setCastRoomMode] = useState<RoomMode | null>(null);
   const [castStartError, setCastStartError] = useState<string | null>(null);
-  const [authNotice, setAuthNotice] = useState<AuthNotice | null>(null);
-  const [resetToken, setResetToken] = useState<string | null>(null);
+  const [authNotice, setAuthNotice] = useState<AuthNotice | null>(landing.googleOutcome);
+  const [resetToken, setResetToken] = useState<string | null>(landing.reset);
   const newGame = useGameStore((store) => store.newGame);
   const restoreGame = useGameStore((store) => store.restore);
 
@@ -191,20 +215,16 @@ function RouterInner() {
     setScreen(saved.mode);
   }, [restoreGame]);
 
-  // Landing from a Google redirect (?auth=), an email confirmation link
-  // (?verify=) or a password-reset link (?reset=): act on it once, then strip
-  // it from the address bar so a refresh or a shared URL doesn't replay it.
+  // The landing link (above) is acted on once, then stripped from the address
+  // bar so a refresh or a shared URL doesn't replay it.
   const { refresh: refreshAuth } = auth;
   useEffect(() => {
     const url = new URL(window.location.href);
-    const authStatus = url.searchParams.get('auth');
+    if (!LANDING_PARAMS.some((key) => url.searchParams.has(key))) return;
     const verifyToken = url.searchParams.get('verify');
-    const reset = url.searchParams.get('reset');
-    if (!authStatus && !verifyToken && !reset) return;
-    for (const key of ['auth', 'verify', 'reset']) url.searchParams.delete(key);
+    for (const key of LANDING_PARAMS) url.searchParams.delete(key);
     window.history.replaceState(window.history.state, '', url.toString());
 
-    if (reset) setResetToken(reset);
     if (verifyToken) {
       void authApi.verifyEmail(verifyToken).then((result) => {
         setAuthNotice(result.ok
@@ -213,11 +233,6 @@ function RouterInner() {
         setScreen('login');
         void refreshAuth();
       });
-    }
-    const outcome = authStatus ? describeGoogleOutcome(authStatus) : null;
-    if (outcome) {
-      setAuthNotice(outcome);
-      setScreen('login');
     }
   }, [refreshAuth]);
 

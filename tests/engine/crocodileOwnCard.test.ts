@@ -66,7 +66,8 @@ describe('Crocodile never pays for its own effect', () => {
         const html = renderToStaticMarkup(createElement(InteractionPanel, { state: s, dispatch: () => {}, viewerPlayer: 0 }));
         expect(html).toContain('/assets/cards/parrot.png');
         // exactly one Crocodile face: the second copy, not the one being played
-        expect(html.match(/\/assets\/cards\/crocodile\.png/g) ?? []).toHaveLength(1);
+        // (count <img src>, not React 19's <link rel="preload" href> for the same image)
+        expect(html.match(/src="\/assets\/cards\/crocodile\.png"/g) ?? []).toHaveLength(1);
       });
     });
   }

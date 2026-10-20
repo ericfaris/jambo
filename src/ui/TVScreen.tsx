@@ -105,7 +105,8 @@ export function TVScreen({ ws }: TVScreenProps) {
   const [debugHints] = useState(() => getDebugHints());
   const [debugHintsOverlay, setDebugHintsOverlay] = useState(false);
   const [debugGoldDelta, setDebugGoldDelta] = useState<[number, number]>([0, 0]);
-  const debugGoldCounterRef = useRef(0);
+  // Bumped per debug delta so a repeated value replays its animation
+  const [debugGoldCounter, setDebugGoldCounter] = useState(0);
   const [telemetryEvents, setTelemetryEvents] = useState<string[]>([]);
   const [playerSectionHeight, setPlayerSectionHeight] = useState<number | null>(null);
   useAudioEvents(ws.audioEvent, ws.clearAudioEvent, pub);
@@ -183,23 +184,26 @@ export function TVScreen({ ws }: TVScreenProps) {
     window.localStorage.setItem(HIGH_CONTRAST_STORAGE_KEY, String(highContrast));
   }, [highContrast]);
 
+  const newTelemetryEvents: string[] = [];
+  if (visualFeedback.trail) {
+    newTelemetryEvents.push(`[trail] ${visualFeedback.trail.actor === 1 ? 'player 2' : 'player 1'} ${visualFeedback.trail.kind}`);
+  }
+  if (visualFeedback.goldDeltas[0] !== 0 || visualFeedback.goldDeltas[1] !== 0) {
+    newTelemetryEvents.push(`[gold] p1 ${visualFeedback.goldDeltas[0]}, p2 ${visualFeedback.goldDeltas[1]}`);
+  }
+  if (visualFeedback.marketFlashSlots[0].length > 0 || visualFeedback.marketFlashSlots[1].length > 0) {
+    newTelemetryEvents.push(`[market] p1 ${visualFeedback.marketFlashSlots[0].join(',') || '-'} | p2 ${visualFeedback.marketFlashSlots[1].join(',') || '-'}`);
+  }
+  // Collect telemetry as the feedback changes (adjusted during render, not in an effect)
+  const telemetrySource = [visualFeedback.trail, visualFeedback.goldDeltas, visualFeedback.marketFlashSlots] as const;
+  const [lastTelemetrySource, setLastTelemetrySource] = useState(telemetrySource);
+  if (telemetrySource.some((value, i) => value !== lastTelemetrySource[i])) {
+    setLastTelemetrySource(telemetrySource);
+    if (showDevTelemetry && newTelemetryEvents.length > 0) setTelemetryEvents((previous) => [...newTelemetryEvents, ...previous].slice(0, 8));
+  }
   useEffect(() => {
     if (!showDevTelemetry) return;
-
-    const newEvents: string[] = [];
-    if (visualFeedback.trail) {
-      newEvents.push(`[trail] ${visualFeedback.trail.actor === 1 ? 'player 2' : 'player 1'} ${visualFeedback.trail.kind}`);
-    }
-    if (visualFeedback.goldDeltas[0] !== 0 || visualFeedback.goldDeltas[1] !== 0) {
-      newEvents.push(`[gold] p1 ${visualFeedback.goldDeltas[0]}, p2 ${visualFeedback.goldDeltas[1]}`);
-    }
-    if (visualFeedback.marketFlashSlots[0].length > 0 || visualFeedback.marketFlashSlots[1].length > 0) {
-      newEvents.push(`[market] p1 ${visualFeedback.marketFlashSlots[0].join(',') || '-'} | p2 ${visualFeedback.marketFlashSlots[1].join(',') || '-'}`);
-    }
-
-    if (newEvents.length === 0) return;
-    newEvents.forEach((entry) => console.debug(`[JamboTV] ${entry}`));
-    setTelemetryEvents((previous) => [...newEvents, ...previous].slice(0, 8));
+    newTelemetryEvents.forEach((entry) => console.debug(`[JamboTV] ${entry}`));
   }, [showDevTelemetry, visualFeedback.trail, visualFeedback.goldDeltas, visualFeedback.marketFlashSlots]);
 
   const rematchStatusMessage = pub.phase === 'GAME_OVER' && ws.rematchRequired.length > 0
@@ -232,7 +236,7 @@ export function TVScreen({ ws }: TVScreenProps) {
         flipWoodBackground={true}
         fixedHeight={playerSectionHeight !== null ? playerSectionHeight + PLAYER_SECTION_EXTRA_HEIGHT_PX : null}
         goldDelta={debugGoldDelta[1] || visualFeedback.goldDeltas[1]}
-        debugGoldCounter={debugGoldCounterRef.current}
+        debugGoldCounter={debugGoldCounter}
         marketFlashSlots={visualFeedback.marketFlashSlots[1]}
         waitingMessage={waitingInfo.targetPlayer === 1 ? waitingInfo.message ?? undefined : undefined}
       />
@@ -253,7 +257,7 @@ export function TVScreen({ ws }: TVScreenProps) {
         fixedHeight={playerSectionHeight !== null ? playerSectionHeight + PLAYER_SECTION_EXTRA_HEIGHT_PX : null}
         onMeasureHeight={setPlayerSectionHeight}
         goldDelta={debugGoldDelta[0] || visualFeedback.goldDeltas[0]}
-        debugGoldCounter={debugGoldCounterRef.current}
+        debugGoldCounter={debugGoldCounter}
         marketFlashSlots={visualFeedback.marketFlashSlots[0]}
         waitingMessage={waitingInfo.targetPlayer === 0 ? waitingInfo.message ?? undefined : undefined}
       />
@@ -324,7 +328,7 @@ export function TVScreen({ ws }: TVScreenProps) {
                 onClick={() => {
                   setDebugGoldDelta([0, 0]);
                   requestAnimationFrame(() => {
-                    debugGoldCounterRef.current++;
+                    setDebugGoldCounter((n) => n + 1);
                     setDebugGoldDelta([values[i], values[i]]);
                     setTimeout(() => setDebugGoldDelta([0, 0]), 1500);
                   });
@@ -628,9 +632,15 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
   const phaseColor = pub.phase === 'DRAW' ? '#5a9ab0' : pub.phase === 'PLAY' ? '#7a9a4a' : '#c04030';
 
   const topDiscard = pub.discardPile.length > 0 ? pub.discardPile[0] : null;
-  const [displayDiscardCard, setDisplayDiscardCard] = useState(topDiscard);
-  const [actionTag, setActionTag] = useState<string | null>(null);
-  const [lastActionRecap, setLastActionRecap] = useState<string | null>(null);
+  const trail = visualFeedback?.trail;
+  // A discard trail keeps the card it carries off the pile until it lands
+  const [revealedTrail, setRevealedTrail] = useState<typeof trail | null>(null);
+  const displayDiscardCard = trail?.kind === 'discard' && trail.cardId && revealedTrail !== trail
+    ? (pub.discardPile.length > 1 ? pub.discardPile[1] : null)
+    : topDiscard;
+  // Which trail's action tag and which log length's recap have timed out
+  const [expiredTagTrail, setExpiredTagTrail] = useState<typeof trail | null>(null);
+  const [expiredRecapAt, setExpiredRecapAt] = useState<number | null>(null);
   const rowRef = useRef<HTMLDivElement | null>(null);
   const deckPileRef = useRef<HTMLDivElement | null>(null);
   const discardPileRef = useRef<HTMLDivElement | null>(null);
@@ -638,33 +648,27 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
   const [discardTrailTarget, setDiscardTrailTarget] = useState<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
-    const trail = visualFeedback?.trail;
-    if (trail?.kind === 'discard' && trail.cardId) {
-      const previousTop = pub.discardPile.length > 1 ? pub.discardPile[1] : null;
-      setDisplayDiscardCard(previousTop);
-      const timer = window.setTimeout(() => {
-        setDisplayDiscardCard(pub.discardPile.length > 0 ? pub.discardPile[0] : null);
-      }, FEEDBACK_TIMINGS.discardPileRevealDelayMs);
-      return () => window.clearTimeout(timer);
-    }
-
-    setDisplayDiscardCard(topDiscard);
-    return;
-  }, [visualFeedback?.trail, pub.discardPile, topDiscard]);
-
-  useEffect(() => {
-    const trail = visualFeedback?.trail;
-    if (!trail) return;
-    setActionTag(describeTrailTag(trail.kind, `Player ${trail.actor + 1}`, pub.log.slice(-6)));
-    const timer = window.setTimeout(() => setActionTag(null), FEEDBACK_TIMINGS.actionTagDurationMs);
+    if (!(trail?.kind === 'discard' && trail.cardId)) return;
+    const timer = window.setTimeout(() => setRevealedTrail(trail), FEEDBACK_TIMINGS.discardPileRevealDelayMs);
     return () => window.clearTimeout(timer);
-  }, [visualFeedback?.trail]);
+  }, [trail]);
 
+  const actionTag = trail && expiredTagTrail !== trail
+    ? describeTrailTag(trail.kind, `Player ${trail.actor + 1}`, pub.log.slice(-6))
+    : null;
   useEffect(() => {
-    if (pub.log.length === 0) return;
-    const latest = pub.log[pub.log.length - 1];
-    setLastActionRecap(formatLogRecap(latest, ['Player 1', 'Player 2']));
-    const timer = window.setTimeout(() => setLastActionRecap(null), 2500);
+    if (!trail) return;
+    const timer = window.setTimeout(() => setExpiredTagTrail(trail), FEEDBACK_TIMINGS.actionTagDurationMs);
+    return () => window.clearTimeout(timer);
+  }, [trail]);
+
+  const lastActionRecap = pub.log.length > 0 && expiredRecapAt !== pub.log.length
+    ? formatLogRecap(pub.log[pub.log.length - 1], ['Player 1', 'Player 2'])
+    : null;
+  useEffect(() => {
+    const logLength = pub.log.length;
+    if (logLength === 0) return;
+    const timer = window.setTimeout(() => setExpiredRecapAt(logLength), 2500);
     return () => window.clearTimeout(timer);
   }, [pub.log.length]);
 

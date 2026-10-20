@@ -5,6 +5,8 @@ import type { ReceiverToSenderMessage } from './contracts.ts';
 
 const CAST_SYNC_RETRY_MS = 3000;
 
+const DISABLED_STATE: CastRoomSyncState = { status: 'disabled', error: null, syncedRoomCode: null };
+
 export interface CastRoomSyncState {
   status: 'disabled' | 'idle' | 'syncing' | 'synced' | 'error';
   error: string | null;
@@ -52,10 +54,7 @@ export function useCastRoomSync({
   }, [roomCode, roomMode, senderPlayerSlot, castAccessToken]);
 
   useEffect(() => {
-    if (!enabled) {
-      setState({ status: 'disabled', error: null, syncedRoomCode: null });
-      return;
-    }
+    if (!enabled) return;
 
     const controller = getCastSessionController();
     let retryTimer: number | null = null;
@@ -198,14 +197,8 @@ export function useCastRoomSync({
       confirmedSyncKeyRef.current = null;
     }
 
-    if (!syncKey) {
-      setState((previous) => ({
-        ...previous,
-        status: 'idle',
-        error: null,
-      }));
-      stopRetryLoop();
-    } else if (confirmedSyncKeyRef.current !== syncKey) {
+    // No room yet: trySync below settles the status to idle
+    if (syncKey && confirmedSyncKeyRef.current !== syncKey) {
       startRetryLoop();
     }
 
@@ -217,5 +210,5 @@ export function useCastRoomSync({
     };
   }, [enabled, roomCode, roomMode, senderPlayerSlot, syncKey, castAccessToken]);
 
-  return state;
+  return enabled ? state : DISABLED_STATE;
 }

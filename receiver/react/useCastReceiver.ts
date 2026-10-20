@@ -89,6 +89,8 @@ export function useCastReceiver(): WebSocketGameState {
   const pollTimerRef = useRef<number | null>(null);
   const streamSourceRef = useRef<EventSource | null>(null);
   const streamRetryTimerRef = useRef<number | null>(null);
+  // The stream's retry timer restarts the stream; a ref breaks the self-reference
+  const startStreamRef = useRef<() => void>(() => {});
 
   const clearPollTimer = useCallback(() => {
     if (pollTimerRef.current !== null) {
@@ -193,13 +195,17 @@ export function useCastReceiver(): WebSocketGameState {
         clearStreamRetryTimer();
         streamRetryTimerRef.current = window.setTimeout(() => {
           clearPollTimer();
-          startStream();
+          startStreamRef.current();
         }, STREAM_RETRY_MS);
       };
     } catch {
       startPolling();
     }
   }, [closeStreamSource, clearStreamRetryTimer, applySnapshot, startPolling, clearPollTimer, resetReceiverState]);
+
+  useEffect(() => {
+    startStreamRef.current = startStream;
+  }, [startStream]);
 
   const restartRealtimeSync = useCallback(() => {
     clearPollTimer();

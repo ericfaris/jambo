@@ -34,46 +34,53 @@ export function TurnSweep({ state, viewer, enabled = true, held = false, onActiv
   /** Waiting or sweeping — the draw dialog opens after it. */
   onActiveChange?: (active: boolean) => void;
 }) {
-  const prevRef = useRef<Pick<GameState, 'currentPlayer' | 'turn'> | null>(null);
   const [key, setKey] = useState(0);
   const [shown, setShown] = useState(false);
-  // a hand-over waiting for the board to go still (when it started)
-  const [pendingSince, setPendingSince] = useState<number | null>(null);
+  // a hand-over waiting for the board to go still (counted, so each wait is its own)
+  const [pending, setPending] = useState(false);
+  const [handOvers, setHandOvers] = useState(0);
+  const pendingSinceRef = useRef<{ handOver: number; at: number } | null>(null);
   const [recheck, setRecheck] = useState(0);
 
-  useEffect(() => {
-    const prev = prevRef.current;
-    prevRef.current = { currentPlayer: state.currentPlayer, turn: state.turn };
-    // never over the results (or once switched off)
+  // React to the turn changing during render (the previous values live in state)
+  const [prev, setPrev] = useState({ currentPlayer: state.currentPlayer, turn: state.turn, phase: state.phase, enabled, viewer });
+  if (prev.currentPlayer !== state.currentPlayer || prev.turn !== state.turn || prev.phase !== state.phase || prev.enabled !== enabled || prev.viewer !== viewer) {
+    setPrev({ currentPlayer: state.currentPlayer, turn: state.turn, phase: state.phase, enabled, viewer });
     if (!enabled || state.phase === 'GAME_OVER') {
+      // never over the results (or once switched off)
       setShown(false);
-      setPendingSince(null);
-      return;
+      setPending(false);
+    } else {
+      // the turn moved on before it could sweep: drop it
+      if (state.currentPlayer !== viewer) setPending(false);
+      if (shouldSweepTurn(prev, state, viewer)) {
+        setHandOvers((n) => n + 1);
+        setPending(true);
+      }
     }
-    // the turn moved on before it could sweep: drop it
-    if (state.currentPlayer !== viewer) setPendingSince(null);
-    if (!shouldSweepTurn(prev, state, viewer)) return;
-    setPendingSince(Date.now());
-  }, [state.currentPlayer, state.turn, state.phase, enabled, viewer]);
+  }
 
   // Sweep once the board has been still for a beat (cancelled if it moves again)
   useEffect(() => {
-    if (pendingSince === null) return;
-    const waited = Date.now() - pendingSince;
+    if (!pending) return;
+    const current = pendingSinceRef.current;
+    const since = current && current.handOver === handOvers ? current : { handOver: handOvers, at: Date.now() };
+    pendingSinceRef.current = since;
+    const waited = Date.now() - since.at;
     if (!sweepReady({ held, waitedMs: waited })) {
       // look again when the wait runs out, even if `held` never changes
       const t = window.setTimeout(() => setRecheck((n) => n + 1), Math.max(200, DRAW_MODAL_MAX_WAIT_MS - waited));
       return () => window.clearTimeout(t);
     }
     const t = window.setTimeout(() => {
-      setPendingSince(null);
+      setPending(false);
       setKey((k) => k + 1);
       setShown(true);
     }, held ? 0 : DRAW_MODAL_SETTLE_MS);
     return () => window.clearTimeout(t);
-  }, [pendingSince, held, recheck]);
+  }, [pending, handOvers, held, recheck]);
 
-  const active = pendingSince !== null || shown;
+  const active = pending || shown;
   useEffect(() => {
     onActiveChange?.(active);
   }, [active, onActiveChange]);

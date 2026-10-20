@@ -234,21 +234,22 @@ export function GameBoard({
     [state.players, opponentPlayer, spotlightQueue],
   );
 
-  useEffect(() => {
-    // While open, everything is read; a shorter log means a new game started
-    if (logVisible || state.log.length < logSeenLength) setLogSeenLength(state.log.length);
-  }, [logVisible, state.log.length, logSeenLength]);
+  // While open, everything is read; a shorter log means a new game started
+  if ((logVisible || state.log.length < logSeenLength) && logSeenLength !== state.log.length) {
+    setLogSeenLength(state.log.length);
+  }
   const toggleLogPin = useCallback(() => {
     setPref('logPinned', !logPinnedPref);
     setLogOpen(false);
   }, [setPref, logPinnedPref]);
   const closeLog = useCallback(() => setLogOpen(false), []);
 
+  const onLoggedOut = menu.onLoggedOut;
   const handleLogout = useCallback(async () => {
     await authLogout();
     setMenuOpen(false);
-    menu.onLoggedOut?.();
-  }, [authLogout, menu.onLoggedOut]);
+    onLoggedOut?.();
+  }, [authLogout, onLoggedOut]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -295,17 +296,21 @@ export function GameBoard({
   const opponentMoveAnimating = spotlightQueue.length > 0 || flightsBusy || strikes.busy;
   const boardAnimating = opponentMoveAnimating || sweepActive;
   const [drawWaitExpired, setDrawWaitExpired] = useState(false);
-  useEffect(() => {
+  // The wait restarts with each draw phase (and each turn)
+  const drawWaitKey = `${myDrawPhase}:${state.turn}`;
+  const [drawWaitFor, setDrawWaitFor] = useState(drawWaitKey);
+  if (drawWaitFor !== drawWaitKey) {
+    setDrawWaitFor(drawWaitKey);
     setDrawWaitExpired(false);
+  }
+  useEffect(() => {
     if (!myDrawPhase) return;
     const timer = window.setTimeout(() => setDrawWaitExpired(true), DRAW_MODAL_MAX_WAIT_MS);
     return () => window.clearTimeout(timer);
   }, [myDrawPhase, state.turn]);
+  if (state.phase !== 'DRAW' && drawModalOpen) setDrawModalOpen(false);
   useEffect(() => {
-    if (state.phase !== 'DRAW' && drawModalOpen) {
-      setDrawModalOpen(false);
-      return;
-    }
+    if (state.phase !== 'DRAW') return;
     if (!shouldOpenDrawModal({ myDrawPhase, open: drawModalOpen, animating: boardAnimating, waitExpired: drawWaitExpired, pending: hasPendingInteraction })) return;
     // The move that starts your turn queues its spotlight/flights a beat after
     // this render: wait a moment of stillness, so they get the chance to cancel it
@@ -320,13 +325,17 @@ export function GameBoard({
   }, [cardError]);
 
   // A server error (online) shows in the same toast as a play error, then fades
-  const [shownExternalError, setShownExternalError] = useState<{ message: string; key: number } | null>(null);
+  const [shownExternalError, setShownExternalError] = useState<{ message: string; key: number } | null>(externalError);
+  const [lastExternalError, setLastExternalError] = useState(externalError);
+  if (externalError !== lastExternalError) {
+    setLastExternalError(externalError);
+    if (externalError) setShownExternalError(externalError);
+  }
   useEffect(() => {
-    if (!externalError) return;
-    setShownExternalError(externalError);
-    const timer = setTimeout(() => setShownExternalError((current) => (current?.key === externalError.key ? null : current)), 5000);
+    if (!shownExternalError) return;
+    const timer = setTimeout(() => setShownExternalError((current) => (current?.key === shownExternalError.key ? null : current)), 5000);
     return () => clearTimeout(timer);
-  }, [externalError]);
+  }, [shownExternalError]);
 
   const canTakePlayActions =
     state.phase === 'PLAY' &&
@@ -337,9 +346,7 @@ export function GameBoard({
 
   // Close a stale buy/sell dialog once its card leaves the hand or the turn moves on
   const wareDialogStillValid = isWareDialogValid(wareDialog, canTakePlayActions, state.players[viewerPlayer].hand);
-  useEffect(() => {
-    if (wareDialog !== null && !wareDialogStillValid) setWareDialog(null);
-  }, [wareDialog, wareDialogStillValid]);
+  if (wareDialog !== null && !wareDialogStillValid) setWareDialog(null);
 
   const canTakeDrawActions =
     state.phase === 'DRAW' &&
@@ -404,23 +411,26 @@ export function GameBoard({
     lastLog: lastLog ? { player: lastLog.player, action: lastLog.action } : null,
   });
 
+  const newTelemetryEvents: string[] = [];
+  if (visualFeedback.trail) {
+    newTelemetryEvents.push(`[trail] ${visualFeedback.trail.actor === 1 ? 'opponent' : 'you'} ${visualFeedback.trail.kind}`);
+  }
+  if (visualFeedback.goldDeltas[0] !== 0 || visualFeedback.goldDeltas[1] !== 0) {
+    newTelemetryEvents.push(`[gold] you ${visualFeedback.goldDeltas[0]}, opp ${visualFeedback.goldDeltas[1]}`);
+  }
+  if (visualFeedback.marketFlashSlots[0].length > 0 || visualFeedback.marketFlashSlots[1].length > 0) {
+    newTelemetryEvents.push(`[market] you ${visualFeedback.marketFlashSlots[0].join(',') || '-'} | opp ${visualFeedback.marketFlashSlots[1].join(',') || '-'}`);
+  }
+  // Collect telemetry as the feedback changes (adjusted during render, not in an effect)
+  const telemetrySource = [visualFeedback.trail, visualFeedback.goldDeltas, visualFeedback.marketFlashSlots] as const;
+  const [lastTelemetrySource, setLastTelemetrySource] = useState(telemetrySource);
+  if (telemetrySource.some((value, i) => value !== lastTelemetrySource[i])) {
+    setLastTelemetrySource(telemetrySource);
+    if (showDevTelemetry && newTelemetryEvents.length > 0) setTelemetryEvents((previous) => [...newTelemetryEvents, ...previous].slice(0, 8));
+  }
   useEffect(() => {
     if (!showDevTelemetry) return;
-
-    const newEvents: string[] = [];
-    if (visualFeedback.trail) {
-      newEvents.push(`[trail] ${visualFeedback.trail.actor === 1 ? 'opponent' : 'you'} ${visualFeedback.trail.kind}`);
-    }
-    if (visualFeedback.goldDeltas[0] !== 0 || visualFeedback.goldDeltas[1] !== 0) {
-      newEvents.push(`[gold] you ${visualFeedback.goldDeltas[0]}, opp ${visualFeedback.goldDeltas[1]}`);
-    }
-    if (visualFeedback.marketFlashSlots[0].length > 0 || visualFeedback.marketFlashSlots[1].length > 0) {
-      newEvents.push(`[market] you ${visualFeedback.marketFlashSlots[0].join(',') || '-'} | opp ${visualFeedback.marketFlashSlots[1].join(',') || '-'}`);
-    }
-
-    if (newEvents.length === 0) return;
-    newEvents.forEach((entry) => console.debug(`[JamboUI] ${entry}`));
-    setTelemetryEvents((previous) => [...newEvents, ...previous].slice(0, 8));
+    newTelemetryEvents.forEach((entry) => console.debug(`[JamboUI] ${entry}`));
   }, [showDevTelemetry, visualFeedback.trail, visualFeedback.goldDeltas, visualFeedback.marketFlashSlots]);
 
   useEffect(() => {
