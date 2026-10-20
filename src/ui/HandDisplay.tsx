@@ -72,7 +72,7 @@ function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaVie
   } else if (hand.length >= 9) {
     const cardsOverBase = hand.length - 9;
 
-    let baseOverlap = 0;
+    let baseOverlap: number;
     if (hand.length <= 11) {
       baseOverlap = hand.length === 9 ? 4 : hand.length === 10 ? 14.5 : 25;
     } else {
