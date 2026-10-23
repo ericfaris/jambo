@@ -36,16 +36,20 @@ edge case on purpose.
 ## 1. Stand up the stack
 
 1. **Keep the playtest off the production DB.** `.env` has the real Atlas
-   `MONGODB_URI` with `MONGODB_DB=jambo`, and the server writes stats and
-   AI telemetry there. `loadEnv.ts` never overrides an env var that's
-   already set, so always start the server with an explicit override:
-   `MONGODB_DB=jambo-playtest`. Alternatively, `MONGODB_URI=` disables
-   Mongo entirely, which is fine unless you're testing stats or login.
+   `MONGODB_URI` (user `jambo-rw`, db `jambo`), and the server writes stats
+   and AI telemetry there. `.env` also holds `MONGODB_TEST_URI` (user
+   `jambo-test-rw`, which can only reach the `jambo-test` db).
+   `loadEnv.ts` never overrides an env var that's already set, so always
+   start the server with both overrides: `MONGODB_URI` set from
+   `MONGODB_TEST_URI`, and `MONGODB_DB=jambo-test`. Setting only
+   `MONGODB_DB=jambo-test` now fails, because the prod user has no access
+   to the test db. Alternatively, `MONGODB_URI=` disables Mongo entirely,
+   which is fine unless you're testing stats or login.
    **Never run the playtest server without one of these overrides.**
 2. Start both processes with `run_in_background: true` on the Bash tool.
    Never use `&`/`disown`: that detaches from the harness and the process
    dies silently.
-   - `zsh -i -c "MONGODB_DB=jambo-playtest npm run server"` (:3001,
+   - `zsh -i -c 'MONGODB_URI="$(sed -n s/^MONGODB_TEST_URI=//p .env)" MONGODB_DB=jambo-test npm run server'` (:3001,
      WebSocket at `/ws`)
    - `zsh -i -c "npm run dev"` (Vite proxies `/api` and `/ws` to :3001;
      check the log for the port Vite picked)
@@ -261,5 +265,5 @@ When the run ends (or the user calls time), report back:
   or file:line for fixes and the regression test name
 - Anything logged with `create-issue` instead of fixed, and why
 - Confirm the background servers were stopped. Mention that
-  `jambo-playtest` DB rows can be dropped if you used it
+  `jambo-test` DB rows can be dropped if you used it
 - Append a `LESSONS.md` entry if anything non-obvious turned up
