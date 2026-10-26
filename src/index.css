@@ -3570,3 +3570,42 @@ button.menu-abandon-link:hover:not(:disabled) { background: none; border: 0; col
 @media (prefers-reduced-motion: reduce) {
   .strike-layer { display: none; }
 }
+
+/* Picked-card stamp (Tribal Elder discard): a selection must be unmistakable */
+.card-marked { transform: translateY(-8px); transition: transform var(--motion-fast) var(--anim-ease-standard); }
+.card-marked .card-face { box-shadow: 0 0 0 3px #b3261e, 0 6px 14px rgba(120, 20, 10, 0.45) !important; border-color: #b3261e !important; }
+.card-mark-stamp {
+  position: absolute; inset: 0; border-radius: 10px; pointer-events: none;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  background: rgba(150, 25, 15, 0.38);
+  animation: card-mark-in 160ms var(--anim-ease-standard);
+}
+.card-mark-check {
+  width: 30px; height: 30px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: #b3261e; color: #fff; font-size: 17px; font-weight: 800; line-height: 1;
+  border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.45);
+}
+.card-mark-label {
+  transform: rotate(-12deg);
+  padding: 1px 7px; border: 2px solid #fff; border-radius: 4px;
+  background: #b3261e; color: #fff;
+  font-family: var(--font-heading); font-weight: 800; font-size: 13px; letter-spacing: 1.2px; text-transform: uppercase;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+}
+@keyframes card-mark-in { from { opacity: 0; transform: scale(1.25); } to { opacity: 1; transform: scale(1); } }
+
+.selection-counter {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: fit-content; margin: 6px auto 8px; padding: 4px 12px; border-radius: 999px;
+  font-family: var(--font-heading); font-weight: 800; font-size: 15px;
+  background: rgba(179, 38, 30, 0.12); color: #8a2a1c; border: 2px solid rgba(179, 38, 30, 0.45);
+}
+.selection-counter-done { background: rgba(46, 125, 50, 0.14); color: #1f6a28; border-color: rgba(46, 125, 50, 0.55); }
+.selection-counter-pips { display: inline-flex; gap: 4px; }
+.selection-pip { width: 11px; height: 11px; border-radius: 50%; border: 2px solid currentColor; box-sizing: border-box; }
+.selection-pip-on { background: currentColor; }
+@media (prefers-reduced-motion: reduce) {
+  .card-marked { transition: none; }
+  .card-mark-stamp { animation: none; }
+}

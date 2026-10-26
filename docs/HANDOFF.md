@@ -43,6 +43,10 @@ Run via `zsh -i -c "…"` (nvm).
 3. Tribal Elder "opponent discards to 3" is offered even when it does nothing (the
    opponent already has ≤3 cards); the panel now explains it, but validation could
    warn before the action is spent.
+4. The red "DISCARD" pick stamp (`selectedMark` on `SelectableCardArea`) and the
+   `SelectionCounter` pill are only on the Tribal Elder discard so far; other
+   multi-card pickers (Kettle etc.) still use the thin gold ring and could adopt
+   them. Preview: `/?online=1&slot=0&stage=tribalelder`.
 
 ## Decisions that may get revisited
 

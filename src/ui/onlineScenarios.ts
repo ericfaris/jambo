@@ -10,7 +10,7 @@ import type { CardDesignId, DeckCardId, GameAction, GameState, PlayerState, Util
 import { getCard } from '../engine/cards/CardDatabase.ts';
 import type { OnlineSeatView } from '../multiplayer/types.ts';
 
-export const ONLINE_SCENARIOS = ['guard', 'rainmaker', 'elephant', 'ape', 'lion', 'auction', 'arabian', 'cancel', 'endgame'] as const;
+export const ONLINE_SCENARIOS = ['guard', 'rainmaker', 'elephant', 'ape', 'lion', 'auction', 'arabian', 'cancel', 'endgame', 'tribalelder'] as const;
 export type OnlineScenario = typeof ONLINE_SCENARIOS[number];
 
 export function isOnlineScenario(value: string | null): value is OnlineScenario {
@@ -172,6 +172,20 @@ export function stageOnlineScenario(base: GameState, scenario: OnlineScenario, v
       s = stockMarket(s, viewer, ['salt', 'salt', 'salt']);
       s = giveCard(s, viewer, 'ware_3s').state;
       return { state: s, script: [] };
+    }
+    case 'tribalelder': {
+      // The friend's Tribal Elder makes you discard down to 3 — you pick which
+      s = playPhase(s, other);
+      s = stageViewerExtras(s, viewer, 6, 0);
+      const elder = giveCard(s, other, 'tribal_elder');
+      s = elder.state;
+      return {
+        state: s,
+        script: [
+          { type: 'PLAY_CARD', cardId: elder.cardId },
+          { type: 'RESOLVE_INTERACTION', response: { type: 'BINARY_CHOICE', choice: 1 } },
+        ],
+      };
     }
   }
 }

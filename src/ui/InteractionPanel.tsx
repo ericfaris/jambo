@@ -106,13 +106,24 @@ function getWareGridStyle(wareCount: number) {
   } as const;
 }
 
-function SelectableCardArea({
+/** The overlay on a picked card: a red wash and a tilted stamp naming what happens to it. */
+function SelectedStamp({ label }: { label: string }) {
+  return (
+    <div className="card-mark-stamp" aria-hidden="true">
+      <span className="card-mark-check">✕</span>
+      <span className="card-mark-label">{label}</span>
+    </div>
+  );
+}
+
+export function SelectableCardArea({
   cards,
   onSelect,
   onMegaView,
   selectedIndices,
   selectedCardIds,
   draftAnchors = false,
+  selectedMark,
 }: {
   cards: DeckCardId[];
   onSelect: (cardId: DeckCardId, index: number) => void;
@@ -121,21 +132,33 @@ function SelectableCardArea({
   selectedCardIds?: DeckCardId[];
   /** Draft pool: tag each card (data-draft-card) so a pick can fly from it. */
   draftAnchors?: boolean;
+  /** Stamp a selected card with this word (e.g. "Discard") so a pick is unmistakable. */
+  selectedMark?: string;
 }) {
   const useOverlap = cards.length >= 8;
+  const isSelected = (cardId: DeckCardId, index: number) =>
+    Boolean(selectedIndices?.includes(index) || selectedCardIds?.includes(cardId));
+  const stamp = (cardId: DeckCardId, index: number) =>
+    selectedMark && isSelected(cardId, index) ? <SelectedStamp label={selectedMark} /> : null;
 
   if (!useOverlap) {
     return (
       <div style={getCardGridStyle(cards.length)}>
         {cards.map((cardId, index) => (
-          <div key={`${cardId}-${index}`} data-draft-card={draftAnchors ? cardId : undefined} style={{ display: 'contents' }}>
+          <div
+            key={`${cardId}-${index}`}
+            data-draft-card={draftAnchors ? cardId : undefined}
+            className={selectedMark && isSelected(cardId, index) ? 'card-marked' : undefined}
+            style={selectedMark ? { position: 'relative' } : { display: 'contents' }}
+          >
             <CardFace
               cardId={cardId}
               small
-              selected={selectedIndices?.includes(index) || selectedCardIds?.includes(cardId)}
+              selected={isSelected(cardId, index)}
               onClick={() => onSelect(cardId, index)}
               onMegaView={onMegaView}
             />
+            {stamp(cardId, index)}
           </div>
         ))}
       </div>
@@ -164,6 +187,7 @@ function SelectableCardArea({
         <div
           key={`${cardId}-${index}`}
           data-draft-card={draftAnchors ? cardId : undefined}
+          className={selectedMark && isSelected(cardId, index) ? 'card-marked' : undefined}
           style={{
             marginLeft: index === 0 ? 0 : -overlap,
             flexShrink: 0,
@@ -174,10 +198,11 @@ function SelectableCardArea({
           <CardFace
             cardId={cardId}
             small
-            selected={selectedIndices?.includes(index) || selectedCardIds?.includes(cardId)}
+            selected={isSelected(cardId, index)}
             onClick={() => onSelect(cardId, index)}
             onMegaView={onMegaView}
           />
+          {stamp(cardId, index)}
         </div>
       ))}
     </div>
@@ -966,6 +991,21 @@ function HandSwapPanel({ state, pr, dispatch, onMegaView }: { state: GameState; 
   );
 }
 
+/** A big "1 of 2 selected" tally with one pip per required pick; turns green when complete. */
+export function SelectionCounter({ selected, needed }: { selected: number; needed: number }) {
+  const done = selected === needed;
+  return (
+    <div className={`selection-counter${done ? ' selection-counter-done' : ''}`} role="status" aria-live="polite">
+      <span className="selection-counter-pips" aria-hidden="true">
+        {Array.from({ length: needed }, (_, i) => (
+          <span key={i} className={`selection-pip${i < selected ? ' selection-pip-on' : ''}`} />
+        ))}
+      </span>
+      <span>{selected} of {needed} selected{done ? ' ✓' : ''}</span>
+    </div>
+  );
+}
+
 function OpponentDiscardPanel({ state, pr, viewerPlayer, dispatch, onMegaView }: { state: GameState; pr: Extract<PendingResolution, { type: 'OPPONENT_DISCARD' }>; viewerPlayer: 0 | 1; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
   const { Name } = useOpponentName();
   const [selected, setSelected] = useState<number[]>([]);
@@ -994,19 +1034,22 @@ function OpponentDiscardPanel({ state, pr, viewerPlayer, dispatch, onMegaView }:
     setSelected(prev => prev.includes(i) ? prev.filter(x => x !== i) : prev.length < discardCount ? [...prev, i] : prev);
   };
 
+  const remaining = discardCount - selected.length;
   return (
     <div>
       <div className="ui-prompt-text">
-        Discard {plural(discardCount, 'card')} to reach {pr.discardTo} in hand — {selected.length}/{discardCount} selected.
+        Tap {plural(discardCount, 'card')} to discard — you keep {pr.discardTo}.
       </div>
+      <SelectionCounter selected={selected.length} needed={discardCount} />
       <SelectableCardArea
         cards={target.hand}
         selectedIndices={selected}
         onSelect={(_, i) => toggleCard(i)}
         onMegaView={onMegaView}
+        selectedMark="Discard"
       />
-      <button className="primary" disabled={selected.length !== discardCount} onClick={() => { resolve(dispatch, { type: 'OPPONENT_DISCARD_SELECTION', cardIndices: selected }); setSelected([]); }} style={{ margin: '8px auto 0', display: 'block' }}>
-        Confirm Discard
+      <button className={remaining === 0 ? 'danger' : 'primary'} disabled={remaining !== 0} onClick={() => { resolve(dispatch, { type: 'OPPONENT_DISCARD_SELECTION', cardIndices: selected }); setSelected([]); }} style={{ margin: '8px auto 0', display: 'block' }}>
+        {remaining === 0 ? `Discard ${plural(discardCount, 'card')}` : `Pick ${remaining} more`}
       </button>
     </div>
   );

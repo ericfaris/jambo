@@ -110,6 +110,21 @@ describe('stageOnlineScenario — dev preview tables', () => {
       }
     });
 
+    it(`tribalelder (seat ${viewer}): the friend's Tribal Elder leaves you picking discards`, () => {
+      for (const seed of SEEDS) {
+        const staged = stageOnlineScenario(createStartingState(seed, 0), 'tribalelder', viewer);
+        let s = staged.state;
+        const { script } = staged;
+        expect(s.players[viewer].hand.length).toBeGreaterThan(3);
+        for (const action of script) {
+          expect(validateAction(s, action).valid).toBe(true);
+          s = processAction(s, action);
+        }
+        expect(s.pendingResolution).toMatchObject({ type: 'OPPONENT_DISCARD', targetPlayer: viewer, discardTo: 3 });
+        expect(getResponder(s)).toBe(viewer);
+      }
+    });
+
     it(`endgame (seat ${viewer}): one salt sale takes you past 60g`, () => {
       for (const seed of SEEDS) {
         const { state } = stageOnlineScenario(createStartingState(seed, 0), 'endgame', viewer);
