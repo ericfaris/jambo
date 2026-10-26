@@ -712,3 +712,16 @@ overwrites tracked files.)
   chains. Never `Date.now()` during render — key on a counter instead.
 - `useCallback(() => ws.send(x), [ws.send])` fails preserve-memo (a method
   call depends on `ws`): destructure `const { send } = ws` first.
+
+## 2026-10-25 — Playtest pass: errors, confusion, clarity (v1.28.2)
+- 13 driver games + 1 online game: 0 engine errors, invariants, stalls or console errors. The
+  value was in reading the panels: copy said "opponent" in some prompts and "Amara" in
+  others, because only online mode passed a name to `InteractionPanel`.
+- Flipping "opponent"→"you" in log lines breaks verb agreement ("you has", "you
+  selects"). `describeLogEntry` now conjugates has/is/was/does; phrase new log lines
+  so the subject after "opponent" isn't followed by any other -s verb.
+- Hardcoded layout widths go stale: `HandDisplay` assumed a 600px hand, so desktop
+  9–12 card hands sat half-covered on a 1300px mat. Measure with `useElementSize`.
+- Driver `res-*` screenshots land mid-fade (CSS runs on real time; the fake clock
+  doesn't advance it), so they can't be used for copy review. `PT_PANELSHOTS=1`
+  waits real time first and also logs any "More below" pill on a settled panel.

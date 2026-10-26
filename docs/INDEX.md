@@ -15,6 +15,7 @@ This directory is the canonical documentation set for the project.
 - Test strategy and quality gates: `docs/TEST_STRATEGY.md`
 - Planning milestones: `docs/ROADMAP.md`
 - Documentation governance: `docs/DOCS_POLICY.md`
+- Current state and next steps for the next session: `docs/HANDOFF.md`
 
 ## Legacy Material
 
