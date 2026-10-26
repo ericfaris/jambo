@@ -184,13 +184,24 @@ function SelectableCardArea({
   );
 }
 
-/** Online: who "the opponent" is. Solo/hotseat/Cast keep the generic copy. */
+/** Who "the opponent" is: the friend, the AI trader or "Player 2". Cast keeps the generic copy. */
 const OpponentNameContext = createContext<string | null>(null);
 
 function useOpponentName(): { Name: string; name: string; say: (text: string) => string } {
   const named = useContext(OpponentNameContext);
   const say = (text: string) => nameTheOpponent(text, named);
   return named ? { Name: named, name: named, say } : { Name: 'Opponent', name: 'opponent', say };
+}
+
+/** "1 card", "3 cards" — not "card(s)". */
+function plural(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? '' : 's'}`;
+}
+
+/** Inline copy that mentions "opponent", named for this table. */
+function Say({ text }: { text: string }) {
+  const { say } = useOpponentName();
+  return <>{say(text)}</>;
 }
 
 export function InteractionPanel(props: InteractionPanelProps) {
@@ -565,7 +576,7 @@ function AuctionPanel({ pr, state, viewerPlayer, dispatch, onMegaView }: { pr: E
   // Ware selection phase: active player picks 2 ware types from supply
   if (!isAuctionBidding(pr)) {
     const isMyPick = state.currentPlayer === viewerPlayer;
-    if (!isMyPick) return <div className="ui-helper-text">Step 1/2: waiting for opponent to select auction wares...</div>;
+    if (!isMyPick) return <div className="ui-helper-text"><Say text="Step 1/2: waiting for opponent to select auction wares..." /></div>;
     const prompt = pr.wares.length === 0
       ? 'Pick first ware from supply for auction'
       : 'Pick second ware from supply';
@@ -700,7 +711,7 @@ function DeckPeekPanel({ pr, dispatch, onMegaView }: { pr: Extract<PendingResolu
   return (
     <div>
       <div className="ui-prompt-text">
-        Pick {pr.pickCount} card(s) to keep — the rest return to the top of the deck in order.
+        Pick {pr.pickCount} {pr.pickCount === 1 ? 'card' : 'cards'} to keep — the rest return to the top of the deck in order.
       </div>
       <SelectableCardArea
         cards={pr.revealedCards}
@@ -770,7 +781,7 @@ function WareCashPanel({ state, pr, dispatch, onMegaView }: { state: GameState; 
           )}
         </div>
         <div className="ui-helper-text" style={{ marginBottom: 8, opacity: 0.9 }}>
-          You currently have {player.market.filter(w => w !== null).length} ware(s) in market.
+          You currently have {plural(player.market.filter(w => w !== null).length, 'ware')} in market.
         </div>
         <MarketDisplay market={player.market} onSlotClick={toggleSlot} selectedSlots={selectedWares} />
         <button className="primary" disabled={selectedWares.length !== 3} onClick={() => { resolve(dispatch, { type: 'SELECT_WARES', wareIndices: selectedWares }); setPicked(null); }} style={{ margin: '8px auto 0', display: 'block' }}>
@@ -852,7 +863,7 @@ function WareTheftSinglePanel({ state, dispatch }: { state: GameState; dispatch:
   return (
     <div>
       <div className="ui-prompt-text">
-        Select 1 ware to steal from opponent ({opponentWareCount} available).
+        <Say text={`Select 1 ware to steal from opponent (${opponentWareCount} available).`} />
       </div>
       <MarketDisplay market={state.players[opponent].market} onSlotClick={(i) => resolve(dispatch, { type: 'SELECT_WARE', wareIndex: i })} />
     </div>
@@ -888,7 +899,7 @@ function WareTheftSwapPanel({ state, pr, dispatch }: { state: GameState; pr: Ext
           market={market}
           onSlotClick={(i) => resolve(dispatch, { type: 'SELECT_WARE', wareIndex: i })}
           disabledSlots={disabledSlots}
-          disabledReason="Your opponent has nothing different to trade for this"
+          disabledReason={say("Your opponent has nothing different to trade for this")}
         />
       </div>
     );
@@ -966,7 +977,7 @@ function OpponentDiscardPanel({ state, pr, viewerPlayer, dispatch, onMegaView }:
     return (
       <div>
         <div className="ui-prompt-text">
-          {Name} has {target.hand.length} card(s); discard target is {pr.discardTo}. No cards need to be discarded.
+          {Name} has only {plural(target.hand.length, 'card')} — already {pr.discardTo} or fewer, so nothing to discard.
         </div>
         <button className="primary" onClick={() => resolve(dispatch, { type: 'OPPONENT_DISCARD_SELECTION', cardIndices: [] })} style={{ margin: '8px auto 0', display: 'block' }}>
           Continue
@@ -986,7 +997,7 @@ function OpponentDiscardPanel({ state, pr, viewerPlayer, dispatch, onMegaView }:
   return (
     <div>
       <div className="ui-prompt-text">
-        Discard {discardCount} card(s) to reach {pr.discardTo} in hand — {selected.length}/{discardCount} selected.
+        Discard {plural(discardCount, 'card')} to reach {pr.discardTo} in hand — {selected.length}/{discardCount} selected.
       </div>
       <SelectableCardArea
         cards={target.hand}
@@ -1040,7 +1051,7 @@ function DraftPanel({ pr, viewerPlayer, dispatch, onMegaView }: { pr: Extract<Pe
       <div data-elephant-pool="" style={stomping ? { pointerEvents: 'none' } : undefined}>
         <div className="ui-prompt-text">
           {isMyPick
-            ? `Pick 1 ware to keep — you and your opponent alternate. (${pr.availableWares.length} in pool)`
+            ? <Say text={`Pick 1 ware to keep — you and your opponent alternate. (${pr.availableWares.length} in pool)`} />
             : `${Name} is picking... (${pr.availableWares.length} in pool)`}
         </div>
         <div style={getWareGridStyle(pr.availableWares.length)}>
@@ -1065,7 +1076,7 @@ function DraftPanel({ pr, viewerPlayer, dispatch, onMegaView }: { pr: Extract<Pe
     <div>
       <div className="ui-prompt-text">
         {isMyPick
-          ? `Pick 1 ${pr.draftMode === 'cards' ? 'card' : 'utility'} to keep — you and your opponent alternate. (${cards.length} in pool)`
+          ? <Say text={`Pick 1 ${pr.draftMode === 'cards' ? 'card' : 'utility'} to keep — you and your opponent alternate. (${cards.length} in pool)`} />
           : `${Name} is picking a ${pr.draftMode === 'cards' ? 'card' : 'utility'}... (${cards.length} in pool)`}
       </div>
       {isMyPick ? (
@@ -1170,7 +1181,9 @@ function UtilityKeepPanel({ state, pr, viewerPlayer, dispatch, onMegaView }: { s
   return (
     <div>
       <div className="ui-prompt-text">
-        Choose 1 utility to keep ({utils.length} available, {Math.max(0, utils.length - 1)} will be discarded).
+        {utils.length === 1
+          ? 'Your only utility stays — tap it to keep it.'
+          : `Choose 1 utility to keep — ${utils.length === 2 ? 'the other one is' : `the other ${utils.length - 1} are`} discarded.`}
       </div>
       <SelectableCardArea
         cards={utils.map((u) => u.cardId)}
@@ -1198,7 +1211,7 @@ function CrocodilePanel({ state, pr, dispatch, onMegaView }: { state: GameState;
     return (
       <div>
         <div className="ui-prompt-text">
-          Select 1 opponent utility to use and discard ({opUtils.length} available).
+          <Say text={`Select 1 of opponent's utilities to use and discard (${opUtils.length} available).`} />
           {opUtils.some((u) => u.designId === 'mask_of_transformation') && ' A Mask of Transformation can only be discarded, not used.'}
         </div>
         <SelectableCardArea
@@ -1209,7 +1222,7 @@ function CrocodilePanel({ state, pr, dispatch, onMegaView }: { state: GameState;
       </div>
     );
   }
-  return <div className="ui-helper-text">Using opponent's utility...</div>;
+  return <div className="ui-helper-text"><Say text="Using opponent's utility..." /></div>;
 }
 
 function UtilityEffectPanel({ state, pr, dispatch, onMegaView }: { state: GameState; pr: Extract<PendingResolution, { type: 'UTILITY_EFFECT' }>; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
@@ -1255,7 +1268,7 @@ function UtilityEffectPanel({ state, pr, dispatch, onMegaView }: { state: GameSt
     // Second phase: pick which drawn card to keep
     return (
       <div>
-        <div className="ui-prompt-text">Keep 1 card — the other goes to your opponent.</div>
+        <div className="ui-prompt-text"><Say text="Keep 1 card — the other goes to your opponent." /></div>
         <SelectableCardArea
           cards={pr.selectedCards}
           onSelect={(cardId) => resolve(dispatch, { type: 'SELECT_CARD', cardId })}

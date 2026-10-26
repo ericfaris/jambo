@@ -118,6 +118,8 @@ export function humanizeLogDetails(details: string, redactCards: boolean): strin
 }
 
 /** Engine status suffixes that mean nothing to a player reading the log. */
+/** Verbs that change form when a log line's "opponent" becomes "you". */
+const VERB_FOR_YOU: Record<string, string> = { has: 'have', is: 'are', was: 'were', does: 'do' };
 const LOG_NOISE_SUFFIX = / - awaiting (?:resolution|Guard reaction from opponent)$/;
 
 /**
@@ -143,6 +145,8 @@ export function describeLogEntry(
     // Log lines are written from the actor's side; when the actor is the
     // other seat, "opponent" is the viewer.
     text = text
+      // "Opponent has no wares" must become "You have…", not "You has…"
+      .replace(/\b([Oo])pponent (has|is|was|does)\b/g, (_m, o: string, verb: string) => `${o === 'O' ? 'You' : 'you'} ${VERB_FOR_YOU[verb]}`)
       .replace(/\bopponent's\b/g, 'your')
       .replace(/\bOpponent's\b/g, 'Your')
       .replace(/\bopponent\b/g, 'you')

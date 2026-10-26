@@ -3136,6 +3136,11 @@ button.menu-abandon-link:hover:not(:disabled) { background: none; border: 0; col
   letter-spacing: 1.6px; text-transform: uppercase; color: #8a6a3e;
 }
 .resolve-eyebrow-rule { width: 26px; height: 1px; background: linear-gradient(90deg, transparent, #b8925a, transparent); }
+/* Phone: the rules squeezed "SUPPLIES > DISCARD" onto two lines */
+@media (max-width: 480px) {
+  .resolve-eyebrow { gap: 0; letter-spacing: 1.2px; text-align: center; }
+  .resolve-eyebrow-rule { display: none; }
+}
 .resolve-title {
   margin: 0; text-align: center; text-wrap: balance;
   font-family: var(--font-heading); font-weight: 700; font-size: 22px; line-height: 1.15;

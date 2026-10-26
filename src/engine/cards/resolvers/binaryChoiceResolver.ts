@@ -98,7 +98,7 @@ function resolveCarrier(state: GameState, pending: PendingBinaryChoice, choice: 
         turn: state.turn,
         player: activePlayer,
         action: 'CARRIER_CHOICE',
-        details: 'Chose cards; opponent selects ware type.',
+        details: 'Chose cards; the 2 wares go to opponent.',
       }],
     };
   }

@@ -47,6 +47,26 @@ describe('GameBoard — one table for solo, pass and play, and online', () => {
     expect(html).toContain('Opponent (Player 2)');
   });
 
+  it('resolve panels name the other seat in solo and pass and play, not "opponent" (playtest 2026-10-25)', () => {
+    const cheetah: GameState = {
+      ...state,
+      // empty hand: no HandReferenceStrip, which reads window (not in SSR)
+      players: [{ ...state.players[0], hand: [] }, state.players[1]],
+      currentPlayer: 1,
+      pendingResolution: { type: 'OPPONENT_CHOICE', sourceCard: 'cheetah_1', options: ['Give 2g to opponent', 'Let opponent draw 2 cards'] },
+    };
+    const trader = traderFor('medium');
+    const solo = render(cheetah, {
+      hasPendingInteraction: true,
+      labels: ['You', trader.name],
+      opponent: { kind: 'trader', trader, mood: 'neutral', speaking: false, subtitle: '', bubble: '', onBubbleHide: () => {}, line: null, endQuote: null },
+    });
+    expect(solo).toContain(`Give 2g to ${trader.name}`);
+    expect(solo).not.toContain('Give 2g to opponent');
+    const hotseat = render(cheetah, { mode: 'hotseat', hasPendingInteraction: true, labels: ['Player 1', 'Player 2'], opponent: { kind: 'hotseat' } });
+    expect(hotseat).toContain('Let Player 2 draw 2 cards');
+  });
+
   it('a cover (tutorial, pass-device) replaces the table', () => {
     const html = render(state, { opponent: { kind: 'hotseat' }, cover: createElement('div', { className: 'cover-probe' }, 'Pass the device') });
     expect(html).toContain('cover-probe');

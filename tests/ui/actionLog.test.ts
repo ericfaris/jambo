@@ -115,6 +115,30 @@ describe('log text redacts only what is actually hidden', () => {
   });
 });
 
+describe('log text flipped to the viewer stays grammatical', () => {
+  it('conjugates the verb when "opponent" becomes "you" (playtest 2026-10-25)', () => {
+    expect(describeLogEntry({ player: 1, action: 'PARROT_STEAL', details: 'Opponent has no wares to steal' }, LABELS))
+      .toBe('You have no wares to steal');
+    expect(describeLogEntry({ player: 1, action: 'SNAKE', details: 'Snake effect resolved (opponent has no utilities)' }, LABELS))
+      .toBe('Snake effect resolved (you have no utilities)');
+    expect(describeLogEntry({ player: 1, action: 'TRIBAL_ELDER', details: 'Opponent is out of cards' }, LABELS))
+      .toBe('You are out of cards');
+  });
+
+  it('says who gets the Carrier wares without a broken verb', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['carrier_1']);
+    s = act(s, { type: 'PLAY_CARD', cardId: 'carrier_1' });
+    s = act(s, { type: 'RESOLVE_INTERACTION', response: { type: 'BINARY_CHOICE', choice: 1 } });
+    const entry = s.log.find((e) => e.details?.startsWith('Chose cards'));
+    expect(entry).toBeDefined();
+    const theirView = formatLogRecap(entry!, ['Amara', 'You']);
+    expect(theirView).not.toMatch(/\byou [a-z]+s\b/);
+    expect(theirView).toBe('Amara: Chose cards; the 2 wares go to you.');
+    expect(describeLogEntry(entry!, LABELS)).toBe('Chose cards; the 2 wares go to opponent.');
+  });
+});
+
 describe('opponent play spotlight', () => {
   const entry = (e: Partial<GameLogEntry>): GameLogEntry => ({ turn: 3, player: 1, action: 'PLAY_PEOPLE', ...e });
 

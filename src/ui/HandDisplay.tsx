@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react';
 import type { DeckCardId } from '../engine/types.ts';
 import { CardFace } from './CardFace.tsx';
 import { splitIntoRows } from './fitLayout.ts';
+import { useElementSize } from './useElementSize.ts';
 import type { HandCardHint } from './handHints.ts';
 import { useCardTilt } from './cardTilt.ts';
 import type { PriceModifiers } from './WareCoin.tsx';
@@ -43,6 +44,24 @@ export const MAX_READABLE_OVERLAP_RATIO = 0.5;
 /** Hand size at which the fan stops squeezing and scrolls sideways. */
 export const SCROLL_HAND_SIZE = 12;
 
+/** Fallback hand width before the container is measured (and in SSR). */
+const FALLBACK_HAND_WIDTH = 600;
+
+/**
+ * Desktop fan overlap for a 9+ card hand: just enough to fit the hand's real
+ * width, capped at half a card (bigger hands scroll instead). It used to
+ * assume a 600px hand, so a 12-card hand sat half-covered with ~700px of the
+ * mat empty and every card name hidden (playtest 2026-10-25).
+ */
+export function fanOverlapPx(count: number, cardWidth: number, gap: number, measuredWidth: number): number {
+  if (count < 2) return 0;
+  // a little slack for the fan's tilt
+  const available = (measuredWidth > 0 ? measuredWidth : FALLBACK_HAND_WIDTH) - 16;
+  const needed = count * cardWidth + (count - 1) * gap;
+  const overlap = needed > available ? (needed - available) / (count - 1) : 0;
+  return Math.max(0, Math.min(overlap, MAX_READABLE_OVERLAP_RATIO * cardWidth));
+}
+
 function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaView, useWoodBackground = true, transparentBackground = false, showBorder = true, mat = false, showHelperText = true, cardScale = 1, paddingBottom = 14, paddingX = 14, paddingLeft, paddingRight, paddingTop = 14, layoutMode = 'fan', fixedOverlapPx, rows = 1, gapPx = 8, hints = null, priceModifiers = null }: HandDisplayProps) {
   const [isMobile, setIsMobile] = useState(false);
   // The opening hand deals in one card after another; later draws arrive alone
@@ -64,36 +83,15 @@ function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaVie
 
   const cardWidth = 140;
   const minGap = hand.length <= 8 ? 20 : 10;
-  const containerWidth = 600;
+  // The fan squeezes into the hand's real width (600 until measured / in SSR)
+  const [handRef, handSize] = useElementSize<HTMLDivElement>();
 
   let overlapAmount = 0;
   if (isMobile) {
     overlapAmount = 40;
   } else if (hand.length >= 9) {
-    const cardsOverBase = hand.length - 9;
-
-    let baseOverlap: number;
-    if (hand.length <= 11) {
-      baseOverlap = hand.length === 9 ? 4 : hand.length === 10 ? 14.5 : 25;
-    } else {
-      baseOverlap = 25 + (cardsOverBase - 2) * 8;
-    }
-
-    const totalCardWidth = hand.length * cardWidth;
-    const totalGapSpace = (hand.length - 1) * minGap;
-    const totalNeededSpace = totalCardWidth + totalGapSpace;
-
-    let spaceBasedOverlap = 0;
-    if (totalNeededSpace > containerWidth) {
-      const excessSpace = totalNeededSpace - containerWidth;
-      spaceBasedOverlap = excessSpace / (hand.length - 1);
-    }
-
-    overlapAmount = Math.max(baseOverlap, spaceBasedOverlap);
-    // Never squeeze cards past half-overlapped; big hands scroll instead
-    // (official rules have no hand limit, so 15–20 card hands are legal)
-    overlapAmount = Math.min(overlapAmount, MAX_READABLE_OVERLAP_RATIO * cardWidth);
-    overlapAmount = Math.max(overlapAmount, 0);
+    const innerWidth = handSize.width > 0 ? handSize.width - (paddingLeft ?? paddingX) - (paddingRight ?? paddingX) : 0;
+    overlapAmount = fanOverlapPx(hand.length, cardWidth * cardScale, minGap, innerWidth);
   }
 
   if (fixedOverlapPx !== undefined) {
@@ -202,6 +200,7 @@ function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaVie
 
   return (
     <div
+      ref={handRef}
       className={[!disabled && onPlayCard ? 'hand-live' : '', mat ? 'hand-mat' : ''].filter(Boolean).join(' ') || undefined}
       style={{
         position: 'relative',

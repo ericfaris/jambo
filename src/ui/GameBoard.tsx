@@ -353,8 +353,9 @@ export function GameBoard({
     state.currentPlayer === viewerPlayer &&
     !isAiTurn;
   const drawActionsDisabled = !canTakeDrawActions;
-  // Online: the disabled reasons name the friend ("Waiting for Sam…")
-  const opponentLabel = mode === 'online' ? labels[opponentPlayer] : undefined;
+  // Name the other seat everywhere ("Waiting for Amara…", "Give 2g to Player 2"),
+  // matching the board's labels rather than a generic "opponent"
+  const opponentLabel = labels[opponentPlayer];
   const playDisabledReason = getPlayDisabledReason({
     phase: state.phase,
     currentPlayer: state.currentPlayer,
@@ -1003,7 +1004,7 @@ export function GameBoard({
           hideHandStrip={isHandInteraction(state.pendingResolution, viewerPlayer)}
           market={state.players[viewerPlayer].market}
         >
-          <InteractionPanel state={state} dispatch={dispatch} viewerPlayer={viewerPlayer} onMegaView={setMegaCardId} canCancel={canCancel} opponentName={mode === 'online' ? labels[opponentPlayer] : undefined} />
+          <InteractionPanel state={state} dispatch={dispatch} viewerPlayer={viewerPlayer} onMegaView={setMegaCardId} canCancel={canCancel} opponentName={opponentLabel} />
         </ResolveMegaView>
       )}
 
