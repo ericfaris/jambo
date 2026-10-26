@@ -14,7 +14,7 @@ Play a friend (online rooms), and Chromecast TV.
 - Deploy: push to `main` → `.github/workflows/ci-cd.yml` (typecheck/test/build) →
   self-hosted `lab` runner asks Sentinel (`:7891/api/deploy`) to rebuild. Manual:
   the `deploy` skill.
-- Version: `package.json` (1.28.2 as of this writing); bump with
+- Version: `package.json` (1.28.3, shipped 2026-10-25 with the playtest clarity fixes); bump with
   `npm run version:bump` / `version:minor` when shipping.
 
 ## Commands
@@ -36,14 +36,11 @@ Run via `zsh -i -c "…"` (nvm).
 
 ## Open items (priority order)
 
-1. Ship the 2026-10-25 playtest fixes (committed locally, not yet pushed): named
-   opponent in solo/hotseat panels, log grammar, desktop hand width, copy cleanups.
-   Needs a patch bump.
-2. "More below ↓" pill flashes briefly while a resolve panel pops in
+1. "More below ↓" pill flashes briefly while a resolve panel pops in
    (`ResolveMegaView.tsx`); harmless, but could wait for the pop animation.
-3. Resolve breadcrumbs (`formatResolutionBreadcrumb`) still say "Opponent discard
+2. Resolve breadcrumbs (`formatResolutionBreadcrumb`) still say "Opponent discard
    to 3" etc. in the eyebrow; panel prompts name the seat.
-4. Tribal Elder "opponent discards to 3" is offered even when it does nothing (the
+3. Tribal Elder "opponent discards to 3" is offered even when it does nothing (the
    opponent already has ≤3 cards); the panel now explains it, but validation could
    warn before the action is spent.
 
