@@ -14,7 +14,7 @@ Play a friend (online rooms), and Chromecast TV.
 - Deploy: push to `main` → `.github/workflows/ci-cd.yml` (typecheck/test/build) →
   self-hosted `lab` runner asks Sentinel (`:7891/api/deploy`) to rebuild. Manual:
   the `deploy` skill.
-- Version: `package.json` (1.28.3, shipped 2026-10-25 with the playtest clarity fixes); bump with
+- Version: `package.json` (1.29.0, shipped 2026-10-25 with the Tribal Elder discard stamp); bump with
   `npm run version:bump` / `version:minor` when shipping.
 
 ## Commands
