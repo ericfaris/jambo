@@ -83,6 +83,7 @@ class Game:
         self.shots = 0
         self.human_seats = [0, 1] if mode == 'hotseat' else [0]
         self.seen_finding_keys = set()
+        self.panels_seen = set()
 
     # ---------- utilities ----------
     def ev(self, js, arg=None):
@@ -457,6 +458,18 @@ class Game:
                     self.finding('LONG_GAME', 'turn > 200, aborting')
                     return s
             human = s['responder'] in self.human_seats
+            # PT_PANELSHOTS=1: one screenshot per distinct panel the human faces (copy/clarity review)
+            if human and os.environ.get('PT_PANELSHOTS'):
+                pk = (s['pr']['type'], s['pr']['step'], s['pr']['source']) if s['pr'] else ('guard' if s['guard'] else 'rain' if s['rain'] else None)
+                if pk and pk not in self.panels_seen:
+                    self.panels_seen.add(pk)
+                    self.tick(1500)
+                    self.pg.wait_for_timeout(700)  # CSS fades run on real time, not the fake clock
+                    p = self.shot('panel-' + '-'.join(str(x) for x in pk if x is not None))
+                    # A "More below" cue on a panel that fits is a false signal
+                    pill = self.ev(r"""() => { const b = [...document.querySelectorAll('button')].find(x => x.textContent.includes('More below')); if (!b) return null; const sc = b.parentElement; return { sh: sc.scrollHeight, ch: sc.clientHeight, st: sc.scrollTop }; }""")
+                    if pill:
+                        self.log(f'  [panel] More-below pill on {pk}: {pill} ({p})')
             if not human:
                 # AI's move: let the clock run
                 self.tick(3200)
@@ -769,6 +782,7 @@ USAGE = """usage: driver.py GAME_ID MODE AI_DIFFICULTY HUMAN_POLICY EPSILON SEED
   EPSILON        0..1 chance of a random valid action instead (exploration)
   env PT_OUT     output dir (default cwd), PT_BASE app URL (default :5180)
       PT_VIEWPORT  WxH (default 1400x900); <=640 wide uses the phone layout
+      PT_PANELSHOTS=1  screenshot each distinct panel the human faces (shots/*-panel-*)
 GAME_ID 1 also leaves the first-run tutorial enabled."""
 
 if __name__ == '__main__':
