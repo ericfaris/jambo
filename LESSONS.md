@@ -725,3 +725,18 @@ overwrites tracked files.)
 - Driver `res-*` screenshots land mid-fade (CSS runs on real time; the fake clock
   doesn't advance it), so they can't be used for copy review. `PT_PANELSHOTS=1`
   waits real time first and also logs any "More below" pill on a settled panel.
+
+## 2026-10-26 — TV missing from the Cast picker on Android Chrome
+
+- Symptom: other apps cast to the TV, Jambo's picker never listed it. Receiver
+  hosting, App ID config (`clients3.google.com/cast/chromecast/device/app?a=<id>`
+  returns the registered URL — handy remote check) and Chrome-86 bundle
+  compatibility were all fine.
+- Cause: the sender SDK was injected only on "Start on TV", then `setOptions`
+  and `requestSession` ran back to back. Android Chrome's picker lists only
+  devices already confirmed for the app id, a check that starts at
+  `setOptions`, and the await could also outlive the tap's user activation.
+  Vandal Preachers (which worked) loads the SDK in `index.html`.
+- Fix: `CastSessionController.prepare()` warms the SDK on menu mount / TV
+  dialog open; a failed SDK load is no longer cached forever. Lazy-loading is
+  fine, but never lazy-load *on the tap that opens the picker*.

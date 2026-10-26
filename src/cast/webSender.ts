@@ -43,6 +43,14 @@ export class WebCastSessionController implements CastSessionController {
     return this.toSessionSummary('connected');
   }
 
+  // Android Chrome's device picker only lists devices already confirmed to run
+  // this receiver app id, and that check starts at setOptions(). Loading the SDK
+  // on the tap itself opens the picker before any device is confirmed (and can
+  // outlive the tap's user activation), so callers warm it up ahead of time.
+  prepare(): Promise<void> {
+    return this.ensureSdkReady();
+  }
+
   async requestSession(): Promise<CastSessionSummary> {
     await this.ensureSdkReady();
     const context = this.getCastContext();
@@ -129,7 +137,11 @@ export class WebCastSessionController implements CastSessionController {
   private async ensureSdkReady(): Promise<void> {
     if (this.sdkInitialized) return;
     if (!this.sdkInitPromise) {
-      this.sdkInitPromise = this.loadAndInitializeSdk();
+      // A failed load (offline, blocked script) may be retried on a later call
+      this.sdkInitPromise = this.loadAndInitializeSdk().catch((error: unknown) => {
+        this.sdkInitPromise = null;
+        throw error;
+      });
     }
     await this.sdkInitPromise;
   }

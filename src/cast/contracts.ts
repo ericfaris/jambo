@@ -57,6 +57,8 @@ export type CastChannelMessage = SenderToReceiverMessage | ReceiverToSenderMessa
 
 export interface CastSessionController {
   getSession(): CastSessionSummary | null;
+  /** Load the SDK and register the app id ahead of a tap, so device discovery is warm. */
+  prepare(): Promise<void>;
   requestSession(): Promise<CastSessionSummary>;
   endSession(): Promise<void>;
   sendMessage(message: SenderToReceiverMessage): Promise<void>;
@@ -68,6 +70,10 @@ export interface CastSessionController {
 export class NoopCastSessionController implements CastSessionController {
   getSession(): CastSessionSummary | null {
     return null;
+  }
+
+  async prepare(): Promise<void> {
+    return;
   }
 
   async requestSession(): Promise<CastSessionSummary> {

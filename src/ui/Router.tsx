@@ -265,7 +265,14 @@ function RouterInner() {
     setScreen('friendHost');
   };
 
+  // Warm the Cast SDK up front so the TV is already discovered when the
+  // device picker opens (see WebCastSessionController.prepare)
+  useEffect(() => {
+    if (isCastSdkEnabled()) void getCastSessionController().prepare().catch(() => {});
+  }, []);
+
   const handleOpenTvSetup = () => {
+    void getCastSessionController().prepare().catch(() => {});
     setCastStartError(null);
     setShowTvSetup(true);
   };

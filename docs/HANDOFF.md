@@ -1,6 +1,6 @@
 # Handoff
 
-Last reviewed: 2026-10-25 · Scope: current state for whoever picks this up next.
+Last reviewed: 2026-10-26 · Scope: current state for whoever picks this up next.
 Rules, architecture and conventions live in `CLAUDE.md`; history lives in
 `LESSONS.md` and git.
 
@@ -14,7 +14,7 @@ Play a friend (online rooms), and Chromecast TV.
 - Deploy: push to `main` → `.github/workflows/ci-cd.yml` (typecheck/test/build) →
   self-hosted `lab` runner asks Sentinel (`:7891/api/deploy`) to rebuild. Manual:
   the `deploy` skill.
-- Version: `package.json` (1.29.0, shipped 2026-10-25 with the Tribal Elder discard stamp); bump with
+- Version: `package.json` (1.29.1, shipped 2026-10-26: Cast SDK warm-up so Android Chrome lists the TV); bump with
   `npm run version:bump` / `version:minor` when shipping.
 
 ## Commands
@@ -36,6 +36,11 @@ Run via `zsh -i -c "…"` (nvm).
 
 ## Open items (priority order)
 
+0. **Confirm Cast on the real TV from Android Chrome** after the 1.29.1 deploy
+   (open the menu, wait a couple of seconds, Play on TV). If the TV is *still*
+   missing from the picker, it's Cast Console, not code: app `4E18430D` is a
+   custom receiver → check it's Published, or that the TV's serial is under
+   "Manage devices" (and the TV was rebooted after registering).
 1. "More below ↓" pill flashes briefly while a resolve panel pops in
    (`ResolveMegaView.tsx`); harmless, but could wait for the pop animation.
 2. Resolve breadcrumbs (`formatResolutionBreadcrumb`) still say "Opponent discard
@@ -56,6 +61,11 @@ Run via `zsh -i -c "…"` (nvm).
   only when even half-overlapped cards don't fit.
 
 ## Gotchas
+
+- Cast sender SDK loads lazily, but `Router` calls `controller.prepare()` on
+  mount and when the TV dialog opens. Don't drop that: loading the SDK on the
+  tap itself opens Android Chrome's picker before any device is confirmed for
+  the app id, so the TV is missing from the list.
 
 - Never edit `src/` while driver games run (HMR splits the store → fake findings);
   restart Vite before each batch.
