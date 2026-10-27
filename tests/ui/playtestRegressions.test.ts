@@ -86,7 +86,7 @@ describe('resolve panel keeps its buttons above the hand strip', () => {
 });
 
 describe('status pill matches the board labels', () => {
-  it('says "Your turn" in solo and seat names in hotseat', () => {
+  it('says "Your turn" in solo and seat names on the TV', () => {
     const s = { ...createTestState(), currentPlayer: 0 as const };
     const solo = renderToStaticMarkup(createElement(CenterRow, { state: s, dispatch: noopDispatch, actorLabels: ['You', 'Opponent'] }));
     expect(solo).toContain('Your turn');

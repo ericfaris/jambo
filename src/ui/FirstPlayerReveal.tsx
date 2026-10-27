@@ -5,8 +5,6 @@ import { playSfx } from './useAudioEvents.ts';
 interface FirstPlayerRevealProps {
   firstPlayer: 0 | 1;
   onComplete: () => void;
-  /** Hotseat: name the seats instead of "You"/"Opponent" */
-  localMultiplayer?: boolean;
   /** Online: the seat at this screen (you may be seat 1)… */
   viewer?: 0 | 1;
   /** …and both seats' names, so the coin says who goes first. */
@@ -14,8 +12,7 @@ interface FirstPlayerRevealProps {
 }
 
 /** The coin's two faces, seat 0 then seat 1. */
-export function coinFaces(localMultiplayer: boolean, viewer: 0 | 1, names?: readonly [string, string]): [string, string] {
-  if (localMultiplayer) return ['P1', 'P2'];
+export function coinFaces(viewer: 0 | 1, names?: readonly [string, string]): [string, string] {
   if (!names) return ['You', 'AI'];
   const initial = (name: string) => (Array.from(name.trim())[0] ?? '?').toUpperCase();
   return viewer === 0 ? ['You', initial(names[1])] : [initial(names[0]), 'You'];
@@ -38,7 +35,7 @@ function prefersReducedMotion(): boolean {
  * first player's face, then the line appears. (It used to be plain text on
  * black — the first thing anyone sees after Start Game.)
  */
-export function FirstPlayerReveal({ firstPlayer, onComplete, localMultiplayer = false, viewer = 0, names }: FirstPlayerRevealProps) {
+export function FirstPlayerReveal({ firstPlayer, onComplete, viewer = 0, names }: FirstPlayerRevealProps) {
   const reduced = prefersReducedMotion();
   const [phase, setPhase] = useState<'spinning' | 'revealed' | 'fading'>(reduced ? 'revealed' : 'spinning');
 
@@ -54,10 +51,8 @@ export function FirstPlayerReveal({ firstPlayer, onComplete, localMultiplayer = 
     return () => timers.forEach((t) => window.clearTimeout(t));
   }, [onComplete, reduced]);
 
-  const label = localMultiplayer
-    ? `Player ${firstPlayer + 1} goes first`
-    : firstPlayer === viewer ? 'You go first' : `${names ? names[firstPlayer] : 'Opponent'} goes first`;
-  const faces = coinFaces(localMultiplayer, viewer, names);
+  const label = firstPlayer === viewer ? 'You go first' : `${names ? names[firstPlayer] : 'Opponent'} goes first`;
+  const faces = coinFaces(viewer, names);
 
   return (
     <div

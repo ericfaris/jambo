@@ -22,7 +22,6 @@ For full card-by-card behavior, see `docs/CARD_REFERENCE.md`.
 ## Supported Modes
 
 - P0: Human vs AI
-- P1: Local hotseat
 - P2: Online multiplayer
 
 ## Functional Requirements

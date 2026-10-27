@@ -65,6 +65,14 @@ describe('local game autosave', () => {
     expect(loadLocalGame(store)).toBeNull();
   });
 
+  it('discards a leftover pass-and-play save (the mode was removed 2026-10-27)', () => {
+    saveLocalGame(base(midGame()), store);
+    const saved = JSON.parse(store.getItem(SAVED_GAME_KEY)!);
+    store.setItem(SAVED_GAME_KEY, JSON.stringify({ ...saved, mode: 'multiplayer' }));
+    expect(loadLocalGame(store)).toBeNull();
+    expect(store.getItem(SAVED_GAME_KEY)).toBeNull();
+  });
+
   it('clearLocalGame removes it', () => {
     saveLocalGame(base(midGame()), store);
     clearLocalGame(store);
@@ -94,7 +102,6 @@ describe('local game autosave', () => {
     expect(text).toContain('Baraka');
     expect(text).toContain(`turn ${state.turn}`);
     expect(text).toContain(`you ${state.players[0].gold}g`);
-    expect(describeSavedGame({ ...base(state), mode: 'multiplayer', version: 1, savedAt: 0 })).toContain('Pass & play');
   });
 
   it('store.restore puts a saved game back and play continues from it', () => {

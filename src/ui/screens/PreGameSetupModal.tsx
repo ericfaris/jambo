@@ -7,7 +7,7 @@ import type { AIDifficulty } from '../../ai/difficulties/index.ts';
 import type { RoomMode } from '../../multiplayer/types.ts';
 
 /**
- * Setting up a game on a Chromecast TV. Solo and pass-and-play start straight
+ * Setting up a game on a Chromecast TV. Solo starts straight
  * from the landing page; only the TV needs a question first: against whom?
  */
 interface PreGameSetupModalProps {

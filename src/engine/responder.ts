@@ -1,6 +1,6 @@
 // ============================================================================
 // Responder — which player must act next
-// Single source of truth for the store, the AI, and the local (hotseat) UI.
+// Single source of truth for the store, the AI, and the UI.
 // ============================================================================
 
 import type { GameState, PendingAuction } from './types.ts';

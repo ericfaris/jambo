@@ -113,7 +113,7 @@ interface OpponentPlaySpotlightProps {
   viewer: 0 | 1;
   /** How to name the other seat ("Opponent"). */
   actorLabel: string;
-  /** Off in hotseat (the incoming player gets a recap on the pass screen). */
+  /** Off once the game is over. */
   enabled?: boolean;
   /** Fires true while a card is on screen, so the caller can hold its own
    *  overlays (a response panel) until the announcement lands. */
@@ -176,7 +176,7 @@ export function OpponentPlaySpotlight({ log, viewer, actorLabel, enabled = true,
     if (fresh.length > 0) setQueue((q) => trimSpotlightBacklog([...q, ...fresh], maxBacklog));
   }, [log, viewer, actorLabel, enabled, maxBacklog]);
 
-  // Switched off (game over, hotseat): drop anything still waiting so it
+  // Switched off (game over): drop anything still waiting so it
   // never plays over the results screen
   if (!enabled && queue.length > 0) setQueue([]);
 

@@ -39,7 +39,7 @@ describe('sound effect files', () => {
   });
 });
 
-describe('newActionSounds (solo/hotseat)', () => {
+describe('newActionSounds (solo)', () => {
   const tag = (action: GameAction): TaggedAction => ({ player: 0, playerLabel: 'Player', action });
   const log = [
     tag({ type: 'DRAW_CARD' }),

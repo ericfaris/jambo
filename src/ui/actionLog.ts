@@ -160,25 +160,3 @@ export function countUnread(log: readonly GameLogEntry[], fromIndex: number, pla
   }
   return n;
 }
-
-/**
- * What the other seat did since `viewer` last acted, oldest first — the
- * hotseat pass screen's recap. The other seat's hidden cards stay redacted.
- */
-export function recapSinceLastMove(
-  log: readonly GameLogEntry[],
-  viewer: 0 | 1,
-  labels: readonly [string, string],
-  limit = 8,
-): string[] {
-  const other: 0 | 1 = viewer === 0 ? 1 : 0;
-  const lines: string[] = [];
-  for (let i = log.length - 1; i >= 0; i--) {
-    const entry = log[i];
-    if (entry.player === viewer) break;
-    if (HIDDEN_ACTIONS.has(entry.action) || entry.action === 'END_TURN') continue;
-    lines.push(describeLogEntry(entry, labels, other));
-  }
-  lines.reverse();
-  return lines.length > limit ? [`…and ${lines.length - limit + 1} earlier actions`, ...lines.slice(-(limit - 1))] : lines;
-}

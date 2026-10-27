@@ -238,9 +238,8 @@ Keyframes are named descriptively (`pilePulse`, `marketSlotFlash`,
     game* (with the save summary) when a local game is saved, otherwise
     *Play vs {trader}* — one click, against the trader picked in the row of
     four portraits below it (remembered in `jambo.lastTrader`). With a save,
-    *New game vs …* and *Pass & play* ask before overwriting it.
-  - **Modes named by task** (`.landing-secondary`, outlined): Pass & play,
-    Play a friend (opens the friend lobby; never asks about a saved game,
+    *New game vs …* asks before overwriting it.
+  - **Modes named by task** (`.landing-secondary`, outlined): Play a friend (opens the friend lobby; never asks about a saved game,
     because it doesn't touch it), Play on TV (only when Cast is configured;
     opens the TV setup modal), Join a TV game (`#/play`).
   - **Footer links**: How to play · Settings · Sound on/off. The win/loss
@@ -470,10 +469,10 @@ with no server (like `/?tv=1`). Staging params: `hand=N`, `utils=N` (≤3),
 `phase=play`. Cards are moved out of the deck, so invariants hold and the
 game stays playable.
 
-## Layout — Phone solo / hotseat / online board (`GameBoard` ≤ 640px)
+## Layout — Phone solo / online board (`GameBoard` ≤ 640px)
 
 Same rule as the Cast player view: **never scrolls**, 100dvh, down to
-360×640. The board is `GameBoard.tsx`, shared by solo and pass-and-play
+360×640. The board is `GameBoard.tsx`, shared by solo
 (`GameScreen`, the local store) and online games (`OnlineGameScreen`, the
 server's views) — same layouts at every size; the online presence banner is
 fixed and never takes layout space. `useMediaQuery(PHONE_MEDIA_QUERY)` (`(max-width: 640px)`) swaps
@@ -705,7 +704,7 @@ level and gap; `tests/ui/backgroundMusic.test.ts` keeps them in sync.
 **Sound effects** — 6 short clips in `public/audio/sfx/`, played in **every
 mode**. `detectAudioEvent()` (`src/multiplayer/audioEvents.ts`) maps a game
 action to an event; the Cast server broadcasts it to phones + TV, and the
-solo/hotseat `GameScreen` plays it locally via `useLocalActionAudio()`
+solo `GameScreen` plays it locally via `useLocalActionAudio()`
 (`src/ui/useAudioEvents.ts`) for every applied action, human or AI. Played at
 50% of the user's volume (`SFX_BASE_VOLUME`), never when muted.
 
@@ -731,7 +730,7 @@ treatment, each 0.3–1.7s and < 17 KB):
 | `ware-land` | each ware token landing in a slot (`FlightLayer.onLand`, ≥70ms apart) | soft clay tap, peak −9 dB |
 | `gavel` | an auction won | wooden knock |
 | `final-turn` | the final turn begins | low frame-drum heartbeat |
-| `win` / `lose` | game over, from the viewer's seat (hotseat: always `win`) | djembe roll into a bell / soft descending balafon |
+| `win` / `lose` | game over, from the viewer's seat (TV: always `win`) | djembe roll into a bell / soft descending balafon |
 
 **Sound pass 3** (2026-10-14, flow "Jambo SFX 3"; levels below are max
 momentary loudness):
@@ -842,6 +841,12 @@ existing set already covers the full identity; this pass's job was
 documenting it, fixing one duplication, and identifying the SFX gap.
 
 ## Changelog
+### 2026-10-27 — Pass & play removed
+- The landing page's *Pass & play* sign, `PassDeviceScreen` and GameBoard's
+  `hotseat` mode are gone; local play is solo vs a trader only. Three signs
+  remain (two without Cast); an odd last sign hangs centred.
+- Leftover pass-and-play saves are discarded on load.
+
 ### 2026-10-26 — Cast TV on the desktop board (v1.30.0)
 - `TVScreen` now composes the desktop board: both seats as `.tableau` panels
   with brass corners and `SeatInfo` (portrait, gold, gold track, face-down

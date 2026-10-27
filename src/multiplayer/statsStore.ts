@@ -30,7 +30,7 @@ function saveLocalMap<T>(path: string, results: Map<string, T[]>): void {
   }
 }
 
-/** Absent on legacy rows and solo/hotseat results; 'online' = a friend game (recorded by the server). */
+/** Absent on legacy rows and solo results; 'online' = a friend game (recorded by the server). */
 export type GameResultMode = 'solo' | 'online';
 type Difficulty = 'easy' | 'medium' | 'hard' | 'expert';
 
@@ -51,7 +51,7 @@ export interface GameResultInput {
   opponentProfileId?: string | null;
 }
 
-/** A game the player abandoned before it finished: local (solo or hotseat) or online. */
+/** A game the player abandoned before it finished: local (solo) or online. 'multiplayer' = legacy pass-and-play rows. */
 export interface AbandonedGameInput {
   localProfileId: string;
   mode: 'solo' | 'multiplayer' | 'online';

@@ -16,7 +16,7 @@ interface RecordGameRequest {
 
 interface RecordAbandonRequest {
   localProfileId: string;
-  mode: 'solo' | 'multiplayer';
+  mode: 'solo';
   aiDifficulty: 'easy' | 'medium' | 'hard' | 'expert';
   playerGold: number;
   opponentGold: number;
@@ -92,7 +92,7 @@ export function validateAbandonRequest(payload: unknown): payload is RecordAband
 
   const candidate = payload as Record<string, unknown>;
   if (!isValidProfileId(candidate.localProfileId)) return false;
-  if (candidate.mode !== 'solo' && candidate.mode !== 'multiplayer') return false;
+  if (candidate.mode !== 'solo') return false;
   if (!isDifficulty(candidate.aiDifficulty)) return false;
   if (!isNonNegativeInteger(candidate.playerGold)) return false;
   if (!isNonNegativeInteger(candidate.opponentGold)) return false;

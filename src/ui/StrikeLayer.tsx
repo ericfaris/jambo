@@ -90,7 +90,7 @@ export function useStrikes({ state, viewer, blocked, enabled }: {
   viewer: 0 | 1;
   /** A spotlight is still queued, or a panel waits on the viewer. */
   blocked: boolean;
-  /** Off in hotseat? No — strikes are a shared table moment; off only when the game is over. */
+  /** Strikes are a shared table moment; off only when the game is over. */
   enabled: boolean;
 }): StrikeDirector {
   const prevRef = useRef<GameState>(state);

@@ -980,7 +980,7 @@ button.brown:hover:not(:disabled) {
 }
 
 /* ---------------------------------------------------------------------------
-   Phone solo/hotseat board (GameScreen ≤ 640px) — same no-scroll shell as the
+   Phone solo board (GameScreen ≤ 640px) — same no-scroll shell as the
    Cast player view, plus a compact opponent strip and center row.
    --------------------------------------------------------------------------- */
 .phone-game .player-board {

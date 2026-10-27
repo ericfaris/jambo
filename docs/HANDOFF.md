@@ -1,12 +1,12 @@
 # Handoff
 
-Last reviewed: 2026-10-26 · Scope: current state for whoever picks this up next.
+Last reviewed: 2026-10-27 · Scope: current state for whoever picks this up next.
 Rules, architecture and conventions live in `CLAUDE.md`; history lives in
 `LESSONS.md` and git.
 
 ## What it is / where it runs
 
-Digital Jambo (2-player trading card game): solo vs four AI traders, pass-and-play,
+Digital Jambo (2-player trading card game): solo vs four AI traders,
 Play a friend (online rooms), and Chromecast TV.
 
 - Prod: `https://jambo.mooseflip.com`, the `jambo-app-1` container on the local
@@ -14,7 +14,7 @@ Play a friend (online rooms), and Chromecast TV.
 - Deploy: push to `main` → `.github/workflows/ci-cd.yml` (typecheck/test/build) →
   self-hosted `lab` runner asks Sentinel (`:7891/api/deploy`) to rebuild. Manual:
   the `deploy` skill.
-- Version: `package.json` (1.30.0, shipped 2026-10-26: Cast TV rebuilt on the desktop board); bump with
+- Version: `package.json` (1.31.0, shipped 2026-10-27: pass-and-play removed); bump with
   `npm run version:bump` / `version:minor` when shipping.
 
 ## Commands
@@ -58,6 +58,12 @@ Run via `zsh -i -c "…"` (nvm).
    them. Preview: `/?online=1&slot=0&stage=tribalelder`.
 
 ## Decisions that may get revisited
+
+- Pass & play (local hotseat) was removed 2026-10-27 — not going to be used.
+  Local play is solo only; both-seats-human testing goes through the driver's
+  `online` mode. Old `mode: 'multiplayer'` saves are discarded on load, the
+  abandon API rejects that mode, and legacy stats/abandon rows may still carry it.
+  `viewer: null` / "Player 1/2" label paths remain for the TV.
 
 - Panels name the other seat everywhere (trader name / "Player 2" / friend);
   only Cast keeps the generic "opponent". Card face text stays as printed.

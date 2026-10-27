@@ -65,7 +65,7 @@ src/
   ai/RandomAI.ts             # getRandomAiAction(), getRandomInteractionResponse()
   ui/                        # React components
     GameBoard.tsx             # The table, store-agnostic: state + dispatch + viewer seat
-    GameScreen.tsx            # Solo / hotseat: GameBoard over the local store, AI, autosave
+    GameScreen.tsx            # Solo: GameBoard over the local store, AI, autosave
     OnlineGameScreen.tsx      # Play a friend: GameBoard over the server's views
     onlineView.ts             # toBoardState(): public + private view → a GameState
     FriendLobby.tsx           # Play a friend lobby (invite link, join by link)
@@ -83,7 +83,7 @@ src/
 
 A browser refresh must never lose a game.
 
-- **Solo / hotseat**: `GameScreen` autosaves after every action to
+- **Solo**: `GameScreen` autosaves after every action to
   `localStorage` (`src/persistence/savedGame.ts`: full `GameState` + action
   log; a finished game clears it). A per-tab `sessionStorage` flag means a
   refresh mid-game drops straight back in; a fresh visit shows **Resume Game**

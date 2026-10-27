@@ -18,7 +18,7 @@ interface ActionLogDrawerProps {
   pinned?: boolean;
   /** Shows the pin toggle (desktop only — a phone has no room to dock). */
   onTogglePin?: () => void;
-  /** Each seat's small portrait (avatar or trader face), by seat; hotseat has none. */
+  /** Each seat's small portrait (avatar or trader face), by seat; the TV has none. */
   portraits?: readonly [ReactNode, ReactNode];
 }
 

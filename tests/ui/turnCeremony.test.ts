@@ -18,13 +18,12 @@ describe('coin toss first-player reveal', () => {
     expect(COIN_TOSS_TIMINGS.doneAt).toBeLessThan(3500);
   });
 
-  it('names the faces for solo and hotseat', () => {
+  it('names the faces for solo', () => {
     const solo = renderToStaticMarkup(createElement(FirstPlayerReveal, { firstPlayer: 1, onComplete: () => {} }));
     expect(solo).toContain('Opponent goes first');
     expect(solo).toContain('>AI<');
-    const hot = renderToStaticMarkup(createElement(FirstPlayerReveal, { firstPlayer: 0, onComplete: () => {}, localMultiplayer: true }));
-    expect(hot).toContain('Player 1 goes first');
-    expect(hot).toContain('>P2<');
+    const first = renderToStaticMarkup(createElement(FirstPlayerReveal, { firstPlayer: 0, onComplete: () => {} }));
+    expect(first).toContain('You go first');
   });
 });
 

@@ -1,6 +1,6 @@
 // ============================================================================
 // Game action -> sound effect mapping. Shared by the Cast server (broadcast
-// to phones + TV) and the local solo/hotseat GameScreen, so every mode plays
+// to phones + TV) and the local solo GameScreen, so every mode plays
 // the same sounds for the same moves.
 // ============================================================================
 
@@ -65,7 +65,7 @@ export function detectAudioEvent(action: GameAction, before?: GameState): AudioE
  * Sounds for what *happened* between two states rather than for an action:
  * an auction knocked down, the end-of-turn gold bonus, the final turn
  * beginning, the game ending.
- * `viewer` is the seat at this screen (null on the TV / in hotseat, where
+ * `viewer` is the seat at this screen (null on the TV, where
  * every ending gets the victory flourish).
  */
 export function detectOutcomeSounds(prev: OutcomeView, next: OutcomeView, viewer: 0 | 1 | null): AudioEvent[] {

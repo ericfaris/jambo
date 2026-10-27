@@ -1,5 +1,5 @@
 // ============================================================================
-// Local game autosave (solo vs AI and hotseat) — survives a browser refresh.
+// Local game autosave (solo vs AI) — survives a browser refresh.
 //
 // The full GameState is saved after every applied action, alongside the
 // action log (so replay export and stats keep working after a resume).
@@ -21,7 +21,8 @@ export const SAVED_GAME_KEY = 'jambo.savedGame';
 export const ACTIVE_GAME_SESSION_KEY = 'jambo.activeGame';
 const SAVE_VERSION = 1;
 
-export type LocalGameMode = 'solo' | 'multiplayer';
+/** Always 'solo' (pass-and-play saves from before 2026-10-27 are discarded on load). */
+export type LocalGameMode = 'solo';
 
 export interface SavedGame {
   version: number;
@@ -67,7 +68,7 @@ export function loadLocalGame(storage: KV | null = local()): SavedGame | null {
     const parsed = JSON.parse(raw) as Partial<SavedGame>;
     const valid =
       parsed.version === SAVE_VERSION &&
-      (parsed.mode === 'solo' || parsed.mode === 'multiplayer') &&
+      parsed.mode === 'solo' &&
       typeof parsed.aiDifficulty === 'string' &&
       !!parsed.state &&
       Array.isArray(parsed.replayActions) &&
@@ -102,10 +103,8 @@ export function isGameActiveInTab(storage: KV | null = session()): boolean {
 
 /** One-line description for the Resume button. */
 export function describeSavedGame(game: SavedGame): string {
-  const trader = game.mode === 'solo' ? traderFor(game.aiDifficulty).name : null;
+  const trader = traderFor(game.aiDifficulty).name;
   const level = `${game.aiDifficulty[0].toUpperCase()}${game.aiDifficulty.slice(1)}`;
-  const opponent = trader ? `vs ${trader} (${level})` : 'Pass & play';
   const [a, b] = game.state.players.map((p) => p.gold);
-  const score = trader ? `you ${a}g · ${trader} ${b}g` : `P1 ${a}g · P2 ${b}g`;
-  return `${opponent} · turn ${game.state.turn} · ${score}`;
+  return `vs ${trader} (${level}) · turn ${game.state.turn} · you ${a}g · ${trader} ${b}g`;
 }

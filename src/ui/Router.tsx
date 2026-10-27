@@ -38,7 +38,7 @@ import type { SavedGame } from '../persistence/savedGame.ts';
 import { abandonSavedGame } from '../persistence/userStatsApi.ts';
 
 type Route = 'local' | 'play' | 'invite';
-type Screen = 'menu' | 'solo' | 'multiplayer' | 'login' | 'settings' | 'castHost' | 'friendHost';
+type Screen = 'menu' | 'solo' | 'login' | 'settings' | 'castHost' | 'friendHost';
 
 function getRoute(): Route {
   const hash = window.location.hash;
@@ -111,7 +111,7 @@ function RouterInner() {
   const [showTvSetup, setShowTvSetup] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [revealFirstPlayer, setRevealFirstPlayer] = useState<0 | 1 | null>(null);
-  const [pendingScreen, setPendingScreen] = useState<'solo' | 'multiplayer' | null>(null);
+  const [pendingScreen, setPendingScreen] = useState<'solo' | null>(null);
   const [castRoomMode, setCastRoomMode] = useState<RoomMode | null>(null);
   const [castStartError, setCastStartError] = useState<string | null>(null);
   const [authNotice, setAuthNotice] = useState<AuthNotice | null>(landing.googleOutcome);
@@ -173,8 +173,8 @@ function RouterInner() {
 
   const handleMenuSelect = (option: 'login' | 'settings') => setScreen(option);
 
-  /** Solo vs a trader, or pass-and-play: straight from the landing page. */
-  const startLocalGame = (mode: 'solo' | 'multiplayer', difficulty: AIDifficulty) => {
+  /** Solo vs a trader: straight from the landing page. */
+  const startLocalGame = (difficulty: AIDifficulty) => {
     setAiDifficulty(difficulty);
     // A new local game overwrites the save, so an unfinished one counts as abandoned
     // (the landing page asks before this when a save exists)
@@ -183,7 +183,7 @@ function RouterInner() {
     const firstPlayer = getRandomFirstPlayer();
     newGame(undefined, firstPlayer);
     setRevealFirstPlayer(firstPlayer);
-    setPendingScreen(mode);
+    setPendingScreen('solo');
   };
 
   const handlePlayFriend = () => {
@@ -236,7 +236,6 @@ function RouterInner() {
         <FirstPlayerReveal
           firstPlayer={revealFirstPlayer}
           onComplete={handleRevealComplete}
-          localMultiplayer={pendingScreen === 'multiplayer'}
         />
         <AvatarBadge avatarUrl={auth.avatarUrl} />
       </>
@@ -311,8 +310,7 @@ function RouterInner() {
       <>
         <MainMenu
           onSelectOption={handleMenuSelect}
-          onPlayTrader={(difficulty) => startLocalGame('solo', difficulty)}
-          onPassAndPlay={() => startLocalGame('multiplayer', aiDifficulty)}
+          onPlayTrader={(difficulty) => startLocalGame(difficulty)}
           onPlayFriend={handlePlayFriend}
           onPlayOnTv={isCastSdkEnabled() ? handleOpenTvSetup : undefined}
           onJoinTv={() => { window.location.hash = JOIN_TV_HASH; }}
@@ -359,7 +357,7 @@ function RouterInner() {
             // Straight from the lesson into a game — unless that would overwrite a saved one
             {...(savedGame ? { finishLabel: 'Done' } : {
               finishLabel: `Play vs ${traderFor(readLastTrader()).name}`,
-              onFinish: () => { markTutorialSeen(); setShowTutorial(false); startLocalGame('solo', readLastTrader()); },
+              onFinish: () => { markTutorialSeen(); setShowTutorial(false); startLocalGame(readLastTrader()); },
             })}
           />
         )}
@@ -369,10 +367,6 @@ function RouterInner() {
 
   if (screen === 'solo') {
     return <GameScreen onBackToMenu={handleBackToMenu} aiDifficulty={aiDifficulty} />;
-  }
-
-  if (screen === 'multiplayer') {
-    return <GameScreen onBackToMenu={handleBackToMenu} aiDifficulty={aiDifficulty} localMultiplayer />;
   }
 
   if (screen === 'friendHost') {

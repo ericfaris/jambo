@@ -19,7 +19,7 @@ describe('card trails start and end on real places', () => {
     expect(spotlightCoversDiscard({ card: 'guard_1', player: 1 }, 1)).toBe(true);
     expect(spotlightCoversDiscard({ card: undefined, player: 1 }, 1)).toBe(false); // e.g. AI discarding its drawn card
     expect(spotlightCoversDiscard({ card: 'guard_1', player: 0 }, 1)).toBe(false); // your own play
-    expect(spotlightCoversDiscard({ card: 'guard_1', player: 1 }, null)).toBe(false); // hotseat: no spotlight
+    expect(spotlightCoversDiscard({ card: 'guard_1', player: 1 }, null)).toBe(false); // no viewer: no spotlight
   });
 
   it('measures both ends relative to the row, so the first frame starts on the deck', () => {

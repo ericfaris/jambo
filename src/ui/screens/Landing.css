@@ -473,7 +473,8 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 220, 160, 0.25);
 }
 
-.landing-signs > .confirm-ask { grid-column: 1 / -1; }
+/* an odd sign out hangs centred under the others, plank-sized */
+.landing-signs > .landing-sign:last-child:nth-child(odd) { grid-column: 1 / -1; justify-self: center; width: calc(50% - 7px); }
 
 .landing-sign {
   position: relative;

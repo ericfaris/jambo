@@ -152,7 +152,7 @@ describe('SettingsPanel', () => {
     expect(html).toContain('Brisk');
   });
 
-  it('hotseat / Cast hide the AI-only and log options', () => {
+  it('Cast hides the AI-only and log options', () => {
     const html = render({ showAiOptions: false, showLogPin: false });
     expect(html).not.toContain('Trader voices');
     expect(html).not.toContain('AI pace');

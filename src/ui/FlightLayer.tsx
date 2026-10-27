@@ -28,7 +28,7 @@ interface FlightLayerProps {
   /** The seat at the screen: the other seat's face-up plays are spotlit first.
    *  Null on the TV, which spotlights both seats' plays. */
   viewer: 0 | 1 | null;
-  /** Whether the opponent-play spotlight runs (off in hotseat). */
+  /** Whether the opponent-play spotlight runs (off when both seats are watched). */
   spotlightEnabled: boolean;
   /** True while a spotlight is on screen — flights wait for it to land. */
   spotlightActive: boolean;

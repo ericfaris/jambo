@@ -1,6 +1,6 @@
 // ============================================================================
 // Sound effect player. Cast mode feeds it AudioEvents from the server;
-// solo/hotseat (GameScreen) feeds it the local store's actions via
+// solo (GameScreen) feeds it the local store's actions via
 // useLocalActionAudio(). Both map actions with detectAudioEvent().
 // Fails silently (autoplay blocked, file missing) — sound is never load-bearing.
 // ============================================================================
@@ -129,7 +129,7 @@ export function newActionSounds(actions: TaggedAction[], from: number, before?: 
 }
 
 /**
- * Solo/hotseat: play the sound for each newly applied action (human or AI).
+ * Solo: play the sound for each newly applied action (human or AI).
  * Keyed on the action count so a re-render never replays a sound, and a new
  * game (count drops back to 0) starts clean.
  */

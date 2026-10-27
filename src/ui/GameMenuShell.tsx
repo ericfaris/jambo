@@ -1,7 +1,7 @@
 // ============================================================================
 // In-game profile & settings menu — the avatar button in the corner and the
 // popover it opens: who you are, game actions, the shared SettingsPanel, and
-// small tools. Used by GameScreen (solo/hotseat) and PlayerScreen (Cast).
+// small tools. Used by GameScreen (solo) and PlayerScreen (Cast).
 // ============================================================================
 
 import type { ReactNode } from 'react';

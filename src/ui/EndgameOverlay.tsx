@@ -10,9 +10,9 @@ interface EndgameOverlayProps {
   state: GameState;
   /** Replayed story of the game (chart, swing, paydays, MVP); optional. */
   story?: GameStory | null;
-  /** Seat names: ['You', 'AI'] in solo, ['Player 1', 'Player 2'] in hotseat. */
+  /** Seat names: ['You', 'AI'] in solo, ['Player 1', 'Player 2'] on the TV. */
   labels?: readonly [string, string];
-  /** The seat at the screen; null in hotseat (both players are here). */
+  /** The seat at the screen; null on the TV (both players are watching). */
   viewer?: 0 | 1 | null;
   /** Omitted on the TV, which has no buttons: rematches are voted on the phones. */
   onRematch?: () => void;
@@ -71,10 +71,10 @@ export function EndgameOverlay({ state, story = null, labels = ['You', 'AI'], vi
   if (!isOver || !scores) return null;
 
   const winner = getWinner(state);
-  // Hotseat: someone at the table always won
+  // TV: someone in the room always won
   const celebrate = viewer === null || winner === viewer;
   const accent = celebrate ? 'var(--gold)' : 'var(--accent-red)';
-  // Hotseat: the facts follow the winner
+  // TV: the facts follow the winner
   const me: 0 | 1 = viewer ?? winner ?? 0;
   const payday = story?.bestPayday[me] ?? null;
   const mvpCandidate = story?.mvp[me] ?? null;
@@ -82,7 +82,7 @@ export function EndgameOverlay({ state, story = null, labels = ['You', 'AI'], vi
   const theirPayday = story?.bestPayday[me === 0 ? 1 : 0] ?? null;
   const swing = story?.biggestSwing ?? null;
   // The viewer's own column comes first (online, the viewer may be seat 1);
-  // hotseat keeps seat order. Styling follows "you" vs "them", not the seat.
+  // the TV keeps seat order. Styling follows "you" vs "them", not the seat.
   const near: 0 | 1 = viewer ?? 0;
   const far: 0 | 1 = near === 0 ? 1 : 0;
   const goldOf = (seat: 0 | 1) => (seat === 0 ? scores.player0 : scores.player1);

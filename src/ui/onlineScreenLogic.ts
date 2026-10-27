@@ -40,7 +40,7 @@ export function friendServerError(message: string, friendName: string, friendly:
 
 /**
  * Engine copy says "opponent" ("Give 2g to opponent"); online it should be
- * the friend's name. Null name (solo, hotseat, Cast) leaves the text alone.
+ * the friend's name. Null name (solo, Cast) leaves the text alone.
  */
 export function nameTheOpponent(text: string, friendName: string | null): string {
   if (!friendName) return text;

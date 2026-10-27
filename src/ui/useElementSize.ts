@@ -5,8 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
  *
  * Returns a *callback* ref: observation (re)attaches whenever the element
  * mounts or changes. A plain useRef + mount-only effect misses elements that
- * appear later — e.g. GameScreen first renders the tutorial or the hotseat
- * pass-device screen, so the board didn't exist yet and stayed 0×0 forever.
+ * appear later — e.g. GameScreen first renders the tutorial, so the board didn't exist yet and stayed 0×0 forever.
  */
 export function useElementSize<T extends HTMLElement>() {
   const [node, setNode] = useState<T | null>(null);

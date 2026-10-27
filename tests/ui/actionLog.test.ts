@@ -6,7 +6,7 @@ import {
   createTestState, toPlayPhase, act, withHand, withMarket, withGold, withUtility, removeFromDeck,
 } from '../helpers/testHelpers.ts';
 import {
-  collectSpotlights, countUnread, groupLogByTurn, recapSinceLastMove, spotlightForEntry,
+  collectSpotlights, countUnread, groupLogByTurn, spotlightForEntry,
 } from '../../src/ui/actionLog.ts';
 import { describeLogEntry, formatLogRecap, humanizeLogDetails } from '../../src/ui/uiHints.ts';
 import { shouldShowResolvePanel } from '../../src/ui/gameScreenLogic.ts';
@@ -236,7 +236,7 @@ describe('action log drawer', () => {
     expect(html).toContain('You: </span>');
   });
 
-  it('without portraits (hotseat) the log has no faces', () => {
+  it('without portraits (TV) the log has no faces', () => {
     const html = renderToStaticMarkup(createElement(ActionLogDrawer, {
       open: true, onClose: () => {}, log, labels: LABELS, hiddenPlayer: 1, viewer: 0,
     }));
@@ -274,29 +274,6 @@ describe('action log drawer', () => {
   it('shows an unread badge on the open button', () => {
     expect(renderToStaticMarkup(createElement(ActionLogButton, { onClick: () => {}, unread: 3 }))).toContain('3 new');
     expect(renderToStaticMarkup(createElement(ActionLogButton, { onClick: () => {}, unread: 12 }))).toContain('9+');
-  });
-});
-
-describe('hotseat pass screen recap', () => {
-  const seats = ['Player 1', 'Player 2'] as const;
-  it("lists the other seat's moves since the viewer last acted, hiding their draws", () => {
-    const log: GameLogEntry[] = [
-      { turn: 0, player: 0, action: 'DRAW_CARD', details: 'Drew well_2' },
-      { turn: 0, player: 0, action: 'END_TURN' },
-      { turn: 1, player: 1, action: 'DRAW_CARD', details: 'Drew scale_1' },
-      { turn: 1, player: 1, action: 'PLAY_WARE_BUY', details: 'Bought wares for 3g via ware_3k_1', card: 'ware_3k_1' },
-      { turn: 1, player: 1, action: 'END_TURN' },
-    ];
-    expect(recapSinceLastMove(log, 0, seats)).toEqual(['Drew a card', 'Bought wares for 3g via Trinket Stall']);
-    expect(recapSinceLastMove(log, 1, seats)).toEqual([]);
-  });
-
-  it('summarises long turns', () => {
-    const log: GameLogEntry[] = Array.from({ length: 12 }, (_, i) => ({ turn: 1, player: 1 as const, action: 'X', details: `step ${i}` }));
-    const recap = recapSinceLastMove(log, 0, seats, 5);
-    expect(recap).toHaveLength(5);
-    expect(recap[0]).toBe('…and 8 earlier actions');
-    expect(recap[4]).toBe('Step 11');
   });
 });
 

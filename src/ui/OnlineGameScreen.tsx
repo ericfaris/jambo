@@ -115,7 +115,6 @@ export function OnlineGameScreen({ ws, onLeftToMenu }: { ws: WebSocketGameState;
       state={boardState}
       dispatch={dispatch}
       viewer={slot}
-      mode="online"
       responder={responderFromPublic(pub)}
       hasPendingInteraction={hasPendingFromPublic(pub)}
       canCancel={pub.canCancel}

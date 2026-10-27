@@ -109,7 +109,7 @@ export async function recordCompletedGame(payload: RecordCompletedGamePayload): 
 }
 
 export interface AbandonedGamePayload {
-  mode: 'solo' | 'multiplayer';
+  mode: 'solo';
   aiDifficulty: AIDifficulty;
   playerGold: number;
   opponentGold: number;
@@ -120,7 +120,7 @@ export interface AbandonedGamePayload {
 
 export function abandonedGamePayload(
   state: GameState,
-  mode: 'solo' | 'multiplayer',
+  mode: 'solo',
   aiDifficulty: AIDifficulty,
   abandonedAt: number = Date.now(),
 ): AbandonedGamePayload {

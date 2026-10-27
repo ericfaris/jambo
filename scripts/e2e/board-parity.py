@@ -1,4 +1,4 @@
-"""Board parity screenshots — solo / hotseat board at fixed, real mid-game states.
+"""Board parity screenshots — solo board at fixed, real mid-game states.
 
 Captures the same shots before and after a board refactor so they can be
 pixel-diffed. Needs a Vite dev server (no game server).
@@ -92,7 +92,6 @@ def capture(base, out):
             ('solo-1440x900', {'width': 1440, 'height': 900}, 'solo'),
             ('solo-1366x768', {'width': 1366, 'height': 768}, 'solo'),
             ('solo-390x844', {'width': 390, 'height': 844}, 'solo'),
-            ('hotseat-1440x900', {'width': 1440, 'height': 900}, 'multiplayer'),
         ]
         for name, vp, mode in shots:
             c, pg, errs = save_and_open(browser, base, vp, saved(mode, mid, built['midActions']))

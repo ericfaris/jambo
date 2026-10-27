@@ -11,12 +11,13 @@ import { getCard } from '../../src/engine/cards/CardDatabase.ts';
 import { createTestState, toPlayPhase } from '../helpers/testHelpers.ts';
 import type { GameState } from '../../src/engine/types.ts';
 
+const HUMAN: OpponentSeat = { kind: 'human', name: 'Friend', avatarUrl: null, presence: null, presenceElapsedMs: 0 };
+
 function render(state: GameState, over: Partial<GameBoardProps> & { opponent: OpponentSeat }): string {
   const props: GameBoardProps = {
     state,
     dispatch: () => {},
     viewer: 0,
-    mode: 'solo',
     responder: getResponder(state),
     hasPendingInteraction: false,
     labels: ['You', 'Opponent'],
@@ -27,7 +28,7 @@ function render(state: GameState, over: Partial<GameBoardProps> & { opponent: Op
   return renderToStaticMarkup(createElement(GameBoard, props));
 }
 
-describe('GameBoard — one table for solo, pass and play, and online', () => {
+describe('GameBoard — one table for solo and online', () => {
   const state = toPlayPhase(createTestState(42));
 
   it('solo: the trader across the table, your market below', () => {
@@ -41,13 +42,7 @@ describe('GameBoard — one table for solo, pass and play, and online', () => {
     expect(html).toContain('Your Hand');
   });
 
-  it('pass and play: seats are numbered', () => {
-    const html = render(state, { mode: 'hotseat', labels: ['Player 1', 'Player 2'], opponent: { kind: 'hotseat' } });
-    expect(html).toContain('Player 1 Market');
-    expect(html).toContain('Opponent (Player 2)');
-  });
-
-  it('resolve panels name the other seat in solo and pass and play, not "opponent" (playtest 2026-10-25)', () => {
+  it('resolve panels name the other seat in solo, not "opponent" (playtest 2026-10-25)', () => {
     const cheetah: GameState = {
       ...state,
       // empty hand: no HandReferenceStrip, which reads window (not in SSR)
@@ -63,19 +58,17 @@ describe('GameBoard — one table for solo, pass and play, and online', () => {
     });
     expect(solo).toContain(`Give 2g to ${trader.name}`);
     expect(solo).not.toContain('Give 2g to opponent');
-    const hotseat = render(cheetah, { mode: 'hotseat', hasPendingInteraction: true, labels: ['Player 1', 'Player 2'], opponent: { kind: 'hotseat' } });
-    expect(hotseat).toContain('Let Player 2 draw 2 cards');
   });
 
-  it('a cover (tutorial, pass-device) replaces the table', () => {
-    const html = render(state, { opponent: { kind: 'hotseat' }, cover: createElement('div', { className: 'cover-probe' }, 'Pass the device') });
+  it('a cover (tutorial) replaces the table', () => {
+    const html = render(state, { opponent: HUMAN, cover: createElement('div', { className: 'cover-probe' }, 'Tutorial') });
     expect(html).toContain('cover-probe');
     expect(html).not.toContain('Your Market');
   });
 
   it("the opponent's-turn hint sits in the hand heading row (a row of its own made the desktop board scroll)", () => {
     const theirTurn: GameState = { ...state, currentPlayer: 1 };
-    const html = render(theirTurn, { opponent: { kind: 'hotseat' }, labels: ['You', 'Amara'] });
+    const html = render(theirTurn, { opponent: { ...HUMAN, name: 'Amara' }, labels: ['You', 'Amara'] });
     const hint = html.match(/<div class="disabled-hint hand-head-hint"[^>]*>([^<]*)</);
     expect(hint?.[1]).toMatch(/turn/i);
     expect(html.indexOf('hand-head-hint')).toBeGreaterThan(html.indexOf('Your Hand'));
@@ -88,7 +81,6 @@ describe('GameBoard — one table for solo, pass and play, and online', () => {
     const board = toBoardState(pub, priv, viewer);
     const html = render(board, {
       viewer,
-      mode: 'online',
       responder: pub.waitingOnPlayer ?? pub.currentPlayer,
       labels: ['sam_trader', 'You'],
       opponent: { kind: 'human', name: 'sam_trader', avatarUrl: null, presence: null, presenceElapsedMs: 0 },

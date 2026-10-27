@@ -21,7 +21,7 @@ function memoryStorage() {
 
 function menu(overrides: Record<string, unknown> = {}) {
   return renderToStaticMarkup(createElement(MainMenu, {
-    onSelectOption: noop, onPlayTrader: noop, onPassAndPlay: noop, onPlayFriend: noop, onJoinTv: noop, onTutorial: noop,
+    onSelectOption: noop, onPlayTrader: noop, onPlayFriend: noop, onJoinTv: noop, onTutorial: noop,
     auth: signedOut, resumeLabel: null, onResume: noop, onAbandon: noop,
     ...overrides,
   }));
@@ -85,20 +85,21 @@ describe('landing page', () => {
     expect(html.match(/class="landing-cta"/g)).toHaveLength(1);
   });
 
-  it('names the modes by task: pass & play, join a TV game, and Play on TV only when Cast is set up', () => {
+  it('names the modes by task: join a TV game, and Play on TV only when Cast is set up', () => {
     const without = menu();
-    expect(without).toContain('Pass &amp; play');
+    expect(without).not.toContain('Pass &amp; play');
     expect(without).toContain('Join a TV game');
     expect(without).not.toContain('Play on TV');
     expect(without).not.toContain('Multiplayer');
     expect(menu({ onPlayOnTv: noop })).toContain('Play on TV');
   });
 
-  it('offers Play a friend next to pass & play, even with a saved game (it never touches the save)', () => {
+  it('offers Play a friend first, even with a saved game (it never touches the save)', () => {
     for (const html of [menu(), menu({ resumeLabel: 'vs Baraka (Hard) · turn 12' })]) {
       const modes = html.slice(html.indexOf('landing-modes'));
       expect(modes).toContain('landing-sign-label">Play a friend<');
-      expect(modes.indexOf('Pass &amp; play')).toBeLessThan(modes.indexOf('Play a friend'));
+      expect(modes.indexOf('Play a friend')).toBeLessThan(modes.indexOf('Join a TV game'));
+      expect(modes).not.toContain('confirm-ask');
     }
   });
 
@@ -128,12 +129,12 @@ describe('landing page', () => {
   it('the play modes are market signs, each with an icon and a hint', () => {
     const html = menu({ onPlayOnTv: noop });
     const signs = html.slice(html.indexOf('landing-signs'), html.indexOf('landing-footer'));
-    expect(signs.match(/class="landing-sign"/g)).toHaveLength(4);
-    expect(signs.match(/landing-sign-icon/g)).toHaveLength(4);
-    for (const label of ['Pass &amp; play', 'Play a friend', 'Play on TV', 'Join a TV game']) {
+    expect(signs.match(/class="landing-sign"/g)).toHaveLength(3);
+    expect(signs.match(/landing-sign-icon/g)).toHaveLength(3);
+    for (const label of ['Play a friend', 'Play on TV', 'Join a TV game']) {
       expect(signs).toContain(`landing-sign-label">${label}<`);
     }
-    expect(signs.match(/landing-sign-hint/g)).toHaveLength(4);
+    expect(signs.match(/landing-sign-hint/g)).toHaveLength(3);
   });
 
   it('holds its motion still while a modal is open', () => {

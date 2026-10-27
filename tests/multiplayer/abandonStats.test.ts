@@ -22,15 +22,15 @@ function validAbandon(overrides: Record<string, unknown> = {}): Record<string, u
 }
 
 describe('validateAbandonRequest', () => {
-  it('accepts a valid solo or hotseat abandon, with or without abandonedAt', () => {
+  it('accepts a valid solo abandon, with or without abandonedAt', () => {
     expect(validateAbandonRequest(validAbandon())).toBe(true);
-    expect(validateAbandonRequest(validAbandon({ mode: 'multiplayer' }))).toBe(true);
     expect(validateAbandonRequest(validAbandon({ abandonedAt: undefined }))).toBe(true);
   });
 
   it.each([
     ['bad profile id', { localProfileId: 'a b' }],
     ['unknown mode', { mode: 'cast' }],
+    ['removed pass-and-play mode', { mode: 'multiplayer' }],
     ['unknown difficulty', { aiDifficulty: 'insane' }],
     ['negative gold', { playerGold: -1 }],
     ['fractional turn', { turnCount: 1.5 }],

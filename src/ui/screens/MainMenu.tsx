@@ -14,14 +14,13 @@ import { AmbientLayer } from '../life.tsx';
 import { ConfirmButton } from '../ConfirmButton.tsx';
 import { usePreferences } from '../preferences.ts';
 import { DEMO_SALE, FAN_CARDS, FAN_DEMO_INDEX, LANDING_PITCH, TRADER_ORDER, playerRecord, readLastTrader, statsLine, writeLastTrader } from './landing.ts';
-import { BookIcon, FriendIcon, GearIcon, JoinIcon, PassPlayIcon, SoundIcon, TvIcon } from './landingIcons.tsx';
+import { BookIcon, FriendIcon, GearIcon, JoinIcon, SoundIcon, TvIcon } from './landingIcons.tsx';
 
 interface MainMenuProps {
   onSelectOption: (option: 'login' | 'settings') => void;
   /** Start a solo game against this trader, right away. */
   onPlayTrader: (difficulty: AIDifficulty) => void;
   /** Two players taking turns on this device. */
-  onPassAndPlay: () => void;
   /** Play someone on another device: make a room and send them a link. */
   onPlayFriend: () => void;
   /** Host a Chromecast game — only offered when Cast is configured. */
@@ -41,7 +40,7 @@ interface MainMenuProps {
 
 
 export function MainMenu({
-  onSelectOption, onPlayTrader, onPassAndPlay, onPlayFriend, onPlayOnTv, onJoinTv, onTutorial,
+  onSelectOption, onPlayTrader, onPlayFriend, onPlayOnTv, onJoinTv, onTutorial,
   auth, resumeLabel, onResume, onAbandon, dimmed = false,
 }: MainMenuProps) {
   const [statsSummary, setStatsSummary] = useState<UserStatsSummary | null>(null);
@@ -226,17 +225,16 @@ export function MainMenu({
           {hasSave && startOver(() => onPlayTrader(trader), `New game vs ${chosen.name}`, 'landing-secondary landing-secondary-wide')}
 
           <div className="landing-modes landing-signs">
-            {startOver(onPassAndPlay, <SignFace icon={<PassPlayIcon />} label="Pass & play" hint="Share this screen" />, 'landing-sign', signStyle(0))}
             {/* Never behind the save confirm: a friend game doesn't touch the local save */}
-            <button type="button" className="landing-sign" style={signStyle(1)} onClick={onPlayFriend}>
+            <button type="button" className="landing-sign" style={signStyle(0)} onClick={onPlayFriend}>
               <SignFace icon={<FriendIcon />} label="Play a friend" hint="Send an invite link" />
             </button>
             {onPlayOnTv && (
-              <button type="button" className="landing-sign" style={signStyle(2)} onClick={onPlayOnTv}>
+              <button type="button" className="landing-sign" style={signStyle(1)} onClick={onPlayOnTv}>
                 <SignFace icon={<TvIcon />} label="Play on TV" hint="Cast the table" />
               </button>
             )}
-            <button type="button" className="landing-sign" style={signStyle(3)} onClick={onJoinTv}>
+            <button type="button" className="landing-sign" style={signStyle(onPlayOnTv ? 2 : 1)} onClick={onJoinTv}>
               <SignFace icon={<JoinIcon />} label="Join a TV game" hint="Use your phone" />
             </button>
           </div>

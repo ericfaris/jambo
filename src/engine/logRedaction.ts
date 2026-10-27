@@ -4,7 +4,7 @@ import type { GameLogEntry } from './types.ts';
  * Log details name card ids. Most are public (played, placed, discarded
  * face-up), but draws, kept cards and Psychic picks stay in the actor's hand
  * unseen — those become "a card" for anyone else (the Cast TV and phones, the
- * opponent's log in solo and hotseat).
+ * opponent's log in solo).
  */
 const HIDDEN_CARD_PATTERN = /\b(Drew|drew|Kept|picked)\s+[a-z]+(?:_[a-z0-9]+)*_\d+\b/g;
 

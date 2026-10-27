@@ -1,5 +1,5 @@
 // The board pieces work from either seat (online, you may be seat 1) — and
-// seat 0 (solo, hotseat) renders exactly as before.
+// seat 0 (solo) renders exactly as before.
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createElement } from 'react';

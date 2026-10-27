@@ -27,18 +27,6 @@ function Svg({ size = 22, className, children }: { size?: number; className?: st
   );
 }
 
-/** Pass & play: two traders sharing one table. */
-export function PassPlayIcon() {
-  return (
-    <Svg className="landing-icon landing-icon-pass">
-      <circle cx="8" cy="7.5" r="2.6" />
-      <path d="M3.5 18.5c0-3 2-5 4.5-5s4.5 2 4.5 5" />
-      <circle className="landing-icon-pass-other" cx="16.5" cy="9" r="2.3" />
-      <path className="landing-icon-pass-other" d="M13.8 18.5c.3-2.4 1.6-4 3.4-4 2 0 3.3 1.7 3.3 4" />
-    </Svg>
-  );
-}
-
 /** Play a friend: an invite sent by paper plane. */
 export function FriendIcon() {
   return (

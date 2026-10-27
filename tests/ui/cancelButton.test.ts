@@ -23,7 +23,7 @@ describe('resolve panel cancel (✕)', () => {
     expect(html).toContain('aria-label="Cancel Boat and get your action back"');
   });
 
-  it('is hidden from the non-active viewer (hotseat / opponent)', () => {
+  it('is hidden from the non-active viewer (opponent)', () => {
     const html = renderToStaticMarkup(createElement(InteractionPanel, { state: boatStarted(), dispatch: noop, viewerPlayer: 1 }));
     expect(html).not.toContain('panel-cancel-x');
   });

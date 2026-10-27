@@ -37,9 +37,9 @@ describe('getResponder', () => {
   });
 });
 
-// Regression: hotseat Multiplayer used currentPlayer as the viewer, so the
+// Regression: a local two-seat UI once used currentPlayer as the viewer, so the
 // non-active player could never answer (only "Waiting: opponent ..." showed).
-describe('hotseat viewer = responder', () => {
+describe('viewer = responder', () => {
   it('shows the Guard decision to the responding player', () => {
     const s = guardWindowState();
     const asActive = renderToStaticMarkup(createElement(InteractionPanel, { state: s, dispatch: noopDispatch, viewerPlayer: s.currentPlayer }));

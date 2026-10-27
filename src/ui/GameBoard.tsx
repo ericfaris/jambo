@@ -79,28 +79,25 @@ export type OpponentSeat =
       presence: OnlineSeatView | null;
       /** Time since `presence` arrived — its reconnect countdown runs from there. */
       presenceElapsedMs: number;
-    }
-  /** Pass and play: the other player is on this device. */
-  | { kind: 'hotseat' };
+    };
 
 export interface GameBoardProps {
   state: GameState;
   dispatch: (action: GameAction) => void;
   /** The seat this screen belongs to. */
   viewer: 0 | 1;
-  mode: 'solo' | 'hotseat' | 'online';
   /** Who must act next; null at GAME_OVER. */
   responder: 0 | 1 | null;
   /** A resolution or reaction window is open (online: from the public view). */
   hasPendingInteraction: boolean;
   /** Online: the server's word on cancelling; local: derived from the state. */
   canCancel?: boolean;
-  /** Seat-indexed names; the viewer's is 'You' (hotseat: 'Player N'). */
+  /** Seat-indexed names; the viewer's is 'You'. */
   labels: readonly [string, string];
   opponent: OpponentSeat;
   /** Online: what the friend is doing while they hold the decision. */
   waitingHint?: string | null;
-  /** Shown instead of the table (tutorial, pass-device) — board state persists. */
+  /** Shown instead of the table (tutorial) — board state persists. */
   cover?: ReactNode;
   /** Rendered last inside the root (coin toss, presence banner, left overlay). */
   overlays?: ReactNode;
@@ -129,22 +126,18 @@ export interface GameBoardProps {
 
 function opponentPortraitFor(opponent: OpponentSeat, size: number, isActive = false): ReactNode {
   if (opponent.kind === 'trader') return <TraderPortrait trader={opponent.trader} mood={opponent.mood} speaking={opponent.speaking} size={size} />;
-  if (opponent.kind === 'human') {
-    return (
-      <span className="human-seat-portrait">
-        <PlayerAvatar avatarUrl={opponent.avatarUrl} size={size} active={isActive} label={opponent.name} />
-        {opponent.presence && <PresenceDot seat={opponent.presence} size={size >= 56 ? 'large' : 'small'} />}
-      </span>
-    );
-  }
-  return undefined;
+  return (
+    <span className="human-seat-portrait">
+      <PlayerAvatar avatarUrl={opponent.avatarUrl} size={size} active={isActive} label={opponent.name} />
+      {opponent.presence && <PresenceDot seat={opponent.presence} size={size >= 56 ? 'large' : 'small'} />}
+    </span>
+  );
 }
 
 export function GameBoard({
-  state, dispatch, viewer: viewerPlayer, mode, responder, hasPendingInteraction, canCancel, labels, opponent,
+  state, dispatch, viewer: viewerPlayer, responder, hasPendingInteraction, canCancel, labels, opponent,
   waitingHint = null, cover, overlays, endgame, menu, externalError = null, onSpotlightActiveChange,
 }: GameBoardProps) {
-  const localMultiplayer = mode === 'hotseat';
   const [wareDialog, setWareDialog] = useState<DeckCardId | null>(null);
   // Settings — shared with the main menu's Settings screen (preferences.ts)
   const preferences = usePreferences();
@@ -264,7 +257,7 @@ export function GameBoard({
   }, [menuOpen]);
 
   // Is the other side (the AI, or the friend online) the one to act?
-  const isAiTurn = mode !== 'hotseat' && responder !== null && responder !== viewerPlayer;
+  const isAiTurn = responder !== null && responder !== viewerPlayer;
 
   const getFriendlyErrorMessage = friendlyPlayError;
 
@@ -382,11 +375,11 @@ export function GameBoard({
   const turnBonus = endTurnBonus(state.actionsLeft);
   const supplyAlert = supplyWareFromError(cardError?.message);
   const logLabels = labels;
-  // Hotseat has no faces; otherwise the same portraits as the board, by seat
-  const viewerFace = opponent.kind === 'hotseat' ? null : <PlayerAvatar avatarUrl={avatarUrl} size={24} />;
+  // The same portraits as the board, by seat
+  const viewerFace = <PlayerAvatar avatarUrl={avatarUrl} size={24} />;
   const opponentFace = opponent.kind === 'trader'
     ? <TraderPortrait trader={opponent.trader} size={24} />
-    : opponent.kind === 'human' ? <PlayerAvatar avatarUrl={opponent.avatarUrl} size={24} label={opponent.name} /> : null;
+    : <PlayerAvatar avatarUrl={opponent.avatarUrl} size={24} label={opponent.name} />;
   const logPortraits: [ReactNode, ReactNode] = viewerPlayer === 0 ? [viewerFace, opponentFace] : [opponentFace, viewerFace];
   const logUnread = logVisible ? 0 : countUnread(state.log, logSeenLength, opponentPlayer);
   const visualFeedback = useVisualFeedback({
@@ -486,13 +479,11 @@ export function GameBoard({
     blockedDrawSecondsRef.current = 0;
   }, [resetPrefs]);
 
-  // The tutorial (solo) or the pass-device screen (hotseat) covers the whole
-  // table; everything above keeps its state for when the table comes back
+  // The tutorial (solo) covers the whole table; everything above keeps its state for when the table comes back
   if (cover) {
     return <>{cover}</>;
   }
 
-  const seatTitle = (seat: 0 | 1) => (localMultiplayer ? `Player ${seat + 1}` : 'You');
   const opponentBubble = opponent.kind === 'trader' && !isGameOver && !spotlightActive ? opponent.bubble : '';
   const onOpponentBubbleHide = opponent.kind === 'trader' ? opponent.onBubbleHide : undefined;
   const opponentSubtitle = opponent.kind === 'trader'
@@ -553,7 +544,7 @@ export function GameBoard({
                 )}
               </span>
               <div className={`player-turn-status${isMyTurnNow ? ' player-turn-status-active' : ''}`}>
-                <span>{seatTitle(viewerPlayer)}{isMyTurnNow ? ' · your turn' : ''}</span>
+                <span>You{isMyTurnNow ? ' · your turn' : ''}</span>
                 {(state.turnModifiers.buyDiscount > 0 || state.turnModifiers.sellBonus > 0) ? (
                   <span style={{ color: 'var(--accent-green)', textTransform: 'none', letterSpacing: 0.4 }}>
                     {state.turnModifiers.buyDiscount > 0 && `Buy −${state.turnModifiers.buyDiscount}g `}
@@ -586,7 +577,7 @@ export function GameBoard({
                 onMessageHide={onOpponentBubbleHide}
                 goldDelta={visualFeedback.goldDeltas[opponentPlayer]}
                 marketFlashSlots={visualFeedback.marketFlashSlots[opponentPlayer]}
-                label={opponent.kind === 'trader' ? opponent.trader.name : opponent.kind === 'human' ? opponent.name : `Player ${opponentPlayer + 1}`}
+                label={opponent.kind === 'trader' ? opponent.trader.name : opponent.name}
                 compactPortrait={opponentPortraitFor(opponent, 26)}
                 isActive={state.currentPlayer === opponentPlayer}
                 onMegaView={setMegaCardId}
@@ -595,7 +586,7 @@ export function GameBoard({
               />
             </div>
 
-            <CenterRow compact state={state} dispatch={dispatch} isLocalMode={true} showGlow={false} visualFeedback={visualFeedback} actorLabels={logLabels} hiddenPlayer={opponentPlayer} spotlitPlayer={localMultiplayer ? null : opponentPlayer} heldDiscardCards={heldDiscardCards} viewer={viewerPlayer} />
+            <CenterRow compact state={state} dispatch={dispatch} isLocalMode={true} showGlow={false} visualFeedback={visualFeedback} actorLabels={logLabels} hiddenPlayer={opponentPlayer} spotlitPlayer={opponentPlayer} heldDiscardCards={heldDiscardCards} viewer={viewerPlayer} />
             <WareSupply supply={state.wareSupply} compact highlight={supplyAlert} />
 
             {hintText && (
@@ -606,7 +597,7 @@ export function GameBoard({
 
             <div ref={phoneBoardRef} className={`player-board turn-emphasis ${isMyTurnNow ? 'turn-emphasis-active' : 'turn-emphasis-inactive'}`} data-center-target="bottom">
               <div className="player-board-section-head">
-                <div className="panel-section-title">{localMultiplayer ? `Player ${viewerPlayer + 1} Market` : 'Your Market'}</div>
+                <div className="panel-section-title">Your Market</div>
                 <span className="tableau-count">{viewer.market.filter(Boolean).length}/{viewer.market.length}</span>
               </div>
               <div style={{ flexShrink: 0 }}>
@@ -622,7 +613,7 @@ export function GameBoard({
                 />
               </div>
               <div className="player-board-section-head">
-                <div className="panel-section-title">{localMultiplayer ? `Player ${viewerPlayer + 1} Utilities` : 'Your Utilities'}</div>
+                <div className="panel-section-title">Your Utilities</div>
                 {utilCount > 0 && <span className="tableau-count">{utilCount}/3</span>}
               </div>
               <div style={{ flexShrink: 0, height: utilH }} data-utility-anchor={viewerPlayer}>
@@ -653,7 +644,7 @@ export function GameBoard({
                 />
               </div>
               <div className="player-board-section-head">
-                <div className="panel-section-title">{localMultiplayer ? `Player ${viewerPlayer + 1} Hand` : 'Your Hand'}<span className="tableau-count">{viewer.hand.length}</span></div>
+                <div className="panel-section-title">Your Hand<span className="tableau-count">{viewer.hand.length}</span></div>
                 {state.phase === 'PLAY' && isMyTurnNow && (
                   <span className="ui-helper-text">{state.actionsLeft} action{state.actionsLeft === 1 ? '' : 's'} left</span>
                 )}
@@ -713,7 +704,7 @@ export function GameBoard({
             onMessageHide={onOpponentBubbleHide}
             goldDelta={visualFeedback.goldDeltas[opponentPlayer]}
             marketFlashSlots={visualFeedback.marketFlashSlots[opponentPlayer]}
-            label={opponent.kind === 'trader' ? opponent.trader.name : opponent.kind === 'human' ? opponent.name : `Opponent (Player ${opponentPlayer + 1})`}
+            label={opponent.kind === 'trader' ? opponent.trader.name : opponent.name}
             subtitle={opponentSubtitle}
             portrait={opponentPortraitFor(opponent, 72, state.currentPlayer === opponentPlayer)}
             isActive={state.currentPlayer === opponentPlayer}
@@ -733,7 +724,7 @@ export function GameBoard({
             visualFeedback={visualFeedback}
             actorLabels={logLabels}
             hiddenPlayer={opponentPlayer}
-            spotlitPlayer={localMultiplayer ? null : opponentPlayer}
+            spotlitPlayer={opponentPlayer}
             heldDiscardCards={heldDiscardCards}
             viewer={viewerPlayer}
             supplySlot={<WareSupply supply={state.wareSupply} highlight={supplyAlert} />}
@@ -763,7 +754,7 @@ export function GameBoard({
               market={state.players[viewerPlayer].market}
               flashSlots={visualFeedback.marketFlashSlots[viewerPlayer]}
               flashVariant="soft"
-              label={localMultiplayer ? `Player ${viewerPlayer + 1} Market` : 'Your Market'}
+              label="Your Market"
               labelAside={`${state.players[viewerPlayer].market.filter(Boolean).length}/${state.players[viewerPlayer].market.length}`}
             />
             {/* utilities never squeeze into two rows; a long market wraps whole stands instead */}
@@ -784,7 +775,7 @@ export function GameBoard({
               hints={utilityHints}
               onMegaView={setMegaCardId}
               cardError={cardError}
-              label={localMultiplayer ? `Player ${viewerPlayer + 1} Utilities` : 'Your Utilities'}
+              label="Your Utilities"
               labelAside={`${state.players[viewerPlayer].utilities.length}/3`}
               cardSize={isShortDesktop ? 'small' : 'medium'}
               maxSlots={3}
@@ -794,8 +785,8 @@ export function GameBoard({
             {/* same block and inset as the opponent's above, so the two match and line up */}
             <SeatInfo
               seat={viewerPlayer}
-              label={`${seatTitle(viewerPlayer)}${state.currentPlayer === viewerPlayer ? ' · your turn' : ''}`}
-              portrait={localMultiplayer ? undefined : <PlayerAvatar avatarUrl={avatarUrl} size={72} active={state.currentPlayer === viewerPlayer} />}
+              label={`You${state.currentPlayer === viewerPlayer ? ' · your turn' : ''}`}
+              portrait={<PlayerAvatar avatarUrl={avatarUrl} size={72} active={state.currentPlayer === viewerPlayer} />}
               gold={state.players[viewerPlayer].gold}
               goldDelta={visualFeedback.goldDeltas[viewerPlayer]}
               handCount={state.players[viewerPlayer].hand.length}
@@ -822,7 +813,7 @@ export function GameBoard({
           }} data-hand-anchor={viewerPlayer}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
             <div className="panel-section-title" style={{ marginBottom: 0 }}>
-              {localMultiplayer ? `Player ${viewerPlayer + 1} Hand` : 'Your Hand'}
+              Your Hand
               <span className="tableau-count">{state.players[viewerPlayer].hand.length}</span>
             </div>
             {/* In the heading row, not a row of its own: a hint mustn't make the board scroll */}
@@ -981,12 +972,12 @@ export function GameBoard({
         state={state}
         story={endgame.story}
         labels={logLabels}
-        playerPortrait={opponent.kind === 'hotseat' ? undefined : <PlayerAvatar avatarUrl={avatarUrl} size={56} />}
+        playerPortrait={<PlayerAvatar avatarUrl={avatarUrl} size={56} />}
         opponentPortrait={opponent.kind === 'trader'
           ? <TraderPortrait trader={opponent.trader} mood={opponent.mood} size={56} />
-          : opponent.kind === 'human' ? <PlayerAvatar avatarUrl={opponent.avatarUrl} size={56} label={opponent.name} /> : undefined}
+          : <PlayerAvatar avatarUrl={opponent.avatarUrl} size={56} label={opponent.name} />}
         opponentQuote={opponent.kind === 'trader' && isGameOver ? opponent.endQuote : null}
-        viewer={localMultiplayer ? null : viewerPlayer}
+        viewer={viewerPlayer}
         onRematch={endgame.onRematch}
         rematchLabel={endgame.rematchLabel}
         rematchStatus={endgame.rematchStatus}
@@ -1012,25 +1003,24 @@ export function GameBoard({
       <OpponentPlaySpotlight
         log={state.log}
         viewer={viewerPlayer}
-        actorLabel={opponent.kind === 'trader' ? opponent.trader.name : opponent.kind === 'human' ? opponent.name : 'Opponent'}
-        enabled={!localMultiplayer && state.phase !== 'GAME_OVER'}
+        actorLabel={opponent.kind === 'trader' ? opponent.trader.name : opponent.name}
+        enabled={state.phase !== 'GAME_OVER'}
         onActiveChange={setSpotlightActive}
         onQueueChange={setSpotlightQueue}
         unobtrusive={state.currentPlayer === viewerPlayer}
         onCurrentChange={handleSpotlightCurrent}
-        portrait={opponent.kind === 'hotseat' ? undefined : opponentPortraitFor(opponent, 44)}
+        portrait={opponentPortraitFor(opponent, 44)}
         quote={opponent.kind === 'trader' ? quoteForSpotlight(opponent.line, spotlightSince) : null}
       />
 
       <FinalTurnBanner state={state} labels={logLabels} />
-      {/* hotseat: the pass-device screen already says whose turn it is */}
-      <TurnSweep state={state} viewer={viewerPlayer} enabled={!localMultiplayer} held={opponentMoveAnimating} onActiveChange={setSweepActive} />
+      <TurnSweep state={state} viewer={viewerPlayer} enabled held={opponentMoveAnimating} onActiveChange={setSweepActive} />
 
       {/* Wares, coins and cards travel between markets, supply, gold and hands */}
       <FlightLayer
         state={state}
         viewer={viewerPlayer}
-        spotlightEnabled={!localMultiplayer}
+        spotlightEnabled
         spotlightActive={spotlightActive}
         onLand={handleFlightLand}
         onBusyChange={setFlightsBusy}

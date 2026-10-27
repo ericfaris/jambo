@@ -1,6 +1,6 @@
 // ============================================================================
 // Settings panel — the one settings UI, shown on the main menu's Settings
-// screen and inside the in-game profile menus (solo, hotseat, Cast player).
+// screen and inside the in-game profile menus (solo, Cast player).
 // Each surface passes which groups apply to it; the controls are identical.
 // ============================================================================
 

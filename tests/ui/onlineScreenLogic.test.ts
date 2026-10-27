@@ -61,7 +61,7 @@ describe('nameTheOpponent', () => {
     expect(nameTheOpponent("pick 1 of your opponent's wares", 'Sam')).toBe("pick 1 of Sam's wares");
     expect(nameTheOpponent("Opponent's hand", 'Sam')).toBe("Sam's hand");
   });
-  it('leaves solo / hotseat / Cast copy alone', () => {
+  it('leaves solo / Cast copy alone', () => {
     expect(nameTheOpponent('Give 2g to opponent', null)).toBe('Give 2g to opponent');
   });
 });

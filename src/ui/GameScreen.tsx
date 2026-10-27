@@ -3,7 +3,6 @@ import type { ChangeEvent } from 'react';
 import { useGameStore } from '../hooks/useGameStore.ts';
 import { getAiActionByDifficulty } from '../ai/difficulties/index.ts';
 import type { AIDifficulty } from '../ai/difficulties/index.ts';
-import { getAiActionDescription } from '../ai/aiActionDescriptions.ts';
 import type { GameAction } from '../engine/types.ts';
 import { getResponder } from '../engine/responder.ts';
 import { FirstPlayerReveal } from './FirstPlayerReveal.tsx';
@@ -14,7 +13,6 @@ import { traderChatter } from '../ai/traderChatter.ts';
 import { useTrader } from './useTrader.ts';
 import { TutorialOverlay } from './TutorialOverlay.tsx';
 import { hasSeenTutorial, markTutorialSeen } from './tutorial/tutorial.ts';
-import { PassDeviceScreen, needsHandoff } from './PassDeviceScreen.tsx';
 import { shouldAiAct, aiActionDelayMs } from './gameScreenLogic.ts';
 import type { TraderLine } from './gameScreenLogic.ts';
 import { usePreferences } from './preferences.ts';
@@ -27,41 +25,38 @@ import { ConfirmButton } from './ConfirmButton.tsx';
 import { GameBoard } from './GameBoard.tsx';
 import type { OpponentSeat } from './GameBoard.tsx';
 
-const HOTSEAT_LABELS = ['Player 1', 'Player 2'] as const;
 /** A trader's line stays on screen this long. */
 const TRADER_LINE_MS = 4500;
 
 /**
- * A local game — solo vs a trader, or pass-and-play on one device. Owns the
- * store, the AI, autosave, stats and the trader; the table itself is the
+ * A local game — solo vs a trader. Owns the store, the AI, autosave, stats and the trader; the table itself is the
  * shared GameBoard (the online friend game renders the same board).
  */
-export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultiplayer = false }: { onBackToMenu?: () => void; aiDifficulty?: AIDifficulty; localMultiplayer?: boolean }) {
+export function GameScreen({ onBackToMenu, aiDifficulty = 'medium' }: { onBackToMenu?: () => void; aiDifficulty?: AIDifficulty }) {
   const { state, dispatch, error, newGame, exportReplay, importReplay, replayActions, taggedActions } = useGameStore();
-  // Hotseat: every ending gets the victory flourish (both players are here)
-  useLocalActionAudio(taggedActions, state, localMultiplayer ? null : 0);
+  useLocalActionAudio(taggedActions, state, 0);
 
   // Autosave after every action so a refresh can't lose the game
   // (persistence/savedGame.ts). A finished game clears the save.
   const startingPlayer = useGameStore((store) => store.startingPlayer);
   useEffect(() => {
     saveLocalGame({
-      mode: localMultiplayer ? 'multiplayer' : 'solo',
+      mode: 'solo',
       aiDifficulty,
       state,
       replayActions,
       taggedActions,
       startingPlayer,
     });
-  }, [state, replayActions, taggedActions, startingPlayer, aiDifficulty, localMultiplayer]);
+  }, [state, replayActions, taggedActions, startingPlayer, aiDifficulty]);
   useEffect(() => {
     setGameActiveInTab(true);
   }, []);
   const { prefs } = usePreferences();
   const { aiSpeed, traderVoices } = prefs;
   // Solo: the AI is a named trader with a face and a voice (step 11)
-  const trader = useMemo(() => (localMultiplayer ? null : traderFor(aiDifficulty)), [localMultiplayer, aiDifficulty]);
-  const soloLabels = useMemo<readonly [string, string] | null>(() => (trader ? ['You', trader.name] : null), [trader]);
+  const trader = useMemo(() => traderFor(aiDifficulty), [aiDifficulty]);
+  const labels = useMemo<readonly [string, string]>(() => ['You', trader.name], [trader]);
   const difficultyLabel = `${aiDifficulty.charAt(0).toUpperCase()}${aiDifficulty.slice(1)}`;
   // Rematch: a fresh coin toss decides who goes first (as from the menu)
   const [rematchReveal, setRematchReveal] = useState<0 | 1 | null>(null);
@@ -81,12 +76,8 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   const [tutorialFromMenu, setTutorialFromMenu] = useState(false);
   const replayInputRef = useRef<HTMLInputElement>(null);
   const prevPhaseRef = useRef(state.phase);
-  // Hotseat: the screen belongs to whoever must act next — including the
-  // non-active player answering a Guard/Rain Maker, auction, draft, etc.
-  const viewerPlayer: 0 | 1 = localMultiplayer ? getResponder(state) : 0;
-  // Hotseat: whose hand is currently allowed on screen (changes only after a handoff)
-  const [confirmedViewer, setConfirmedViewer] = useState<0 | 1>(viewerPlayer);
-  const opponentPlayer: 0 | 1 = viewerPlayer === 0 ? 1 : 0;
+  const viewerPlayer = 0 as const;
+  const opponentPlayer = 1 as const;
 
   // One voice per moment: the spotlight caption replaces the AI's line about
   // the same play (a hidden bubble would otherwise pop up stale afterwards).
@@ -198,7 +189,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   }, [importReplay]);
 
   // Is it the AI's turn to act?
-  const isAiTurn = !localMultiplayer && state.phase !== 'GAME_OVER' && getResponder(state) === 1;
+  const isAiTurn = state.phase !== 'GAME_OVER' && getResponder(state) === 1;
 
   // AI move effect
   const aiAttemptRef = useRef(0);
@@ -233,7 +224,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
         aiAttemptRef.current++;
         if (action) {
           // Set AI message before dispatching action
-          setAiMessage(trader ? traderChatter(trader, action, state) : getAiActionDescription(action, state));
+          setAiMessage(traderChatter(trader, action, state));
           dispatch(action, `AI (${aiDifficulty})`);
         }
       }, Math.max(0, wait));
@@ -271,10 +262,10 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
     }
   }, [isGameOver, state.rngSeed, startingPlayer, replayActions]);
   const endgameRecord = useMemo(() => {
-    if (localMultiplayer || !diffBreakdown) return null;
+    if (!diffBreakdown) return null;
     const row = diffBreakdown.find((d) => d.difficulty === aiDifficulty);
     return row ? { wins: row.humanWins, losses: row.aiWins } : null;
-  }, [localMultiplayer, diffBreakdown, aiDifficulty]);
+  }, [diffBreakdown, aiDifficulty]);
   const handleRematch = useCallback(() => {
     const first: 0 | 1 = Math.random() < 0.5 ? 0 : 1;
     newGame(undefined, first);
@@ -288,53 +279,48 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
     markTutorialSeen();
   }, []);
 
-  const opponent: OpponentSeat = trader
-    ? {
-        kind: 'trader',
-        trader,
-        mood: traderMood,
-        speaking: traderSpeaking,
-        subtitle: `${trader.title} · ${difficultyLabel}`,
-        bubble: traderLine ?? aiMessage,
-        onBubbleHide: handleAiMessageHide,
-        line: traderLineSaid,
-        endQuote: isGameOver ? trader.lines[getWinner(state) === opponentPlayer ? 'win' : 'lose'][0] ?? null : null,
-      }
-    : { kind: 'hotseat' };
+  const opponent: OpponentSeat = {
+    kind: 'trader',
+    trader,
+    mood: traderMood,
+    speaking: traderSpeaking,
+    subtitle: `${trader.title} · ${difficultyLabel}`,
+    bubble: traderLine ?? aiMessage,
+    onBubbleHide: handleAiMessageHide,
+    line: traderLineSaid,
+    endQuote: isGameOver ? trader.lines[getWinner(state) === opponentPlayer ? 'win' : 'lose'][0] ?? null : null,
+  };
 
-  // Block the entire game UI until the tutorial is dismissed; hotseat hands
-  // the device over between seats. Both cover the table (its state persists).
+  // Block the entire game UI until the tutorial is dismissed; it covers the
+  // table (its state persists).
   const cover = showTutorial
     ? <TutorialOverlay onClose={handleCloseTutorial} finishLabel={tutorialFromMenu ? 'Back to the game' : 'Start playing'} />
-    : needsHandoff(localMultiplayer, state.phase, confirmedViewer, viewerPlayer)
-      ? <PassDeviceScreen state={state} viewerPlayer={viewerPlayer} onReady={() => setConfirmedViewer(viewerPlayer)} />
-      : null;
+    : null;
 
   return (
     <GameBoard
       state={state}
       dispatch={dispatch}
       viewer={viewerPlayer}
-      mode={localMultiplayer ? 'hotseat' : 'solo'}
       responder={isGameOver ? null : getResponder(state)}
       hasPendingInteraction={!!(state.pendingResolution || state.pendingGuardReaction || state.pendingWareCardReaction)}
-      labels={soloLabels ?? HOTSEAT_LABELS}
+      labels={labels}
       opponent={opponent}
       cover={cover}
       onSpotlightActiveChange={setSpotlightActive}
       overlays={rematchReveal !== null && (
-        <FirstPlayerReveal firstPlayer={rematchReveal} onComplete={handleRematchRevealDone} localMultiplayer={localMultiplayer} />
+        <FirstPlayerReveal firstPlayer={rematchReveal} onComplete={handleRematchRevealDone} />
       )}
       endgame={{
         story: gameStory,
         onRematch: handleRematch,
-        rematchLabel: trader ? `Rematch ${trader.name} · ${difficultyLabel}` : 'Rematch',
+        rematchLabel: `Rematch ${trader.name} · ${difficultyLabel}`,
         onMainMenu: onBackToMenu,
         record: endgameRecord,
       }}
       menu={{
         error: statsError,
-        showAiOptions: !localMultiplayer,
+        showAiOptions: true,
         onLoggedOut: handleLoggedOut,
         stats: statsSummary && (
           <>
@@ -376,11 +362,11 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
               <ConfirmButton
                 className="menu-abandon"
                 label="Abandon Game"
-                question={localMultiplayer ? 'Abandon this game? It ends for both players and can\'t be resumed.' : 'Abandon this game? It can\'t be resumed.'}
+                question="Abandon this game? It can't be resumed."
                 confirmLabel="Abandon"
                 cancelLabel="Keep playing"
                 onConfirm={() => {
-                  recordAbandonedGame(abandonedGamePayload(state, localMultiplayer ? 'multiplayer' : 'solo', aiDifficulty));
+                  recordAbandonedGame(abandonedGamePayload(state, 'solo', aiDifficulty));
                   // Delete the save first, so the menu offers no "Resume Game"
                   clearLocalGame();
                   closeMenu();

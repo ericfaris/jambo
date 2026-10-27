@@ -75,7 +75,7 @@ store so the game can continue. Every step also checks
 PT_OUT=<scratchpad> python3 .claude/skills/game-playtest/scripts/driver.py \
   2 solo medium medium 0.25 202        # id mode ai human-policy eps seed
 PT_OUT=<scratchpad> python3 .claude/skills/game-playtest/scripts/driver.py \
-  5 hotseat medium medium 0.25 505     # both seats through the UI
+  5 online medium medium 0.25 505      # both seats via a friend room (server + Vite first)
 ```
 
 It writes `game<N>.log`, `game<N>.json` (findings, stats, endgame),
@@ -181,9 +181,8 @@ empty discard)
       cards), Leopard Statue, Weapons. Also try a 4th utility (max 3) and a
       second activation in the same turn (should be blocked)
 
-**Hotseat multiplayer**: the main menu's "Multiplayer" is a *local*
-pass-and-play game on one screen (no server); the driver's `hotseat` mode
-covers it
+**Both seats human**: the driver's `online` mode (Play a friend, two
+browsers against the server) covers it — pass-and-play was removed 2026-10-27
 - [ ] The non-active player can answer everything aimed at them: Guard,
       Rain Maker, auction bids, draft picks, Cheetah, Tribal Elder discard,
       Carrier, Snake

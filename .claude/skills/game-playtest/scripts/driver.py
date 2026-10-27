@@ -81,7 +81,7 @@ class Game:
         self.stats = {'ui_actions': 0, 'fallbacks': 0, 'res_types': {}, 'cards_played': {}, 'utilities': 0,
                       'guard_prompts': 0, 'rain_prompts': 0, 'explore_clicks': 0}
         self.shots = 0
-        self.human_seats = [0, 1] if mode == 'hotseat' else [0]
+        self.human_seats = [0]
         self.seen_finding_keys = set()
         self.panels_seen = set()
 
@@ -431,12 +431,6 @@ class Game:
         last_err = None
         turn_seen = -1
         for step in range(max_steps):
-            # Hotseat pass-device screen: hand the device over
-            handoff = self.pg.get_by_role('button', name=re.compile(r"^I'm Player \d"))
-            if handoff.count():
-                self.stats['handoffs'] = self.stats.get('handoffs', 0) + 1
-                handoff.first.click()
-                self.tick(200)
             s = self.summary()
             if s['violations']:
                 self.finding('INVARIANT', '; '.join(s['violations'])[:300], key=('inv', s['violations'][0][:60]))
@@ -713,16 +707,11 @@ def run_game(gid, mode, difficulty, human_policy, eps, seed):
         pg.evaluate('() => window.__ptLoad()')
         g = Game(pg, gid, mode, difficulty, human_policy, eps, log)
         log(f'=== Game {gid}: mode={mode} ai={difficulty} human-policy={human_policy} eps={eps}')
-        # Landing page (2026-10-12 redesign): pick a trader, then the big CTA;
-        # pass and play is in the modes row
-        if mode == 'solo':
-            pg.locator('.landing-trader', has_text=difficulty).first.click()
-            pg.clock.run_for(300)
-            g.shot('setup')
-            pg.locator('.landing-cta').first.click()
-        else:
-            g.shot('setup')
-            pg.get_by_role('button', name='Pass & play').click()
+        # Landing page (2026-10-12 redesign): pick a trader, then the big CTA
+        pg.locator('.landing-trader', has_text=difficulty).first.click()
+        pg.clock.run_for(300)
+        g.shot('setup')
+        pg.locator('.landing-cta').first.click()
         # first player reveal
         for _ in range(20):
             pg.clock.run_for(500)
@@ -773,11 +762,11 @@ def run_game(gid, mode, difficulty, human_policy, eps, seed):
 
 
 USAGE = """usage: driver.py GAME_ID MODE AI_DIFFICULTY HUMAN_POLICY EPSILON SEED
-  MODE           solo | hotseat | online
+  MODE           solo | online
                  online: two browsers play a Play-a-friend game against the
                  real server (start it + Vite proxied to it first); both seats
                  use the phone policy, AI_DIFFICULTY/HUMAN_POLICY are ignored
-  AI_DIFFICULTY  easy | medium | hard | expert  (opponent; ignored for hotseat)
+  AI_DIFFICULTY  easy | medium | hard | expert  (opponent)
   HUMAN_POLICY   difficulty used to choose the human seat's moves
   EPSILON        0..1 chance of a random valid action instead (exploration)
   env PT_OUT     output dir (default cwd), PT_BASE app URL (default :5180)
@@ -791,5 +780,7 @@ if __name__ == '__main__':
     gid, mode, diff, pol, eps, seed = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], float(sys.argv[5]), int(sys.argv[6])
     if mode == 'online':
         run_online(int(gid), eps, seed)
+    elif mode != 'solo':
+        sys.exit(USAGE)
     else:
         run_game(int(gid), mode, diff, pol, eps, seed)

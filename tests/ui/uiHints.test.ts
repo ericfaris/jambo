@@ -60,7 +60,7 @@ describe('formatLogRecap', () => {
     // your own actions keep "opponent"
     expect(formatLogRecap({ player: 0, action: 'SCALE_EFFECT', details: 'Kept scale_1, gave well_1 to opponent' }, ['You', 'Opponent']))
       .toBe('You: Kept Scale, gave Well to opponent');
-    // hotseat seat names are left alone
+    // seat names (TV) are left alone
     expect(formatLogRecap({ player: 1, action: 'BINARY_CHOICE', details: 'Made opponent discard down to 3' }, ['Player 1', 'Player 2']))
       .toBe('Player 2: Made opponent discard down to 3');
   });

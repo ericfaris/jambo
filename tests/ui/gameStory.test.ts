@@ -120,7 +120,7 @@ describe('gold chart', () => {
 });
 
 describe('endgame overlay', () => {
-  it('headlines read for solo and hotseat', () => {
+  it('headlines read for solo and the TV', () => {
     expect(winnerHeadline(0, ['You', 'AI'])).toBe('You win!');
     expect(winnerHeadline(1, ['You', 'AI'])).toBe('AI wins!');
     expect(winnerHeadline(1, ['Player 1', 'Player 2'])).toBe('Player 2 wins!');
@@ -138,7 +138,7 @@ describe('endgame overlay', () => {
     expect(html).toContain('Your record at this level: 3–2');
   });
 
-  it('hotseat never says "AI"', () => {
+  it('the TV never says "AI"', () => {
     const { end } = playGame(4242);
     const html = renderToStaticMarkup(createElement(EndgameOverlay, { state: end, labels: ['Player 1', 'Player 2'], viewer: null, onRematch: () => {} }));
     expect(html).not.toContain('AI');
