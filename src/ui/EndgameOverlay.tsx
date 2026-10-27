@@ -14,7 +14,8 @@ interface EndgameOverlayProps {
   labels?: readonly [string, string];
   /** The seat at the screen; null in hotseat (both players are here). */
   viewer?: 0 | 1 | null;
-  onRematch: () => void;
+  /** Omitted on the TV, which has no buttons: rematches are voted on the phones. */
+  onRematch?: () => void;
   /** e.g. "Rematch · Hard" */
   rematchLabel?: string;
   onMainMenu?: () => void;
@@ -153,10 +154,12 @@ export function EndgameOverlay({ state, story = null, labels = ['You', 'AI'], vi
           <div className="endgame-record">Your record at this level: {record.wins}–{record.losses}</div>
         )}
 
-        <div className="endgame-actions">
-          <button ref={rematchRef} className="primary" onClick={onRematch} disabled={rematchDisabled}>{rematchLabel}</button>
-          {onMainMenu && <button onClick={onMainMenu}>Main Menu</button>}
-        </div>
+        {onRematch && (
+          <div className="endgame-actions">
+            <button ref={rematchRef} className="primary" onClick={onRematch} disabled={rematchDisabled}>{rematchLabel}</button>
+            {onMainMenu && <button onClick={onMainMenu}>Main Menu</button>}
+          </div>
+        )}
         {rematchStatus && <div className="endgame-rematch-status" role="status">{rematchStatus}</div>}
       </div>
     </div>

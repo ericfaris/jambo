@@ -842,6 +842,18 @@ existing set already covers the full identity; this pass's job was
 documenting it, fixing one duplication, and identifying the SFX gap.
 
 ## Changelog
+### 2026-10-26 — Cast TV on the desktop board (v1.30.0)
+- `TVScreen` now composes the desktop board: both seats as `.tableau` panels
+  with brass corners and `SeatInfo` (portrait, gold, gold track, face-down
+  fan), `CenterRow` with the supply tray and turn plaque, and on the right a
+  `.tv-status-plaque` saying who the table waits on (or Wise Man prices).
+  Spotlights, flights, strikes, the turn sweep ("Player 2's turn") and the
+  final-turn banner run for both seats; the result card has no buttons
+  (rematch votes happen on the phones). Laid out for 1280×720 (the
+  Chromecast viewport); TV markets shrink to 44px slots past 15 spaces.
+- Dev: `/?tv=1` (staged), `/?tv=1&slots=21` (big market), `/?tv=1&autoplay=1`
+  (two AIs). Playtest: `scripts/e2e/cast-tv.py`.
+
 ### 2026-10-13 — Play a friend online (v1.23.0)
 A third two-player mode: **Play a friend** on the landing page makes a room
 and shows its code and an invite link (`#/play/<code>`); the friend opens it

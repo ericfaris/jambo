@@ -20,8 +20,8 @@ export function trailEndpoints(trail: Pick<FeedbackTrail, 'kind' | 'actor' | 'so
  * A card the opponent played is already shown big and flown to the discard
  * by the spotlight; a second trail from their hand would double it up.
  */
-export function spotlightCoversDiscard(latest: Pick<GameLogEntry, 'card' | 'player'> | null | undefined, spotlitPlayer: 0 | 1 | null): boolean {
-  return !!latest?.card && spotlitPlayer !== null && latest.player === spotlitPlayer;
+export function spotlightCoversDiscard(latest: Pick<GameLogEntry, 'card' | 'player'> | null | undefined, spotlitPlayer: 0 | 1 | 'both' | null): boolean {
+  return !!latest?.card && spotlitPlayer !== null && (spotlitPlayer === 'both' || latest.player === spotlitPlayer);
 }
 
 export interface TrailPath { startX: number; startY: number; endX: number; endY: number }

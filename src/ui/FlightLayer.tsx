@@ -25,8 +25,9 @@ interface LaunchedFlight extends Flight {
 
 interface FlightLayerProps {
   state: GameState;
-  /** The seat at the screen: the other seat's face-up plays are spotlit first. */
-  viewer: 0 | 1;
+  /** The seat at the screen: the other seat's face-up plays are spotlit first.
+   *  Null on the TV, which spotlights both seats' plays. */
+  viewer: 0 | 1 | null;
   /** Whether the opponent-play spotlight runs (off in hotseat). */
   spotlightEnabled: boolean;
   /** True while a spotlight is on screen — flights wait for it to land. */
@@ -132,7 +133,7 @@ export function FlightLayer({ state, viewer, spotlightEnabled, spotlightActive, 
       if (f.revealsSlot) slotElement(f.revealsSlot.player, f.revealsSlot.index)?.setAttribute('data-incoming', '');
     }
     const newEntries = state.log.slice(prev.logLength);
-    const waitForSpotlight = spotlightEnabled && newEntries.some((e) => e.card && e.player !== viewer);
+    const waitForSpotlight = spotlightEnabled && newEntries.some((e) => e.card && (viewer === null || e.player !== viewer));
     pendingRef.current.push({ flights, waitForSpotlight, sawSpotlight: false, plannedAt: Date.now() });
     // Wakes the launch effect: the newest plan is identified by the next flight id
     setPlannedThrough(nextIdRef.current);

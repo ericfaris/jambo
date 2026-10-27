@@ -22,12 +22,12 @@ function hidden(count: number): DeckCardId[] {
   return Array.from({ length: Math.max(0, count) }, () => HIDDEN_CARD_ID);
 }
 
-export function toBoardState(pub: PublicGameState, priv: PrivateGameState, slot: 0 | 1): GameState {
+export function toBoardState(pub: PublicGameState, priv: PrivateGameState | null, slot: 0 | 1 | null): GameState {
   const player = (seat: 0 | 1): PlayerState => {
     const p = pub.players[seat];
     return {
       gold: p.gold,
-      hand: seat === slot ? priv.hand : hidden(p.handCount),
+      hand: priv && seat === slot ? priv.hand : hidden(p.handCount),
       market: p.market,
       utilities: p.utilities,
       smallMarketStands: p.smallMarketStands,
@@ -42,14 +42,14 @@ export function toBoardState(pub: PublicGameState, priv: PrivateGameState, slot:
     phase: pub.phase,
     actionsLeft: pub.actionsLeft,
     drawsThisPhase: pub.drawsThisPhase,
-    drawnCard: priv.drawnCard,
+    drawnCard: priv?.drawnCard ?? null,
     keptCardThisDrawPhase: false,
     deck: hidden(pub.deckCount),
     discardPile: pub.discardPile,
     reshuffleCount: 0,
     wareSupply: pub.wareSupply,
     players: [player(0), player(1)],
-    pendingResolution: priv.pendingResolution,
+    pendingResolution: priv?.pendingResolution ?? null,
     turnModifiers: pub.turnModifiers,
     endgame: pub.endgame,
     pendingGuardReaction: pub.pendingGuardReaction,
@@ -57,6 +57,11 @@ export function toBoardState(pub: PublicGameState, priv: PrivateGameState, slot:
     pendingWareCardReaction: pub.pendingWareCardReaction,
     log: pub.log,
   };
+}
+
+/** The Cast TV's board: everything public, both hands face down. */
+export function toTvBoardState(pub: PublicGameState): GameState {
+  return toBoardState(pub, null, null);
 }
 
 /** Who must act next — the engine's getResponder(), from the public view. Null once the game is over. */

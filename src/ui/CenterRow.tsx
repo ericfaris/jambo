@@ -30,10 +30,11 @@ interface CenterRowProps {
   heldDiscardCards?: readonly string[];
   /** Desktop: the ware supply, pinned to the left end of the row. */
   supplySlot?: ReactNode;
-  /** Seat whose face-up plays get the big spotlight — skip the duplicate recap pill. */
-  spotlitPlayer?: 0 | 1 | null;
-  /** The seat at this screen (online you may be seat 1): the other seat's moves are the strong ones. */
-  viewer?: 0 | 1;
+  /** Seat whose face-up plays get the big spotlight ('both' on the TV) — skip the duplicate recap pill. */
+  spotlitPlayer?: 0 | 1 | 'both' | null;
+  /** The seat at this screen (online you may be seat 1): the other seat's moves are the strong ones.
+   *  Null on the TV, where every move is the one to watch. */
+  viewer?: 0 | 1 | null;
 }
 
 const NO_HELD: readonly string[] = [];
@@ -92,7 +93,7 @@ export function CenterRow({ state, isLocalMode = true, showGlow = false, visualF
   }, [trail]);
 
   const latestEntry = state.log.length > 0 ? state.log[state.log.length - 1] : null;
-  const lastActionRecap = latestEntry && expiredRecapAt !== state.log.length && !(latestEntry.card && latestEntry.player === spotlitPlayer)
+  const lastActionRecap = latestEntry && expiredRecapAt !== state.log.length && !(latestEntry.card && (spotlitPlayer === 'both' || latestEntry.player === spotlitPlayer))
     ? formatLogRecap(latestEntry, actorLabels, hiddenPlayer)
     : null;
 

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { GameState } from '../engine/types.ts';
+import { formatTurnOwner } from './uiHints.ts';
 import { DRAW_MODAL_MAX_WAIT_MS, DRAW_MODAL_SETTLE_MS } from './gameScreenLogic.ts';
 
 export const TURN_SWEEP_MS = 1300;
@@ -14,9 +15,11 @@ export function sweepReady({ held, waitedMs }: { held: boolean; waitedMs: number
  * on the opening turn (the coin toss already said who goes first), not on
  * the final turn (FinalTurnBanner says it louder), not at game over.
  */
-export function shouldSweepTurn(prev: Pick<GameState, 'currentPlayer' | 'turn'> | null, next: Pick<GameState, 'currentPlayer' | 'turn' | 'phase' | 'endgame'>, viewer: 0 | 1): boolean {
+export function shouldSweepTurn(prev: Pick<GameState, 'currentPlayer' | 'turn'> | null, next: Pick<GameState, 'currentPlayer' | 'turn' | 'phase' | 'endgame'>, viewer: 0 | 1 | null): boolean {
   if (!prev) return false;
   if (next.phase === 'GAME_OVER' || next.endgame?.isFinalTurn) return false;
+  // the TV (no viewer) announces every hand-over
+  if (viewer === null) return next.currentPlayer !== prev.currentPlayer && next.turn > 0;
   return next.currentPlayer === viewer && prev.currentPlayer !== viewer && next.turn > 0;
 }
 
@@ -25,9 +28,12 @@ export function shouldSweepTurn(prev: Pick<GameState, 'currentPlayer' | 'turn'> 
  * held, like the draw dialog, until the opponent's last move has finished
  * animating (spotlight, flights, strikes), so it never sweeps over them.
  */
-export function TurnSweep({ state, viewer, enabled = true, held = false, onActiveChange }: {
+export function TurnSweep({ state, viewer, enabled = true, held = false, onActiveChange, labels }: {
   state: GameState;
-  viewer: 0 | 1;
+  /** Null on the TV: every hand-over sweeps, naming the seat. */
+  viewer: 0 | 1 | null;
+  /** Seat names for the band ("Player 2's turn"); without them it says "Your turn". */
+  labels?: readonly [string, string];
   enabled?: boolean;
   /** The opponent's last move is still on screen. */
   held?: boolean;
@@ -52,7 +58,7 @@ export function TurnSweep({ state, viewer, enabled = true, held = false, onActiv
       setPending(false);
     } else {
       // the turn moved on before it could sweep: drop it
-      if (state.currentPlayer !== viewer) setPending(false);
+      if (viewer !== null && state.currentPlayer !== viewer) setPending(false);
       if (shouldSweepTurn(prev, state, viewer)) {
         setHandOvers((n) => n + 1);
         setPending(true);
@@ -97,7 +103,7 @@ export function TurnSweep({ state, viewer, enabled = true, held = false, onActiv
   if (!shown) return null;
   return (
     <div key={key} className="turn-sweep" role="status" aria-live="polite">
-      <span className="turn-sweep-band">Your turn</span>
+      <span className="turn-sweep-band">{labels ? formatTurnOwner(labels[state.currentPlayer]) : 'Your turn'}</span>
     </div>
   );
 }

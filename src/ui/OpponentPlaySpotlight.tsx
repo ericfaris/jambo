@@ -131,6 +131,17 @@ interface OpponentPlaySpotlightProps {
   portrait?: ReactNode;
   /** What the trader is saying about it right now (their voiced line). */
   quote?: string | null;
+  /** TV: at most this many plays wait behind the one on screen; older ones are
+   *  dropped (their cards still land) so the TV keeps up with fast play. */
+  maxBacklog?: number;
+  /** TV: the other seat's spotlight is on screen — the next card waits its turn. */
+  held?: boolean;
+}
+
+/** Keep the card on screen and the newest `max` behind it; drop the ones in between. */
+export function trimSpotlightBacklog<T>(queue: readonly T[], max: number | undefined): T[] {
+  if (max === undefined || queue.length <= max + 1) return [...queue];
+  return [queue[0], ...queue.slice(queue.length - max)];
 }
 
 type Phase = 'enter' | 'hold' | 'exit';
@@ -141,7 +152,7 @@ type Phase = 'enter' | 'hold' | 'exit';
  * opponent's utility row for utilities). Purely presentational: it never
  * blocks input — tap the card to skip ahead.
  */
-export function OpponentPlaySpotlight({ log, viewer, actorLabel, enabled = true, onActiveChange, onQueueChange, unobtrusive = false, onCurrentChange, portrait, quote }: OpponentPlaySpotlightProps) {
+export function OpponentPlaySpotlight({ log, viewer, actorLabel, enabled = true, onActiveChange, onQueueChange, unobtrusive = false, onCurrentChange, portrait, quote, maxBacklog, held = false }: OpponentPlaySpotlightProps) {
   // the seat whose plays are announced
   const actor: 0 | 1 = viewer === 0 ? 1 : 0;
   // Entries already in the log when we mount (a resumed game) are history.
@@ -162,8 +173,8 @@ export function OpponentPlaySpotlight({ log, viewer, actorLabel, enabled = true,
     if (log.length === seenRef.current) return;
     const fresh = enabled ? collectSpotlights(log, seenRef.current, viewer, actorLabel) : [];
     seenRef.current = log.length;
-    if (fresh.length > 0) setQueue((q) => [...q, ...fresh]);
-  }, [log, viewer, actorLabel, enabled]);
+    if (fresh.length > 0) setQueue((q) => trimSpotlightBacklog([...q, ...fresh], maxBacklog));
+  }, [log, viewer, actorLabel, enabled, maxBacklog]);
 
   // Switched off (game over, hotseat): drop anything still waiting so it
   // never plays over the results screen
@@ -171,6 +182,8 @@ export function OpponentPlaySpotlight({ log, viewer, actorLabel, enabled = true,
 
   const current = queue[0] ?? null;
   const queued = queue.length > 1;
+  // a card not yet on screen waits while the other seat's spotlight shows
+  const waiting = held && phase === 'enter';
 
   useLayoutEffect(() => {
     onQueueChange?.(queue);
@@ -179,14 +192,14 @@ export function OpponentPlaySpotlight({ log, viewer, actorLabel, enabled = true,
 
   useEffect(() => {
     // Released as the card starts flying off (the exit overlaps the next move)
-    onActiveChange?.(current !== null && phase !== 'exit');
+    onActiveChange?.(current !== null && phase !== 'exit' && !waiting);
     onCurrentChange?.(current);
-  }, [current, phase, onActiveChange, onCurrentChange]);
+  }, [current, phase, waiting, onActiveChange, onCurrentChange]);
   useEffect(() => () => onActiveChange?.(false), [onActiveChange]);
 
   // Drive enter → hold → exit → next.
   useEffect(() => {
-    if (!current) return;
+    if (!current || waiting) return;
     const f = speedFactor();
     const ms = phase === 'enter'
       ? SPOTLIGHT_TIMINGS.enterMs
@@ -203,7 +216,7 @@ export function OpponentPlaySpotlight({ log, viewer, actorLabel, enabled = true,
       }
     }, Math.round(ms * f));
     return () => window.clearTimeout(timer);
-  }, [current, phase, queued]);
+  }, [current, phase, queued, waiting]);
 
   // On exit, fly toward the destination's on-screen position (an 'inPlace'
   // card has none: it fades where it is).
@@ -240,9 +253,10 @@ export function OpponentPlaySpotlight({ log, viewer, actorLabel, enabled = true,
       y: Math.round(from.top + from.height / 2 - (to.top + to.height / 2)),
       scale: Math.max(0.12, Math.min(0.5, from.height / Math.max(1, to.height))),
     });
-  }, [current, actor]);
+    // re-measured when a held card gets its turn (its slot only renders then)
+  }, [current, actor, waiting]);
 
-  if (!current) return null;
+  if (!current || waiting) return null;
 
   const skip = () => {
     if (phase !== 'exit') setPhase('exit');

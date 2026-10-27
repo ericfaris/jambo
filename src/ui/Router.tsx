@@ -3,14 +3,14 @@
 // No hash -> normal app flow | /#/play -> join cast room as a player
 // ============================================================================
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { GameScreen } from './GameScreen.tsx';
 import { CastLobby } from './CastLobby.tsx';
 import { PlayerScreen } from './PlayerScreen.tsx';
 import { OnlineGameScreen } from './OnlineGameScreen.tsx';
 import { FriendLobby } from './FriendLobby.tsx';
 import { parseInviteHash, homeUrl } from './friendRoute.ts';
-import { TVScreen } from './TVScreen.tsx';
+import { DevTVPreview, isDevTVMode } from './DevTVPreview.tsx';
 import { DevPlayerPreview, isDevPlayerMode } from './DevPlayerPreview.tsx';
 import { DevOnlinePreview, isDevOnlineMode } from './DevOnlinePreview.tsx';
 import { MainMenu } from './screens/MainMenu.tsx';
@@ -26,11 +26,9 @@ import { TutorialOverlay } from './TutorialOverlay.tsx';
 import { AvatarBadge } from './AvatarBadge.tsx';
 import { useAuthSession } from './useAuthSession.ts';
 import { useWebSocketGame, readLastRoom, forgetLastRoom } from '../multiplayer/client.ts';
-import type { WebSocketGameState } from '../multiplayer/client.ts';
 import type { AIDifficulty } from '../ai/difficulties/index.ts';
-import type { PublicGameState, RoomMode } from '../multiplayer/types.ts';
+import type { RoomMode } from '../multiplayer/types.ts';
 import { useGameStore } from '../hooks/useGameStore.ts';
-import { extractPublicState } from '../multiplayer/stateSplitter.ts';
 import { getCastSessionController, isCastSdkEnabled } from '../cast/factory.ts';
 import { JOIN_TV_HASH, readLastTrader } from './screens/landing.ts';
 import { markTutorialSeen } from './tutorial/tutorial.ts';
@@ -65,78 +63,6 @@ function readLandingParams(): { authStatus: string | null; verifyToken: string |
 
 function getRandomFirstPlayer(): 0 | 1 {
   return Math.random() < 0.5 ? 0 : 1;
-}
-
-function isDevTVMode(): boolean {
-  if (typeof window === 'undefined') return false;
-  return new URLSearchParams(window.location.search).get('tv') === '1';
-}
-
-/** Dev-only: renders TVScreen using local game store state (no server needed). */
-function DevTVPreview() {
-  const gameState = useGameStore((store) => store.state);
-  const publicState = useMemo((): PublicGameState => {
-    const pub = extractPublicState(gameState);
-    // Inject dummy data so we can preview all element sizes
-    return {
-      ...pub,
-      players: [
-        {
-          ...pub.players[0],
-          market: ['trinkets', 'hides', 'tea', null, 'silk', null, 'fruit', 'salt', null],
-          utilities: [
-            { cardId: 'well_1', designId: 'well', usedThisTurn: false },
-            { cardId: 'drums_1', designId: 'drums', usedThisTurn: false },
-            { cardId: 'throne_1', designId: 'throne', usedThisTurn: true },
-          ],
-          gold: 35,
-        },
-        {
-          ...pub.players[1],
-          market: ['fruit', null, 'salt', 'trinkets', null, null],
-          utilities: [
-            { cardId: 'boat_1', designId: 'boat', usedThisTurn: false },
-            { cardId: 'scale_1', designId: 'scale', usedThisTurn: false },
-          ],
-          gold: 28,
-        },
-      ],
-    };
-  }, [gameState]);
-
-  const mockWs: WebSocketGameState = useMemo(() => ({
-    connected: true,
-    roomCode: 'DEV',
-    castAccessToken: null,
-    playerSlot: null,
-    roomMode: 'ai',
-    roomKind: 'cast',
-    seats: null,
-    seatsReceivedAt: null,
-    abandoned: null,
-    story: null,
-    gameNumber: null,
-    publicState,
-    privateState: null,
-    audioEvent: null,
-    aiMessage: null,
-    error: null,
-    gameOver: gameState.phase === 'GAME_OVER',
-    playerJoined: null,
-    playerDisconnected: null,
-    rematchVotes: [],
-    rematchRequired: [],
-    createRoom: () => {},
-    joinRoom: () => {},
-    leaveRoom: async () => {},
-    resetRoomState: () => {},
-    sendAction: () => {},
-    requestRematch: () => {},
-    clearError: () => {},
-    clearAudioEvent: () => {},
-  }), [publicState, gameState.phase]);
-
-  return <TVScreen ws={mockWs} />;
 }
 
 export function Router() {

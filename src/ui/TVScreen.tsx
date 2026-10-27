@@ -1,119 +1,107 @@
 // ============================================================================
 // Cast Mode — TV Screen
-// Full shared board view for TV/large display. No private info shown.
+// The shared table on the TV: the desktop board's tableaus, center row,
+// spotlights and flights, for both seats at once. No private info shown —
+// both hands are face down (toTvBoardState).
 // ============================================================================
 
-import { useState, useEffect, useRef } from 'react';
-import type { CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { WebSocketGameState } from '../multiplayer/client.ts';
-import type { PublicGameState, PublicPlayerState } from '../multiplayer/types.ts';
-import type { WareType } from '../engine/types.ts';
-import { WARE_TYPES } from '../engine/types.ts';
+import type { PublicGameState } from '../multiplayer/types.ts';
+import type { DeckCardId, GameState } from '../engine/types.ts';
 import { MarketDisplay } from './MarketDisplay.tsx';
 import { UtilityArea } from './UtilityArea.tsx';
-import { CardFace, WareToken } from './CardFace.tsx';
-import { useAudioEvents, useOutcomeAudio } from './useAudioEvents.ts';
+import { CenterRow } from './CenterRow.tsx';
+import { WareSupply } from './WareSupply.tsx';
+import { SeatInfo } from './SeatInfo.tsx';
+import { TableauCorners } from './Tableau.tsx';
+import { PlayerAvatar } from './PlayerAvatar.tsx';
+import { AmbientLayer } from './life.tsx';
+import { OpponentPlaySpotlight, withSpotlightHolds } from './OpponentPlaySpotlight.tsx';
+import type { PlaySpotlight } from './actionLog.ts';
+import { FlightLayer } from './FlightLayer.tsx';
+import { useStrikes } from './StrikeLayer.tsx';
+import { CardDamageContext } from './cardDamage.tsx';
+import { FinalTurnBanner } from './FinalTurnBanner.tsx';
+import { TurnSweep } from './TurnSweep.tsx';
+import { EndgameOverlay } from './EndgameOverlay.tsx';
+import { useAudioEvents, useOutcomeAudio, playSfx } from './useAudioEvents.ts';
 import { useBackgroundMusic } from './useBackgroundMusic.ts';
 import { useVisualFeedback } from './useVisualFeedback.ts';
-import { getCard } from '../engine/cards/CardDatabase.ts';
-import { FEEDBACK_TIMINGS } from './animationTimings.ts';
-import { CastEndgameOverlay } from './CastEndgameOverlay.tsx';
-import { useCastRoomSync } from '../cast/useCastRoomSync.ts';
-import { isCastSdkEnabled } from '../cast/factory.ts';
-import { describeTrailTag, formatLogRecap } from './uiHints.ts';
+import { toTvBoardState } from './onlineView.ts';
+import type { Flight } from './flights.ts';
 
-type AnimationSpeed = 'normal' | 'fast';
-const ANIMATION_SPEED_STORAGE_KEY = 'jambo.animationSpeed';
-const DEV_TELEMETRY_STORAGE_KEY = 'jambo.devTelemetry';
-const HIGH_CONTRAST_STORAGE_KEY = 'jambo.highContrast';
-const PLAYER_SECTION_EXTRA_HEIGHT_PX = 0;
+/** The TV names seats by number — a Cast room has no accounts or faces. */
+export const TV_LABELS: readonly [string, string] = ['Player 1', 'Player 2'];
 
-function getInitialAnimationSpeed(): AnimationSpeed {
-  if (typeof window === 'undefined') return 'normal';
-  const saved = window.localStorage.getItem(ANIMATION_SPEED_STORAGE_KEY);
-  return saved === 'fast' ? 'fast' : 'normal';
+const NO_SPOTLIGHTS: readonly PlaySpotlight[] = [];
+
+/** Plays waiting behind the one on screen, per seat — the TV can't pause the
+ *  server the way solo pauses its AI, so older ones are dropped to keep up. */
+export const TV_SPOTLIGHT_BACKLOG = 2;
+
+/**
+ * What the table is waiting on, for the status plaque: a reaction window, a
+ * resolution someone is answering, or nothing. Never says what a hidden card is.
+ */
+export function tvWaitingMessage(pub: PublicGameState, labels: readonly [string, string] = TV_LABELS): string | null {
+  if (pub.phase === 'GAME_OVER') return null;
+  if (pub.pendingGuardReaction) return `${labels[pub.pendingGuardReaction.targetPlayer]} may answer with a Guard…`;
+  if (pub.pendingWareCardReaction) return `${labels[pub.pendingWareCardReaction.targetPlayer]} may answer with a Rain Maker…`;
+  if (!pub.pendingResolutionType) return null;
+  const who = pub.waitingOnPlayer;
+  if (who === null) return 'Resolving…';
+  switch (pub.pendingResolutionType) {
+    case 'DRAFT': return `${labels[who]} is picking…`;
+    case 'AUCTION': return `${labels[who]} is bidding…`;
+    case 'OPPONENT_DISCARD': return `${labels[who]} is choosing cards to discard…`;
+    case 'OPPONENT_CHOICE':
+    case 'BINARY_CHOICE':
+    case 'UTILITY_KEEP':
+      return `${labels[who]} is deciding…`;
+    case 'CARRIER_WARE_SELECT':
+    case 'WARE_TRADE':
+    case 'WARE_SELECT_MULTIPLE':
+    case 'WARE_THEFT_SINGLE':
+    case 'WARE_THEFT_SWAP':
+    case 'WARE_RETURN':
+    case 'WARE_SELL_BULK':
+    case 'WARE_CASH_CONVERSION':
+      return `${labels[who]} is choosing wares…`;
+    default:
+      return `${labels[who]} is choosing…`;
+  }
 }
 
-function getInitialDevTelemetry(): boolean {
-  if (typeof window === 'undefined') return false;
-  return window.localStorage.getItem(DEV_TELEMETRY_STORAGE_KEY) === 'true';
+/** Rematch votes, as the TV shows them under the result. */
+export function tvRematchStatus(phase: PublicGameState['phase'], required: readonly (0 | 1)[], votes: readonly (0 | 1)[], labels: readonly [string, string] = TV_LABELS): string | null {
+  if (phase !== 'GAME_OVER' || required.length === 0) return null;
+  const waiting = required.filter((slot) => !votes.includes(slot));
+  if (waiting.length === 0) return 'Starting the rematch…';
+  return `Rematch? Waiting for ${waiting.map((slot) => labels[slot]).join(' & ')} to vote on their phone…`;
 }
 
-function getInitialHighContrast(): boolean {
-  if (typeof window === 'undefined') return false;
-  return window.localStorage.getItem(HIGH_CONTRAST_STORAGE_KEY) === 'true';
-}
-
-function getDebugHints(): boolean {
-  if (typeof window === 'undefined') return false;
-  return new URLSearchParams(window.location.search).has('debug-hints');
-}
-
-function isDevMode(): boolean {
-  if (typeof window === 'undefined') return false;
-  return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+/** Market slot size on the TV: 56px, 44px once a market passes 15 spaces (4+ rows). */
+export function tvMarketSlotSize(spaces: number): number {
+  return spaces > 15 ? 44 : 56;
 }
 
 interface TVScreenProps {
   ws: WebSocketGameState;
 }
 
-function getWaitingInfo(pub: PublicGameState): { targetPlayer: 0 | 1 | null; message: string | null } {
-  if (pub.phase === 'GAME_OVER') {
-    return { targetPlayer: null, message: null };
-  }
-
-  if (pub.pendingGuardReaction) {
-    return {
-      targetPlayer: pub.pendingGuardReaction.targetPlayer,
-      message: `Player ${pub.pendingGuardReaction.targetPlayer + 1} may play a Guard...`,
-    };
-  }
-
-  if (pub.pendingWareCardReaction) {
-    return {
-      targetPlayer: pub.pendingWareCardReaction.targetPlayer,
-      message: `Player ${pub.pendingWareCardReaction.targetPlayer + 1} may react with Rain Maker...`,
-    };
-  }
-
-  if (pub.pendingResolutionType) {
-    const who = pub.waitingOnPlayer;
-    return {
-      targetPlayer: who,
-      message: who !== null
-        ? `Player ${who + 1} is choosing... (${pub.pendingResolutionType})`
-        : `Resolving ${pub.pendingResolutionType}...`,
-    };
-  }
-
-  return { targetPlayer: null, message: null };
+export function TVScreen({ ws }: TVScreenProps) {
+  if (!ws.publicState) return null;
+  return <TVBoard ws={ws} pub={ws.publicState} />;
 }
 
-export function TVScreen({ ws }: TVScreenProps) {
-  const pub = ws.publicState;
-  const castEnabled = isCastSdkEnabled();
-  const castSync = useCastRoomSync({
-    roomCode: ws.roomCode,
-    roomMode: ws.roomMode,
-    senderPlayerSlot: null,
-    castAccessToken: ws.castAccessToken,
-  });
-  const [animationSpeed] = useState<AnimationSpeed>(() => getInitialAnimationSpeed());
-  const [showDevTelemetry] = useState(() => getInitialDevTelemetry());
-  const [highContrast] = useState(() => getInitialHighContrast());
-  const [debugHints] = useState(() => getDebugHints());
-  const [debugHintsOverlay, setDebugHintsOverlay] = useState(false);
-  const [debugGoldDelta, setDebugGoldDelta] = useState<[number, number]>([0, 0]);
-  // Bumped per debug delta so a repeated value replays its animation
-  const [debugGoldCounter, setDebugGoldCounter] = useState(0);
-  const [telemetryEvents, setTelemetryEvents] = useState<string[]>([]);
-  const [playerSectionHeight, setPlayerSectionHeight] = useState<number | null>(null);
+function TVBoard({ ws, pub }: { ws: WebSocketGameState; pub: PublicGameState }) {
+  const state = useMemo(() => toTvBoardState(pub), [pub]);
   useAudioEvents(ws.audioEvent, ws.clearAudioEvent, pub);
   useOutcomeAudio(pub, null);
   useBackgroundMusic();
 
-  // Make #root full-viewport for TV layout
+  // The TV page owns the whole viewport: no scrollbars, no centered column
   useEffect(() => {
     const root = document.getElementById('root');
     const html = document.documentElement;
@@ -125,6 +113,7 @@ export function TVScreen({ ws }: TVScreenProps) {
       root.style.maxWidth = 'none';
       root.style.width = '100%';
       root.style.margin = '0';
+      root.style.padding = '0';
     }
     return () => {
       html.style.overflow = '';
@@ -134,725 +123,257 @@ export function TVScreen({ ws }: TVScreenProps) {
         root.style.maxWidth = '';
         root.style.width = '';
         root.style.margin = '';
+        root.style.padding = '';
       }
     };
   }, []);
 
-  if (!pub) return null;
-  const waitingInfo = getWaitingInfo(pub);
+  // Both seats' face-up plays are announced: one spotlight per actor, indexed
+  // by the seat it announces (a spotlight's `viewer` is the *other* seat)
+  const [queues, setQueues] = useState<[readonly PlaySpotlight[], readonly PlaySpotlight[]]>([NO_SPOTLIGHTS, NO_SPOTLIGHTS]);
+  const [active, setActive] = useState<[boolean, boolean]>([false, false]);
+  const [current, setCurrent] = useState<[PlaySpotlight | null, PlaySpotlight | null]>([null, null]);
+  const setQueue0 = useCallback((q: readonly PlaySpotlight[]) => setQueues((prev) => [q, prev[1]]), []);
+  const setQueue1 = useCallback((q: readonly PlaySpotlight[]) => setQueues((prev) => [prev[0], q]), []);
+  const setActive0 = useCallback((a: boolean) => setActive((prev) => (prev[0] === a ? prev : [a, prev[1]])), []);
+  const setActive1 = useCallback((a: boolean) => setActive((prev) => (prev[1] === a ? prev : [prev[0], a])), []);
+  const setCurrent0 = useCallback((s: PlaySpotlight | null) => setCurrent((prev) => (prev[0] === s ? prev : [s, prev[1]])), []);
+  const setCurrent1 = useCallback((s: PlaySpotlight | null) => setCurrent((prev) => (prev[1] === s ? prev : [prev[0], s])), []);
+  const spotlightActive = active[0] || active[1];
+  const spotlightsQueued = queues[0].length > 0 || queues[1].length > 0;
 
-  const lastLog = pub.log.length > 0 ? pub.log[pub.log.length - 1] : null;
+  const [flightsBusy, setFlightsBusy] = useState(false);
+  const strikes = useStrikes({
+    state,
+    // seat 0 sits at the bottom, like a viewer's own seat
+    viewer: 0,
+    blocked: spotlightsQueued,
+    enabled: state.phase !== 'GAME_OVER',
+  });
+  const cardDamage = useMemo(() => ({ marks: strikes.marks, hidden: strikes.hidden, chips: strikes.chips }), [strikes.marks, strikes.hidden, strikes.chips]);
+
+  const spotlitDiscardKey = current.flatMap((spot) => (spot && spot.destination === 'discard' ? [spot.cardId] : [])).join(',');
+  const heldDiscardCards = useMemo(
+    () => [...(spotlitDiscardKey ? spotlitDiscardKey.split(',') : []), ...strikes.heldDiscard],
+    [spotlitDiscardKey, strikes.heldDiscard],
+  );
+  const untapped = (seat: 0 | 1): DeckCardId | null => {
+    const spot = current[seat];
+    return spot && spot.destination === 'inPlace' ? spot.cardId : null;
+  };
+
+  // A soft tap as each ware lands — throttled so a 6-ware buy doesn't clatter
+  const lastLandSound = useRef(0);
+  const handleFlightLand = useCallback((flight: Flight) => {
+    if (flight.kind !== 'ware' || flight.to.type !== 'slot') return;
+    const now = Date.now();
+    if (now - lastLandSound.current < 70) return;
+    lastLandSound.current = now;
+    playSfx('ware-land');
+  }, []);
+
+  const lastLog = state.log.length > 0 ? state.log[state.log.length - 1] : null;
   const visualFeedback = useVisualFeedback({
-    phase: pub.phase,
-    actionsLeft: pub.actionsLeft,
-    deckCount: pub.deckCount,
-    discardCount: pub.discardPile.length,
-    topDiscardCard: pub.discardPile.length > 0 ? pub.discardPile[0] : null,
+    phase: state.phase,
+    actionsLeft: state.actionsLeft,
+    deckCount: state.deck.length,
+    discardCount: state.discardPile.length,
+    topDiscardCard: state.discardPile.length > 0 ? state.discardPile[0] : null,
     players: [
-      {
-        gold: pub.players[0].gold,
-        handCount: pub.players[0].handCount,
-        market: pub.players[0].market,
-      },
-      {
-        gold: pub.players[1].gold,
-        handCount: pub.players[1].handCount,
-        market: pub.players[1].market,
-      },
+      { gold: state.players[0].gold, handCount: state.players[0].hand.length, market: state.players[0].market, utilityCount: state.players[0].utilities.length },
+      { gold: state.players[1].gold, handCount: state.players[1].hand.length, market: state.players[1].market, utilityCount: state.players[1].utilities.length },
     ],
     lastLog: lastLog ? { player: lastLog.player, action: lastLog.action } : null,
   });
 
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    document.documentElement.setAttribute('data-anim-speed', animationSpeed);
-    window.localStorage.setItem(ANIMATION_SPEED_STORAGE_KEY, animationSpeed);
-  }, [animationSpeed]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem(DEV_TELEMETRY_STORAGE_KEY, String(showDevTelemetry));
-  }, [showDevTelemetry]);
-
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    if (highContrast) {
-      document.documentElement.setAttribute('data-contrast', 'high');
-    } else {
-      document.documentElement.removeAttribute('data-contrast');
-    }
-    window.localStorage.setItem(HIGH_CONTRAST_STORAGE_KEY, String(highContrast));
-  }, [highContrast]);
-
-  const newTelemetryEvents: string[] = [];
-  if (visualFeedback.trail) {
-    newTelemetryEvents.push(`[trail] ${visualFeedback.trail.actor === 1 ? 'player 2' : 'player 1'} ${visualFeedback.trail.kind}`);
-  }
-  if (visualFeedback.goldDeltas[0] !== 0 || visualFeedback.goldDeltas[1] !== 0) {
-    newTelemetryEvents.push(`[gold] p1 ${visualFeedback.goldDeltas[0]}, p2 ${visualFeedback.goldDeltas[1]}`);
-  }
-  if (visualFeedback.marketFlashSlots[0].length > 0 || visualFeedback.marketFlashSlots[1].length > 0) {
-    newTelemetryEvents.push(`[market] p1 ${visualFeedback.marketFlashSlots[0].join(',') || '-'} | p2 ${visualFeedback.marketFlashSlots[1].join(',') || '-'}`);
-  }
-  // Collect telemetry as the feedback changes (adjusted during render, not in an effect)
-  const telemetrySource = [visualFeedback.trail, visualFeedback.goldDeltas, visualFeedback.marketFlashSlots] as const;
-  const [lastTelemetrySource, setLastTelemetrySource] = useState(telemetrySource);
-  if (telemetrySource.some((value, i) => value !== lastTelemetrySource[i])) {
-    setLastTelemetrySource(telemetrySource);
-    if (showDevTelemetry && newTelemetryEvents.length > 0) setTelemetryEvents((previous) => [...newTelemetryEvents, ...previous].slice(0, 8));
-  }
-  useEffect(() => {
-    if (!showDevTelemetry) return;
-    newTelemetryEvents.forEach((entry) => console.debug(`[JamboTV] ${entry}`));
-  }, [showDevTelemetry, visualFeedback.trail, visualFeedback.goldDeltas, visualFeedback.marketFlashSlots]);
-
-  const rematchStatusMessage = pub.phase === 'GAME_OVER' && ws.rematchRequired.length > 0
-    ? (() => {
-      const waiting = ws.rematchRequired.filter((slot) => !ws.rematchVotes.includes(slot));
-      if (waiting.length === 0) return 'Starting rematch...';
-      return `Waiting for ${waiting.map((slot) => `Player ${slot + 1}`).join(' & ')} to confirm rematch...`;
-    })()
-    : undefined;
+  const waiting = tvWaitingMessage(pub);
+  const rematchStatus = tvRematchStatus(pub.phase, ws.rematchRequired, ws.rematchVotes);
+  const opponentMoveAnimating = spotlightsQueued || flightsBusy || strikes.busy;
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 10,
-      padding: '32px 64px',
-      boxSizing: 'border-box',
-      overflow: 'hidden',
-      transform: 'scale(0.6)',
-      transformOrigin: 'top left',
-      width: '166.67%',
-      height: '166.67vh',
-    }}>
-      {/* Player 2 area (top) */}
-      <TVPlayerArea
-        player={pub.players[1]}
-        playerIndex={1}
-        label="Player 2"
-        isActive={pub.currentPlayer === 1}
-        flipWoodBackground={true}
-        fixedHeight={playerSectionHeight !== null ? playerSectionHeight + PLAYER_SECTION_EXTRA_HEIGHT_PX : null}
-        goldDelta={debugGoldDelta[1] || visualFeedback.goldDeltas[1]}
-        debugGoldCounter={debugGoldCounter}
-        marketFlashSlots={visualFeedback.marketFlashSlots[1]}
-        waitingMessage={waitingInfo.targetPlayer === 1 ? waitingInfo.message ?? undefined : undefined}
-      />
+    <CardDamageContext.Provider value={cardDamage}>
+      <div className="game-root tv-root">
+        <AmbientLayer />
+        <div className="tv-board">
+          <TVSeat
+            seat={1}
+            state={state}
+            spotlightQueue={queues[1]}
+            untappedUtility={untapped(1)}
+            goldDelta={visualFeedback.goldDeltas[1]}
+            marketFlashSlots={visualFeedback.marketFlashSlots[1]}
+            position="top"
+          />
 
-      {/* Center row */}
-      <TVCenterRow pub={pub} visualFeedback={visualFeedback} supply={pub.wareSupply} />
+          <CenterRow
+            state={state}
+            dispatch={() => {}}
+            isLocalMode={true}
+            visualFeedback={visualFeedback}
+            actorLabels={TV_LABELS}
+            spotlitPlayer="both"
+            heldDiscardCards={heldDiscardCards}
+            viewer={null}
+            supplySlot={<WareSupply supply={state.wareSupply} />}
+            endTurnSlot={<TVStatusPlaque message={waiting} turnModifiers={state.turnModifiers} currentLabel={TV_LABELS[state.currentPlayer]} />}
+          />
 
-      {waitingInfo.message && waitingInfo.targetPlayer === null && (
-        <TVWaitingIndicator message={waitingInfo.message} />
-      )}
+          <TVSeat
+            seat={0}
+            state={state}
+            spotlightQueue={queues[0]}
+            untappedUtility={untapped(0)}
+            goldDelta={visualFeedback.goldDeltas[0]}
+            marketFlashSlots={visualFeedback.marketFlashSlots[0]}
+            position="bottom"
+          />
+        </div>
 
-      {/* Player 1 area (bottom) */}
-      <TVPlayerArea
-        player={pub.players[0]}
-        playerIndex={0}
-        label="Player 1"
-        isActive={pub.currentPlayer === 0}
-        fixedHeight={playerSectionHeight !== null ? playerSectionHeight + PLAYER_SECTION_EXTRA_HEIGHT_PX : null}
-        onMeasureHeight={setPlayerSectionHeight}
-        goldDelta={debugGoldDelta[0] || visualFeedback.goldDeltas[0]}
-        debugGoldCounter={debugGoldCounter}
-        marketFlashSlots={visualFeedback.marketFlashSlots[0]}
-        waitingMessage={waitingInfo.targetPlayer === 0 ? waitingInfo.message ?? undefined : undefined}
-      />
+        <div className={`tv-connection${ws.connected ? '' : ' tv-connection-lost'}`} role="status">
+          <span className="tv-connection-dot" aria-hidden="true" />
+          {ws.connected ? `Room ${ws.roomCode ?? ''}` : 'Reconnecting…'}
+        </div>
 
-      {/* Endgame overlay */}
-      {pub.phase === 'GAME_OVER' && <CastEndgameOverlay pub={pub} rematchStatusMessage={rematchStatusMessage} />}
+        <EndgameOverlay
+          state={state}
+          labels={TV_LABELS}
+          viewer={null}
+          playerPortrait={<PlayerAvatar avatarUrl={null} size={56} label={TV_LABELS[0]} />}
+          opponentPortrait={<PlayerAvatar avatarUrl={null} size={56} label={TV_LABELS[1]} />}
+          rematchStatus={rematchStatus}
+        />
 
-      {/* Connection indicator */}
-      <div style={{
-        position: 'fixed',
-        bottom: 8,
-        right: 12,
-        fontSize: 11,
-        color: ws.connected ? '#6a6' : '#a66',
-      }}>
-        {ws.connected ? 'Connected' : 'Reconnecting...'}
-        {castEnabled ? ` | Cast Sync: ${castSync.status}` : ''}
+        {/* Player 1's plays (viewer 1 announces seat 0), then Player 2's. One
+            card on screen at a time: Player 1 goes first when both are waiting */}
+        <OpponentPlaySpotlight
+          log={state.log}
+          viewer={1}
+          actorLabel={TV_LABELS[0]}
+          enabled={state.phase !== 'GAME_OVER'}
+          onActiveChange={setActive0}
+          onQueueChange={setQueue0}
+          onCurrentChange={setCurrent0}
+          maxBacklog={TV_SPOTLIGHT_BACKLOG}
+          held={active[1]}
+          portrait={<PlayerAvatar avatarUrl={null} size={44} label={TV_LABELS[0]} />}
+        />
+        <OpponentPlaySpotlight
+          log={state.log}
+          viewer={0}
+          actorLabel={TV_LABELS[1]}
+          enabled={state.phase !== 'GAME_OVER'}
+          onActiveChange={setActive1}
+          onQueueChange={setQueue1}
+          onCurrentChange={setCurrent1}
+          maxBacklog={TV_SPOTLIGHT_BACKLOG}
+          held={(active[0] || queues[0].length > 0) && !active[1]}
+          portrait={<PlayerAvatar avatarUrl={null} size={44} label={TV_LABELS[1]} />}
+        />
+
+        <FinalTurnBanner state={state} labels={TV_LABELS} />
+        <TurnSweep state={state} viewer={null} labels={TV_LABELS} held={opponentMoveAnimating} />
+
+        <FlightLayer
+          state={state}
+          viewer={null}
+          spotlightEnabled={true}
+          spotlightActive={spotlightActive}
+          onLand={handleFlightLand}
+          onBusyChange={setFlightsBusy}
+        />
+
+        {strikes.layer}
       </div>
-
-      {isDevMode() && showDevTelemetry && telemetryEvents.length > 0 && (
-        <div style={{
-          position: 'fixed',
-          left: 12,
-          bottom: 12,
-          width: 300,
-          maxHeight: 220,
-          overflowY: 'auto',
-          background: 'rgba(20,10,5,0.88)',
-          border: '1px solid var(--border-light)',
-          borderRadius: 8,
-          padding: 8,
-          zIndex: 1500,
-          fontSize: 11,
-          color: 'var(--text-muted)',
-        }}>
-          <div style={{ color: 'var(--gold)', fontWeight: 700, marginBottom: 6 }}>TV Telemetry</div>
-          {telemetryEvents.map((entry, index) => (
-            <div key={`${entry}-${index}`} style={{ marginBottom: 3 }}>
-              {entry}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Debug gold delta trigger — activate with ?debug-hints in URL */}
-      {debugHints && (
-        <div style={{
-          position: 'fixed',
-          top: 10,
-          left: 10,
-          zIndex: 9998,
-          background: 'rgba(0,0,0,0.85)',
-          border: '1px solid #ff0',
-          borderRadius: 8,
-          padding: '8px 12px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 6,
-          fontSize: 12,
-          fontFamily: 'monospace',
-        }}>
-          <div style={{ color: '#ff0', fontWeight: 700 }}>Gold Delta Debug</div>
-          {['+5g (gain)', '-3g (loss)', '+18g (big sell)', '-10g (big buy)'].map((label, i) => {
-            const values = [5, -3, 18, -10];
-            return (
-              <button
-                key={label}
-                onClick={() => {
-                  setDebugGoldDelta([0, 0]);
-                  requestAnimationFrame(() => {
-                    setDebugGoldCounter((n) => n + 1);
-                    setDebugGoldDelta([values[i], values[i]]);
-                    setTimeout(() => setDebugGoldDelta([0, 0]), 1500);
-                  });
-                }}
-                style={{
-                  background: '#2a1a08',
-                  color: '#f0c040',
-                  border: '1px solid #f0c040',
-                  borderRadius: 4,
-                  padding: '4px 10px',
-                  cursor: 'pointer',
-                  fontSize: 12,
-                  fontFamily: 'monospace',
-                }}
-              >
-                {label}
-              </button>
-            );
-          })}
-          <hr style={{ border: 'none', borderTop: '1px solid #555', margin: '4px 0' }} />
-          <button
-            onClick={() => setDebugHintsOverlay(v => !v)}
-            style={{
-              background: debugHintsOverlay ? '#443000' : '#2a1a08',
-              color: '#ff0',
-              border: '1px solid #ff0',
-              borderRadius: 4,
-              padding: '4px 10px',
-              cursor: 'pointer',
-              fontSize: 12,
-              fontFamily: 'monospace',
-            }}
-          >
-            {debugHintsOverlay ? 'Hide All Hints' : 'Show All Hints'}
-          </button>
-        </div>
-      )}
-
-      {/* Debug hints overlay — toggled from debug panel */}
-      {debugHintsOverlay && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0,0,0,0.85)',
-          zIndex: 9999,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 12,
-          padding: 24,
-          overflowY: 'auto',
-        }}>
-          <div style={{ color: '#ff0', fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
-            DEBUG: All TV Hint Messages
-          </div>
-          {[
-            { label: '#1 Guard Reaction', msg: 'Player 2 may play a Guard...' },
-            { label: '#2 Rain Maker Reaction', msg: 'Player 2 may react with Rain Maker...' },
-            { label: '#3 Resolution (player)', msg: 'Player 1 is choosing... (WARE_TRADE)' },
-            { label: '#4 Resolution (no player)', msg: 'Resolving WARE_TRADE...' },
-            { label: '#5 Rematch Starting', msg: 'Starting rematch...' },
-            { label: '#6 Rematch Waiting', msg: 'Waiting for Player 1, Player 2 to confirm rematch...' },
-            { label: '#7 Connected', msg: 'Connected' },
-            { label: '#8 Reconnecting', msg: 'Reconnecting...' },
-            { label: '#9 Draw Action', msg: 'Player 1 drew a card' },
-            { label: '#10 Discard Action', msg: 'Player 1 discarded a card' },
-            { label: '#11 Draw Phase', msg: 'Draw Phase (2/5)' },
-            { label: '#12 Play Phase', msg: 'Play Phase' },
-            { label: '#13 Game Over', msg: 'Game Over' },
-            { label: '#14 Final Turn', msg: 'FINAL TURN!' },
-            { label: '#15 Endgame Triggered', msg: 'Endgame triggered!' },
-          ].map(({ label, msg }) => (
-            <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', maxWidth: 600 }}>
-              <div style={{ color: '#ff0', fontSize: 11, fontFamily: 'monospace', minWidth: 220, textAlign: 'right' }}>
-                {label}
-              </div>
-              <div className="disabled-hint" style={{
-                textAlign: 'center',
-                padding: '8px 16px',
-                fontSize: 15,
-                fontFamily: 'var(--font-heading)',
-                flex: 1,
-              }}>
-                {msg}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+    </CardDamageContext.Provider>
   );
 }
 
-// --- Sub-components ---
-
-function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground, fixedHeight, onMeasureHeight, goldDelta, debugGoldCounter, marketFlashSlots, waitingMessage }: {
-  player: PublicPlayerState;
-  playerIndex: 0 | 1;
-  label: string;
-  isActive: boolean;
-  flipWoodBackground?: boolean;
-  fixedHeight?: number | null;
-  onMeasureHeight?: (height: number) => void;
-  goldDelta?: number;
-  debugGoldCounter?: number;
-  marketFlashSlots?: number[];
-  waitingMessage?: string;
+/**
+ * One seat's tableau, the desktop board's opponent panel at TV size: market,
+ * utilities, and the seat block (name, gold, gold track, face-down hand).
+ * Plays still in the spotlight are held back so they never land early.
+ */
+function TVSeat({ seat, state, spotlightQueue, untappedUtility, goldDelta, marketFlashSlots, position }: {
+  seat: 0 | 1;
+  state: GameState;
+  /** This seat's plays still being announced. */
+  spotlightQueue: readonly PlaySpotlight[];
+  untappedUtility: DeckCardId | null;
+  goldDelta: number;
+  marketFlashSlots: number[];
+  position: 'top' | 'bottom';
 }) {
-  const panelRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!onMeasureHeight || fixedHeight !== null) return;
-    const panel = panelRef.current;
-    if (!panel) return;
-
-    const measure = () => {
-      const height = Math.round(panel.getBoundingClientRect().height);
-      if (height > 0) {
-        onMeasureHeight(height);
-      }
-    };
-
-    measure();
-    const rafId = window.requestAnimationFrame(measure);
-    return () => window.cancelAnimationFrame(rafId);
-  }, [fixedHeight, onMeasureHeight]);
-
+  const player = withSpotlightHolds(state.players[seat], spotlightQueue);
+  const isActive = state.currentPlayer === seat && state.phase !== 'GAME_OVER';
+  // Every stand wraps to a new row: past 15 spaces the slots shrink so a
+  // fourth row still fits the 720px TV
+  const slotSize = tvMarketSlotSize(player.market.length);
   return (
     <div
-      ref={panelRef}
-      data-center-target={playerIndex === 1 ? 'top' : 'bottom'}
-      className={`etched-wood-border turn-emphasis ${isActive ? 'turn-emphasis-active' : 'turn-emphasis-inactive'}`}
-      style={{
-        position: 'relative',
-        borderRadius: 12,
-        background: 'rgba(20,10,5,0.34)',
-        padding: '0 12px 0',
-        flex: '0.3 1 auto',
-        minHeight: 0,
-        overflow: 'hidden',
-      }}
+      className={`tableau tv-seat turn-emphasis ${isActive ? 'turn-emphasis-active' : 'turn-emphasis-inactive'}`}
+      data-center-target={position}
     >
-      <img
-        src="/assets/panels/wood_1.png"
-        alt=""
-        aria-hidden
-        draggable={false}
-        style={{
-          position: 'absolute',
-          inset: 0,
-          width: '100%',
-          height: '100%',
-          objectFit: 'cover',
-          transform: flipWoodBackground ? 'scaleY(-1)' : undefined,
-          pointerEvents: 'none',
-          borderRadius: 12,
-        }}
-      />
-      <div style={{
-        position: 'absolute',
-        inset: 0,
-        background: 'rgba(20,10,5,0.54)',
-        pointerEvents: 'none',
-        borderRadius: 12,
-      }} />
-      {waitingMessage && (
-        <div style={{
-          position: 'absolute',
-          top: 10,
-          right: 12,
-          zIndex: 20,
-          background: 'rgba(20,10,5,0.82)',
-          border: '1px solid var(--border-light)',
-          borderRadius: 8,
-          padding: '6px 10px',
-          fontSize: 13,
-          color: 'var(--text-muted)',
-          fontFamily: 'var(--font-heading)',
-          maxWidth: 360,
-          textAlign: 'right',
-        }}>
-          {waitingMessage.replace(`Player ${playerIndex + 1} `, '')}
+      <TableauCorners />
+      <div className="tv-seat-row">
+        <MarketDisplay
+          owner={seat}
+          market={player.market}
+          flashSlots={marketFlashSlots}
+          flashVariant="strong"
+          label="Market"
+          labelAside={`${player.market.filter(Boolean).length}/${player.market.length}`}
+          slotSize={slotSize}
+          tokenSize={Math.round(slotSize * 0.82)}
+        />
+        {/* maxSlots reserves the row so the board never jumps when a utility lands */}
+        <div data-spotlight-target={position === 'top' ? 'opponent-utilities' : undefined} data-utility-anchor={seat} style={{ flexShrink: 0 }}>
+          <UtilityArea
+            utilities={player.utilities}
+            disabled
+            label="Utilities"
+            labelAside={`${player.utilities.length}/3`}
+            cardSize="medium"
+            maxSlots={3}
+            showHelperText={false}
+            untappedCardId={untappedUtility}
+          />
         </div>
-      )}
-      <div style={{
-        position: 'relative',
-        borderRadius: 10,
-        padding: '10px 10px 4px',
-        height: '100%',
-        overflow: 'visible',
-        background: 'rgba(20,10,5,0.24)',
-      }}>
-        <div style={{ position: 'relative', display: 'flex', gap: 28, flexWrap: 'wrap', height: '100%', transform: 'scale(1.7)', transformOrigin: 'top left' }}>
-          <MarketDisplay market={player.market} flashSlots={marketFlashSlots} label="Market" columns={6} slotSize={36} tokenSize={29} dashedBorder />
-          <div style={{ marginLeft: -15, marginRight: 20 }}>
-            <UtilityArea utilities={player.utilities} disabled label="Utilities" cardSize="small" cardScale={0.855} maxSlots={3} />
-          </div>
-          {/* Coins + Cards icons */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '8px 12px', alignSelf: 'center', marginTop: -110, marginLeft: -35 }}>
-            <div style={{ position: 'relative', width: 130, height: 88, marginTop: 30 }}>
-              <img src="/assets/coins/coins.png" alt="gold" draggable={false} style={{ width: 130, height: 88, objectFit: 'contain' }} />
-              <span style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: 40,
-                height: 40,
-                borderRadius: '50%',
-                background: '#f5e6c8',
-                border: '4px solid #d4a850',
-                boxShadow: '0 0 0 3px #8b6530',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#1a1008',
-                fontWeight: 700,
-                fontSize: 20,
-                fontFamily: 'var(--font-heading)',
-              }}>
-                {player.gold}
-              </span>
-              {(goldDelta ?? 0) !== 0 && (
-                <span
-                  key={`tv-gold-delta-${label}-${goldDelta}-${debugGoldCounter ?? 0}`}
-                  className={(goldDelta ?? 0) > 0 ? 'gold-delta-arrow' : 'gold-delta-arrow-down'}
-                  style={{
-                    position: 'absolute',
-                    left: '50%',
-                    top: (goldDelta ?? 0) > 0 ? -2 : undefined,
-                    bottom: (goldDelta ?? 0) < 0 ? -2 : undefined,
-                    transform: 'translateX(-50%)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    color: '#f5e6c8',
-                    fontSize: 30,
-                    fontWeight: 700,
-                    fontFamily: 'var(--font-heading)',
-                    pointerEvents: 'none',
-                  }}
-                >
-                  <span>{(goldDelta ?? 0) > 0 ? `+${goldDelta}` : `${goldDelta}`}</span>
-                </span>
-              )}
-            </div>
-            <div style={{ position: 'relative', width: 128, height: 88, marginTop: 30 }}>
-              <img src="/assets/cards/cards_fanned_out.png" alt="hand" draggable={false} style={{ width: 128, height: 88, objectFit: 'contain' }} />
-              <span style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: 40,
-                height: 40,
-                borderRadius: '50%',
-                background: '#f5e6c8',
-                border: '4px solid #d4a850',
-                boxShadow: '0 0 0 3px #8b6530',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#1a1008',
-                fontWeight: 700,
-                fontSize: 20,
-                fontFamily: 'var(--font-heading)',
-              }}>
-                {player.handCount}
-              </span>
-            </div>
-          </div>
-        </div>
-        <span style={{
-          position: 'absolute',
-          left: 14,
-          bottom: 8,
-          paddingTop: 24,
-          fontFamily: 'var(--font-heading)',
-          fontWeight: 700,
-          fontSize: 20,
-          color: isActive ? 'var(--gold)' : 'var(--text)',
-        }}>
-          {label} {isActive && '(Active)'}
-        </span>
+        <SeatInfo
+          seat={seat}
+          label={TV_LABELS[seat]}
+          subtitle={isActive ? 'Their turn' : undefined}
+          portrait={<PlayerAvatar avatarUrl={null} size={72} active={isActive} label={TV_LABELS[seat]} />}
+          gold={player.gold}
+          goldDelta={goldDelta}
+          handCount={player.hand.length}
+          isActive={isActive}
+          handAnchor
+        />
       </div>
     </div>
   );
 }
 
-function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; visualFeedback: ReturnType<typeof useVisualFeedback>; supply: Record<WareType, number> }) {
-  const phaseLabel = pub.phase === 'DRAW'
-    ? `Draw Phase (${pub.drawsThisPhase}/5)`
-    : pub.phase === 'PLAY'
-    ? 'Play Phase'
-    : 'Game Over';
-
-  const phaseColor = pub.phase === 'DRAW' ? '#5a9ab0' : pub.phase === 'PLAY' ? '#7a9a4a' : '#c04030';
-
-  const topDiscard = pub.discardPile.length > 0 ? pub.discardPile[0] : null;
-  const trail = visualFeedback?.trail;
-  // A discard trail keeps the card it carries off the pile until it lands
-  const [revealedTrail, setRevealedTrail] = useState<typeof trail | null>(null);
-  const displayDiscardCard = trail?.kind === 'discard' && trail.cardId && revealedTrail !== trail
-    ? (pub.discardPile.length > 1 ? pub.discardPile[1] : null)
-    : topDiscard;
-  // Which trail's action tag and which log length's recap have timed out
-  const [expiredTagTrail, setExpiredTagTrail] = useState<typeof trail | null>(null);
-  const [expiredRecapAt, setExpiredRecapAt] = useState<number | null>(null);
-  const rowRef = useRef<HTMLDivElement | null>(null);
-  const deckPileRef = useRef<HTMLDivElement | null>(null);
-  const discardPileRef = useRef<HTMLDivElement | null>(null);
-  const [drawTrailPath, setDrawTrailPath] = useState<{ startX: number; startY: number; endX: number; endY: number } | null>(null);
-  const [discardTrailTarget, setDiscardTrailTarget] = useState<{ x: number; y: number } | null>(null);
-
-  useEffect(() => {
-    if (!(trail?.kind === 'discard' && trail.cardId)) return;
-    const timer = window.setTimeout(() => setRevealedTrail(trail), FEEDBACK_TIMINGS.discardPileRevealDelayMs);
-    return () => window.clearTimeout(timer);
-  }, [trail]);
-
-  const actionTag = trail && expiredTagTrail !== trail
-    ? describeTrailTag(trail.kind, `Player ${trail.actor + 1}`, pub.log.slice(-6))
+/**
+ * The right end of the center row (where End Turn sits on a player's board):
+ * what the table is waiting on, or this turn's Wise Man prices.
+ */
+function TVStatusPlaque({ message, turnModifiers, currentLabel }: {
+  message: string | null;
+  turnModifiers: GameState['turnModifiers'];
+  currentLabel: string;
+}) {
+  const priceNote = turnModifiers.buyDiscount > 0 || turnModifiers.sellBonus > 0
+    ? [
+      turnModifiers.buyDiscount > 0 ? `Buy −${turnModifiers.buyDiscount}g` : null,
+      turnModifiers.sellBonus > 0 ? `Sell +${turnModifiers.sellBonus}g` : null,
+    ].filter(Boolean).join(' · ')
     : null;
-  useEffect(() => {
-    if (!trail) return;
-    const timer = window.setTimeout(() => setExpiredTagTrail(trail), FEEDBACK_TIMINGS.actionTagDurationMs);
-    return () => window.clearTimeout(timer);
-  }, [trail]);
-
-  const lastActionRecap = pub.log.length > 0 && expiredRecapAt !== pub.log.length
-    ? formatLogRecap(pub.log[pub.log.length - 1], ['Player 1', 'Player 2'])
-    : null;
-  useEffect(() => {
-    const logLength = pub.log.length;
-    if (logLength === 0) return;
-    const timer = window.setTimeout(() => setExpiredRecapAt(logLength), 2500);
-    return () => window.clearTimeout(timer);
-  }, [pub.log.length]);
-
-  useEffect(() => {
-    const updateDrawTrailPath = () => {
-      const rowEl = rowRef.current;
-      const deckEl = deckPileRef.current;
-      if (!rowEl || !deckEl) return;
-
-      const trail = visualFeedback?.trail;
-      if (!trail || trail.kind !== 'draw') return;
-
-      const targetEl = document.querySelector<HTMLElement>(`[data-center-target="${trail.actor === 1 ? 'top' : 'bottom'}"]`);
-      if (!targetEl) return;
-
-      const rowRect = rowEl.getBoundingClientRect();
-      const deckRect = deckEl.getBoundingClientRect();
-      const targetRect = targetEl.getBoundingClientRect();
-      setDrawTrailPath({
-        startX: deckRect.left + (deckRect.width / 2) - (rowRect.left + (rowRect.width / 2)),
-        startY: deckRect.top + (deckRect.height / 2) - (rowRect.top + (rowRect.height / 2)),
-        endX: targetRect.left + (targetRect.width / 2) - (rowRect.left + (rowRect.width / 2)),
-        endY: targetRect.top + (targetRect.height / 2) - (rowRect.top + (rowRect.height / 2)),
-      });
-    };
-
-    updateDrawTrailPath();
-    window.addEventListener('resize', updateDrawTrailPath);
-    return () => window.removeEventListener('resize', updateDrawTrailPath);
-  }, [visualFeedback?.trail]);
-
-  useEffect(() => {
-    const updateDiscardTrailTarget = () => {
-      const rowEl = rowRef.current;
-      const discardEl = discardPileRef.current;
-      if (!rowEl || !discardEl) return;
-
-      const rowRect = rowEl.getBoundingClientRect();
-      const discardRect = discardEl.getBoundingClientRect();
-      setDiscardTrailTarget({
-        x: discardRect.left + (discardRect.width / 2) - (rowRect.left + (rowRect.width / 2)),
-        y: discardRect.top + (discardRect.height / 2) - (rowRect.top + (rowRect.height / 2)),
-      });
-    };
-
-    updateDiscardTrailTarget();
-    window.addEventListener('resize', updateDiscardTrailTarget);
-    return () => window.removeEventListener('resize', updateDiscardTrailTarget);
-  }, []);
-
+  if (!message && !priceNote) return <div className="tv-status-plaque tv-status-plaque-empty" aria-hidden="true" />;
   return (
-    <div ref={rowRef} style={{
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      padding: '0 12px 0',
-      borderRadius: 10,
-      background: 'rgba(20,10,5,0.24)',
-      width: '100%',
-      flex: 1,
-      minHeight: 0,
-      transform: 'scale(0.7)',
-      transformOrigin: 'center center',
-    }}>
-      {visualFeedback.trail && (
-        <div
-          key={visualFeedback.trail.id}
-          className={`center-row-trail center-row-trail-${visualFeedback.trail.kind}-${visualFeedback.trail.actor === 0 ? 'bottom' : 'top'}`}
-          style={(() => {
-            const vars: Record<string, string> = {};
-            if (visualFeedback.trail.kind === 'draw' && drawTrailPath) {
-              vars['--trail-draw-start-x'] = `${drawTrailPath.startX}px`;
-              vars['--trail-draw-start-y'] = `${drawTrailPath.startY}px`;
-              vars['--trail-draw-end-x'] = `${drawTrailPath.endX}px`;
-              vars['--trail-draw-end-y'] = `${drawTrailPath.endY}px`;
-            }
-            if (visualFeedback.trail.kind === 'discard' && discardTrailTarget) {
-              vars['--trail-discard-end-x'] = `${discardTrailTarget.x}px`;
-              vars['--trail-discard-end-y'] = `${discardTrailTarget.y}px`;
-            }
-            return Object.keys(vars).length > 0 ? (vars as CSSProperties) : undefined;
-          })()}
-          aria-hidden
-        >
-          {visualFeedback.trail.kind === 'discard' && visualFeedback.trail.cardId ? (
-            <img src={`/assets/cards/${getCard(visualFeedback.trail.cardId).designId}.png`} alt="" draggable={false} />
-          ) : (
-            <img src="/assets/cards/card_back.png" alt="" draggable={false} />
-          )}
-        </div>
-      )}
-
-      {lastActionRecap && (
-        <div className="center-row-recap">
-          {lastActionRecap}
-        </div>
-      )}
-
-      <div style={{ display: 'flex', width: '100%', justifyContent: 'center', alignItems: 'center', gap: 48, marginTop: 0 }}>
-        {/* Left: Ware supply */}
-        <div style={{ display: 'flex', justifyContent: 'center', alignSelf: 'flex-end', marginBottom: 38, marginLeft: 45 }}>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-            gap: 16,
-            padding: '10px 12px',
-            borderRadius: 14,
-            background: 'rgba(20,10,5,0.24)',
-            minWidth: 620,
-          }}>
-            {WARE_TYPES.map((wareType) => (
-              <div key={wareType} style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                background: 'transparent',
-                borderRadius: 10,
-                padding: '12px 16px',
-                border: 'none',
-                minHeight: 0,
-              }}>
-                <span style={{ marginRight: 8 }}><WareToken type={wareType} size={120} /></span>
-                <span style={{ fontFamily: 'var(--font-heading)', fontSize: 48, color: 'var(--text-muted)', fontWeight: 700 }}>{`x${supply[wareType]}`}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Right: Deck / Phase / Discard */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 40, transform: 'scale(0.92)', transformOrigin: 'center center', marginLeft: 40 }}>
-          <div ref={deckPileRef} key={`tv-deck-${visualFeedback.deckPulse}`} className={visualFeedback.deckPulse ? 'pile-pulse' : undefined} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, minWidth: 270 }}>
-            {pub.deckCount > 0 ? (
-              <CardFace cardId="guard_1" faceDown large scale={1.8} />
-            ) : (
-              <div style={{ width: 270, height: 360, borderRadius: 14, border: '2px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 18 }}>Empty</div>
-            )}
-            <div className="panel-section-title" style={{ marginBottom: 0, fontSize: 26 }}>Deck ({pub.deckCount})</div>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-            {actionTag && (
-              <div
-                key={actionTag}
-                className="tv-action-tag-fade"
-                style={{ transform: 'scale(2.5)', marginBottom: 60, background: 'rgba(30,18,8,0.9)', border: '1px solid var(--border-light)', borderRadius: 999, padding: '6px 14px', fontSize: 16, fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}
-              >
-                {actionTag}
-              </div>
-            )}
-            <div key={`tv-phase-${visualFeedback.phasePulse}-${visualFeedback.actionsPulse}`} className={(visualFeedback.phasePulse || visualFeedback.actionsPulse) ? 'phase-pulse' : undefined} style={{ background: phaseColor + '20', borderRadius: 16, padding: '36px 64px', border: `1px solid ${phaseColor}`, textAlign: 'center', minWidth: 500 }}>
-              <div style={{ fontSize: 26, color: 'var(--text-muted)' }}>Turn {pub.turn} &middot; Player {pub.currentPlayer + 1}</div>
-              <div style={{ fontWeight: 700, fontSize: 48, color: phaseColor }}>{phaseLabel}</div>
-              <div style={{ display: 'flex', justifyContent: 'center', gap: 18, marginTop: 20 }}>
-                {Array.from({ length: 5 }, (_, i) => (
-                  <div key={i} style={{ width: 46, height: 46, borderRadius: '50%', backgroundColor: i < pub.actionsLeft ? 'var(--gold)' : 'rgba(90,64,48,0.5)', border: '3px solid var(--gold)' }} />
-                ))}
-              </div>
-              {pub.endgame && (<div style={{ fontSize: 20, color: '#c04030', fontWeight: 700, marginTop: 8 }}>{pub.endgame.isFinalTurn ? 'FINAL TURN!' : 'Endgame triggered!'}</div>)}
-            </div>
-          </div>
-
-          <div ref={discardPileRef} key={`tv-discard-${visualFeedback.discardPulse}`} className={visualFeedback.discardPulse ? 'pile-pulse' : undefined} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, minWidth: 270 }}>
-            <div key={`tv-discard-card-${displayDiscardCard ?? 'empty'}-${pub.discardPile.length}`} className="discard-soft-fade">
-              {displayDiscardCard ? <CardFace cardId={displayDiscardCard} large scale={1.8} /> : <div style={{ width: 324, height: 432, borderRadius: 8, border: '5px dashed var(--border)', background: 'rgba(255,255,255,0.06)', flexShrink: 0 }} />}
-            </div>
-            <div className="panel-section-title" style={{ marginBottom: 0, fontSize: 26 }}>Discard ({pub.discardPile.length})</div>
-          </div>
-        </div>
-      </div>
+    <div className="tv-status-plaque" role="status" aria-live="polite">
+      {message && <div key={message} className="tv-status-message">{message}</div>}
+      {priceNote && <div className="tv-status-prices">{currentLabel}: {priceNote}</div>}
     </div>
   );
 }
-
-function TVWaitingIndicator({ message }: { message: string }) {
-  return (
-    <div className="disabled-hint" style={{
-      textAlign: 'center',
-      padding: '8px 16px',
-      fontSize: 15,
-      fontFamily: 'var(--font-heading)',
-    }}>
-      {message}
-    </div>
-  );
-}
-

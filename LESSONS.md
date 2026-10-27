@@ -740,3 +740,42 @@ overwrites tracked files.)
 - Fix: `CastSessionController.prepare()` warms the SDK on menu mount / TV
   dialog open; a failed SDK load is no longer cached forever. Lazy-loading is
   fine, but never lazy-load *on the tap that opens the picker*.
+
+## 2026-10-26 — Cast TV rebuilt on the desktop board + Cast TV playtests
+
+- The TV (`TVScreen.tsx`) was a separate, hand-scaled layout (`scale(0.6)`
+  wrappers, its own pile/plaque markup) that drifted from every desktop
+  polish pass. It now composes the desktop pieces: `.tableau` + brass
+  corners, `SeatInfo`, `CenterRow` + `WareSupply`, spotlights, `FlightLayer`,
+  strikes, `TurnSweep`, `FinalTurnBanner`, `EndgameOverlay`. Board state comes
+  from `toTvBoardState(pub)` (both hands + deck are `HIDDEN_CARD_ID`
+  placeholders). Keep the TV on shared components so future desktop work
+  reaches it for free.
+- "No viewer" is a real mode, not seat 0: `viewer: null` on `FlightLayer`,
+  `CenterRow`, `TurnSweep` (sweeps every hand-over, "Player 2's turn"), and
+  `spotlitPlayer: 'both'`. Spotlights run one per seat (a spotlight's
+  `viewer` is the seat it does *not* announce — easy to wire backwards; we did).
+- **Target 1280×720.** The receiver app's `resolution_height` is 0 (default),
+  so a Chromecast renders the page at 720p regardless of the TV. Don't scale
+  parts of the board for 1080p: scaling only the seats made the center row
+  look tiny; uniform CSS `zoom`/`transform` breaks every rect-measured
+  animation (flights, trails, spotlights measure in viewport px).
+- **The TV can't pause the game.** Solo pauses its AI while a spotlight
+  plays; the TV can't pause the server, so every face-up play from both seats
+  queued up (~1.4–1.8s each) and the TV fell further behind fast play — cards
+  held back for their spotlight made hand/utility counts lag the server.
+  Fix: `maxBacklog` (TV keeps the on-screen card + newest 2, older ones are
+  dropped but still land) and `held` (one seat's spotlight waits while the
+  other's shows, so an animal + its Guard never stack).
+- **Playtesting Cast without a Chromecast:** `scripts/e2e/cast-tv.py` opens the
+  real receiver page with a fake CAF SDK (init script captures the custom
+  message listener; route-stub `cast_receiver_framework.js`) and delivers
+  `SYNC_ROOM` like a phone. `cast-tv-bots.ts` plays the phones over the real
+  WebSocket and pauses at checkpoints, where the harness compares the TV's
+  gold/hands/deck/discard/market/utility counts with
+  `/api/cast/public-room`. Run the server with `MONGODB_URI=` (or the test
+  DB), never prod.
+- Gotchas: the old TV called hooks after an early `return null` (rules-of-hooks
+  bug) — split into `TVScreen` (guard) + `TVBoard` (hooks). zsh doesn't
+  word-split `set -- $spec`; run harness loops under `bash -c`. An AI-room
+  game takes ~15–20 min at server AI pace — budget harness deadlines for it.

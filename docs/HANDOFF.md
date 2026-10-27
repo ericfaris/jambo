@@ -14,7 +14,7 @@ Play a friend (online rooms), and Chromecast TV.
 - Deploy: push to `main` → `.github/workflows/ci-cd.yml` (typecheck/test/build) →
   self-hosted `lab` runner asks Sentinel (`:7891/api/deploy`) to rebuild. Manual:
   the `deploy` skill.
-- Version: `package.json` (1.29.1, shipped 2026-10-26: Cast SDK warm-up so Android Chrome lists the TV); bump with
+- Version: `package.json` (1.30.0, shipped 2026-10-26: Cast TV rebuilt on the desktop board); bump with
   `npm run version:bump` / `version:minor` when shipping.
 
 ## Commands
@@ -23,6 +23,11 @@ Run via `zsh -i -c "…"` (nvm).
 
 - `npm run typecheck` (TS 7), `npm test` (Vitest), `npm run lint`, `npx vite build`
 - `npm run fuzz -- 500`, `npm run ai:bench:short`
+- Cast TV playtest (no Chromecast): server `PORT=3031 MONGODB_URI= npm run server`,
+  Vite `JAMBO_API_PORT=3031 npx vite --port 5180`, then
+  `python3 scripts/e2e/cast-tv.py <ai|pvp> [games] [seed] [outdir] [vite] [paceMs]`
+  (real receiver page + fake CAF; bots play over WS; checkpoints compare the TV
+  with `/api/cast/public-room`). An AI-room game takes ~15–20 min.
 - Playtest: `game-playtest` skill (`.claude/skills/game-playtest/scripts/driver.py`).
   Server on :3031 against the test DB, Vite on :5180 with `JAMBO_API_PORT=3031`.
   `PT_PANELSHOTS=1` screenshots each panel once it settles, for copy review.
@@ -36,11 +41,10 @@ Run via `zsh -i -c "…"` (nvm).
 
 ## Open items (priority order)
 
-0. **Confirm Cast on the real TV from Android Chrome** after the 1.29.1 deploy
-   (open the menu, wait a couple of seconds, Play on TV). If the TV is *still*
-   missing from the picker, it's Cast Console, not code: app `4E18430D` is a
-   custom receiver → check it's Published, or that the TV's serial is under
-   "Manage devices" (and the TV was rebooted after registering).
+0. **Watch a real Cast game on the TV** with the 1.30.0 board (playtested only
+   headlessly at 1280×720 with a fake CAF; old Chromecast Chrome ignores the
+   few `:has()`/`color-mix()` rules — decorative only). Cast from Android
+   Chrome works since 1.29.1 (SDK warm-up).
 1. "More below ↓" pill flashes briefly while a resolve panel pops in
    (`ResolveMegaView.tsx`); harmless, but could wait for the pop animation.
 2. Resolve breadcrumbs (`formatResolutionBreadcrumb`) still say "Opponent discard
@@ -61,6 +65,11 @@ Run via `zsh -i -c "…"` (nvm).
   only when even half-overlapped cards don't fit.
 
 ## Gotchas
+
+- The TV (`TVScreen`) is the desktop board with `viewer: null` (both seats
+  watched): keep shared components' no-viewer paths working (`FlightLayer`,
+  `CenterRow`, `TurnSweep`, `spotlitPlayer: 'both'`). TV spotlights are capped
+  (`maxBacklog`) and take turns (`held`) because the TV can't pause the game.
 
 - Cast sender SDK loads lazily, but `Router` calls `controller.prepare()` on
   mount and when the TV dialog opens. Don't drop that: loading the SDK on the
