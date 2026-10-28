@@ -576,6 +576,14 @@ discard trail for its card. Reduced motion: marks only, no animation.
   greeting (`.landing-record`): "17 won · 16 lost", a gold win-rate bar that
   fills on load, "52% won · 33 games". Hidden until there's a record.
 - The selected trader's portrait breathes (2px).
+- **Trader hello** (2026-10-27): picking a trader pops a parchment bubble
+  (`.landing-hello`, same finish as the in-game `.speech-bubble`) above their
+  portrait with a line in character (`TRADER_HELLOS` in `landing.ts`, cycled
+  per pick by `traderHello()`). Caption only, never voiced, because the voiced
+  greeting is saved for the table. Placed in the picked trader's grid column;
+  the end columns open inward. Gone after `speechBubbleMs()`, or as soon as a
+  modal opens. Announced through `.landing-sr` (`role="status"`); fade-only
+  under reduced motion.
 
 
 ## Life — the "living table" layer (2026-10-09)

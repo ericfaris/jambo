@@ -40,6 +40,23 @@ export function writeLastTrader(difficulty: AIDifficulty, store: KeyValueStore |
   } catch { /* storage blocked — just won't be remembered */ }
 }
 
+/**
+ * What each trader says when you pick them on the menu — caption only. Their
+ * voiced greeting is saved for the table, so the menu never repeats it.
+ */
+export const TRADER_HELLOS: Record<AIDifficulty, readonly string[]> = {
+  easy: ["Me? Really? I'll fetch my wares!", "I've been practising all week!", 'Okay. Deep breaths, Kito.'],
+  medium: ['Come, sit. The loom can wait.', 'A patient game, then. Good.', 'I hoped you would choose me.'],
+  hard: ['Ah! A customer with taste.', 'Sit, sit! Baraka has a special price for you.', 'You pick Baraka? Bold. I like bold.'],
+  expert: ['So. You think you are ready.', 'Come closer, child. Bring your best wares.', 'Mm. We shall see what you have learned.'],
+};
+
+/** The `n`th time (0-based) this trader is picked: their lines in turn, never the same twice running. */
+export function traderHello(difficulty: AIDifficulty, n: number): string {
+  const lines = TRADER_HELLOS[difficulty];
+  return lines[((n % lines.length) + lines.length) % lines.length];
+}
+
 /** A new visitor's 0-0 record is negative proof — only show a record that exists. */
 export function statsLine(summary: UserStatsSummary | null): string | null {
   if (!summary || summary.gamesPlayed <= 0) return null;

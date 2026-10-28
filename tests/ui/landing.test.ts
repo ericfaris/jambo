@@ -5,8 +5,9 @@ import { MainMenu } from '../../src/ui/screens/MainMenu.tsx';
 import { PreGameSetupModal } from '../../src/ui/screens/PreGameSetupModal.tsx';
 import {
   DEMO_SALE, FAN_CARDS, FAN_DEMO_INDEX, LANDING_PITCH, LAST_TRADER_STORAGE_KEY,
-  playerRecord, readLastTrader, statsLine, writeLastTrader,
+  TRADER_HELLOS, TRADER_ORDER, playerRecord, readLastTrader, statsLine, traderHello, writeLastTrader,
 } from '../../src/ui/screens/landing.ts';
+import { traderFor } from '../../src/ai/traders.ts';
 import { getCard, isValidDeckCardId } from '../../src/engine/cards/CardDatabase.ts';
 import type { AuthSession } from '../../src/ui/useAuthSession.ts';
 
@@ -58,6 +59,24 @@ describe('landing page helpers', () => {
     const demo = getCard(FAN_CARDS[FAN_DEMO_INDEX]);
     expect(demo.wares?.types).toEqual(Array(DEMO_SALE.count).fill(DEMO_SALE.ware));
     expect(demo.wares?.sellPrice).toBe(DEMO_SALE.gold);
+  });
+
+  it('every trader has picked-on-the-menu lines, distinct from their voiced greeting', () => {
+    for (const d of TRADER_ORDER) {
+      const lines = TRADER_HELLOS[d];
+      expect(lines.length).toBeGreaterThanOrEqual(2);
+      expect(new Set(lines).size).toBe(lines.length);
+      expect(lines).not.toContain(traderFor(d).lines.greet[0]);
+      // short enough for a bubble over one portrait
+      for (const line of lines) expect(line.length).toBeLessThanOrEqual(48);
+    }
+  });
+
+  it('a trader picked again says their next line, cycling, never the same twice running', () => {
+    const said = [0, 1, 2, 3, 4].map((n) => traderHello('hard', n));
+    expect(said.slice(0, 3)).toEqual([...TRADER_HELLOS.hard]);
+    expect(said[3]).toBe(said[0]);
+    for (let i = 1; i < said.length; i++) expect(said[i]).not.toBe(said[i - 1]);
   });
 
   it('the pitch states the real win condition', () => {
@@ -135,6 +154,12 @@ describe('landing page', () => {
       expect(signs).toContain(`landing-sign-label">${label}<`);
     }
     expect(signs.match(/landing-sign-hint/g)).toHaveLength(3);
+  });
+
+  it('says nothing until a trader is picked, but keeps a live region ready to announce it', () => {
+    const html = menu();
+    expect(html).not.toContain('landing-hello');
+    expect(html).toMatch(/<span class="landing-sr" role="status"><\/span>/);
   });
 
   it('holds its motion still while a modal is open', () => {

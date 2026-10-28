@@ -13,7 +13,8 @@ import { AvatarImage } from '../AvatarImage.tsx';
 import { AmbientLayer } from '../life.tsx';
 import { ConfirmButton } from '../ConfirmButton.tsx';
 import { usePreferences } from '../preferences.ts';
-import { DEMO_SALE, FAN_CARDS, FAN_DEMO_INDEX, LANDING_PITCH, TRADER_ORDER, playerRecord, readLastTrader, statsLine, writeLastTrader } from './landing.ts';
+import { speechBubbleMs } from '../SpeechBubble.tsx';
+import { DEMO_SALE, FAN_CARDS, FAN_DEMO_INDEX, LANDING_PITCH, TRADER_ORDER, playerRecord, traderHello, readLastTrader, statsLine, writeLastTrader } from './landing.ts';
 import { BookIcon, FriendIcon, GearIcon, JoinIcon, SoundIcon, TvIcon } from './landingIcons.tsx';
 
 interface MainMenuProps {
@@ -47,6 +48,10 @@ export function MainMenu({
   const [trader, setTrader] = useState<AIDifficulty>(() => readLastTrader());
   const [hovered, setHovered] = useState<AIDifficulty | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
+  // The trader you just picked looks up and says something (caption only)
+  const [hello, setHello] = useState<{ trader: AIDifficulty; text: string; n: number } | null>(null);
+  const helloCount = useRef<Partial<Record<AIDifficulty, number>>>({});
+  const helloSeq = useRef(0);
   const { prefs, setPref } = usePreferences();
 
   // State is set once the request settles, never synchronously
@@ -65,7 +70,19 @@ export function MainMenu({
   const chooseTrader = (d: AIDifficulty) => {
     setTrader(d);
     writeLastTrader(d);
+    const n = helloCount.current[d] ?? 0;
+    helloCount.current = { ...helloCount.current, [d]: n + 1 };
+    helloSeq.current += 1;
+    setHello({ trader: d, text: traderHello(d, n), n: helloSeq.current });
   };
+
+  useEffect(() => {
+    if (!hello) return;
+    const timer = window.setTimeout(() => setHello(null), speechBubbleMs(hello.text));
+    return () => window.clearTimeout(timer);
+  }, [hello]);
+  // A modal opening over the menu ends the conversation
+  if (dimmed && hello) setHello(null);
 
   const hasSave = !!(resumeLabel && onResume);
   const chosen = traderFor(trader);
@@ -221,7 +238,19 @@ export function MainMenu({
                 </button>
               );
             })}
+            {hello && (
+              <span
+                key={hello.n}
+                className="landing-hello"
+                data-col={TRADER_ORDER.indexOf(hello.trader)}
+                style={{ gridColumn: TRADER_ORDER.indexOf(hello.trader) + 1 }}
+                aria-hidden="true"
+              >
+                {hello.text}
+              </span>
+            )}
           </div>
+          <span className="landing-sr" role="status">{hello ? `${traderFor(hello.trader).name}: ${hello.text}` : ''}</span>
           {hasSave && startOver(() => onPlayTrader(trader), `New game vs ${chosen.name}`, 'landing-secondary landing-secondary-wide')}
 
           <div className="landing-modes landing-signs">

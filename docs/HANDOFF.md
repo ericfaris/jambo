@@ -65,6 +65,9 @@ Run via `zsh -i -c "…"` (nvm).
   abandon API rejects that mode, and legacy stats/abandon rows may still carry it.
   `viewer: null` / "Player 1/2" label paths remain for the TV.
 
+- Menu trader picks show a caption-only hello (`TRADER_HELLOS`, `landing.ts`),
+  never voiced: the voiced greet plays at game start and would repeat. Voicing
+  them would mean new ElevenLabs takes under a fresh file prefix.
 - Panels name the other seat everywhere (trader name / "Player 2" / friend);
   only Cast keeps the generic "opponent". Card face text stays as printed.
 - The desktop hand fans into its measured width; it scrolls sideways at 12+ cards
