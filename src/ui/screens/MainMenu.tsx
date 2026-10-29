@@ -243,7 +243,7 @@ export function MainMenu({
                 key={hello.n}
                 className="landing-hello"
                 data-col={TRADER_ORDER.indexOf(hello.trader)}
-                style={{ gridColumn: TRADER_ORDER.indexOf(hello.trader) + 1 }}
+                style={{ '--col': TRADER_ORDER.indexOf(hello.trader) } as CSSProperties}
                 aria-hidden="true"
               >
                 {hello.text}
