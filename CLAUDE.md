@@ -355,13 +355,14 @@ Each ware type has a shared supply pool (not unlimited). When wares are bought, 
 decision). Playing/using a card that opens a resolution stores a snapshot of
 the state just before it (`cancellableAction.restore`); cancelling restores
 it exactly (deck order, gold, wares, hands, the action) and logs "Cancelled
-X". Cards a step already showed you (Psychic, Arabian Merchant) go back
-where they were — you've seen them, by design. The snapshot is dropped as
+X". The snapshot is dropped as
 soon as the opponent is involved (Guard decision, bid, draft pick, opponent
-choice) or the effect finishes. Scale draws its 2 cards as it starts (no
-"draw" step) and is **never** cancellable, even when a Crocodile borrows it
-(2026-10-14). Hyena is **never** cancellable either: it has already shown you
-the opponent's hand (2026-10-29). The snapshot never goes into the public Cast state. Not in
+choice) or the effect finishes — **and the moment a step shows hidden
+information** (2026-10-29): the deck moves (any draw/reshuffle) or the
+resolution shows a card from the deck or the opponent's hand
+(`revealsHiddenInfo`). So Psychic, Arabian Merchant, Hyena, Ape and Scale
+(even borrowed by a Crocodile) are never cancellable; a utility that draws
+after a choice keeps its cancel point only until that draw. The snapshot never goes into the public Cast state. Not in
 `getValidActions()` — the AI never cancels.
 
 ### Endgame

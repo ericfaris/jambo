@@ -5,16 +5,17 @@
 // Starting a card or utility that opens a resolution keeps a snapshot of the
 // state just before it. Cancelling restores that snapshot exactly — deck
 // order, gold, wares, hands, the action spent — and logs "Cancelled X".
-// Cards a step already revealed to you (Psychic, Arabian Merchant) go
-// back where they were; you've seen them, by design (2026-10-12 decision).
 //
 // The snapshot is dropped the moment the opponent is involved — a Guard
 // decision, an auction bid, a draft pick, an opponent choice — or the effect
 // finishes. Rewinding someone else's decision is never offered.
 //
-// Two exceptions are never cancellable: Scale draws its 2 cards the moment it
-// starts — not even when a Crocodile borrows it (2026-10-14) — and Hyena shows
-// you the opponent's hand, which no undo can take back (2026-10-29).
+// It is also dropped the moment a step shows you anything hidden — a card
+// drawn from or peeked off the deck, or a card from the opponent's hand —
+// since no undo can take that knowledge back (2026-10-29; replaces the
+// 2026-10-12 rule that let Psychic/Arabian Merchant rewind after a peek).
+// So Psychic, Arabian Merchant, Hyena, Ape, Scale (even borrowed by a
+// Crocodile) and any step that draws are never cancellable from that point.
 // ============================================================================
 
 import type { CancellableAction, GameAction, GameState } from './types.ts';
@@ -41,13 +42,31 @@ function cardName(before: GameState, action: GameAction): string | null {
   return null;
 }
 
+/** Every card id a resolution carries (revealed, pooled, selected…), wherever it keeps them. */
+function cardsShownBy(pr: GameState['pendingResolution']): Set<string> {
+  const ids = new Set<string>();
+  if (!pr) return ids;
+  for (const value of Object.values(pr)) {
+    if (typeof value === 'string') ids.add(value);
+    else if (Array.isArray(value)) {
+      for (const v of value.flat()) if (typeof v === 'string') ids.add(v);
+    }
+  }
+  return ids;
+}
+
 /**
- * Scale's "keep 1, give 1" (its cards are already drawn) and Hyena's swap (the
- * opponent's hand is already shown) — no backing out of either.
+ * Did going from `before` to `after` show the active player something hidden?
+ * The deck moved (a draw, a reshuffle), or the resolution now shows a card
+ * that was in the deck or the opponent's hand (Psychic, Arabian Merchant,
+ * Hyena, Ape, Scale).
  */
-function isNeverCancellable(state: GameState): boolean {
-  const pr = state.pendingResolution;
-  return (pr?.type === 'UTILITY_EFFECT' && pr.utilityDesign === 'scale') || pr?.type === 'HAND_SWAP';
+export function revealsHiddenInfo(before: GameState, after: GameState): boolean {
+  if (after.deck.length !== before.deck.length || after.deck.some((id, i) => id !== before.deck[i])) return true;
+  const opponent = before.currentPlayer === 0 ? 1 : 0;
+  const hidden = new Set<string>([...before.deck, ...before.players[opponent].hand]);
+  for (const id of cardsShownBy(after.pendingResolution)) if (hidden.has(id)) return true;
+  return false;
 }
 
 /**
@@ -56,7 +75,7 @@ function isNeverCancellable(state: GameState): boolean {
  */
 export function deriveCancellableAction(before: GameState, action: GameAction, after: GameState): CancellableAction | null {
   if (after.currentPlayer !== before.currentPlayer || !activePlayerToAct(after)) return null;
-  if (isNeverCancellable(after)) return null;
+  if (revealsHiddenInfo(before, after)) return null;
 
   // A card or utility just opened a resolution waiting on its player
   if (action.type === 'PLAY_CARD' || action.type === 'ACTIVATE_UTILITY') {

@@ -225,8 +225,8 @@ Keyframes are named descriptively (`pilePulse`, `marketSlotFlash`,
   started, until the opponent is involved: a Guard decision, a bid, a draft
   pick, or an opponent choice (2026-10-12, cancel-anywhere). Cancelling
   restores the state from just before the play (`cancellableAction.restore`),
-  so cards a step already showed you (Scale, Psychic, Arabian Merchant) go
-  back where they were. Scale draws its two cards as it starts. Label:
+  except once a step has shown hidden cards (deck or the opponent's hand):
+  Psychic, Arabian Merchant, Hyena, Ape and Scale never show ✕ (2026-10-29). Label:
   "Cancel <card> and get your action back".
 - **Landing page** (`MainMenu.tsx` + `screens/Landing.css`, all `.landing-*`;
   2026-10-12, from the web-game landing research) — two columns on desktop

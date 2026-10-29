@@ -158,22 +158,33 @@ function expectRestores(before: GameState, s: GameState) {
 }
 
 describe('CANCEL_ACTION — every resolution screen, until the opponent acts', () => {
-  it('Psychic: the 6 peeked cards go back on the deck in order', () => {
+  // 2026-10-29: anything that shows hidden cards (deck or opponent's hand) is final
+  it('Psychic is never cancellable — the top 6 are already seen', () => {
     const before = richState(['psychic_1']);
-    expectRestores(before, act(before, { type: 'PLAY_CARD', cardId: 'psychic_1' }));
+    const s = act(before, { type: 'PLAY_CARD', cardId: 'psychic_1' });
+    expect(s.pendingResolution?.type).toBe('DECK_PEEK');
+    expectNotCancellable(s);
   });
 
-  it('Arabian Merchant: before the opponent bids; never once they have', () => {
+  it('Arabian Merchant is never cancellable — the top 3 are already seen', () => {
     const before = richState(['arabian_merchant_1']);
     const s = act(before, { type: 'PLAY_CARD', cardId: 'arabian_merchant_1' });
     expect(s.pendingResolution?.type).toBe('AUCTION');
-    if (getResponder(s) === 0) {
-      expectRestores(before, s);
-      const bid = resolve(s, { type: 'AUCTION_BID', amount: 1 });
-      if (bid.pendingResolution) expectNotCancellable(bid); // now it's the opponent's call
-    } else {
-      expectNotCancellable(s);
-    }
+    expectNotCancellable(s);
+  });
+
+  it('Ape is never cancellable — the pool shows the opponent’s hand', () => {
+    let before = richState(['ape_1']);
+    before = claim(before, ['ware_3k_2']);
+    before = withHand(before, 1, ['ware_3k_2']); // opponent has no Guard
+    const s = act(before, { type: 'PLAY_CARD', cardId: 'ape_1' });
+    expect(s.pendingResolution?.type).toBe('DRAFT');
+    expectNotCancellable(s);
+  });
+
+  it('Traveling Merchant (wares only, nothing hidden) still cancels', () => {
+    const before = richState(['traveling_merchant_1']);
+    expectRestores(before, act(before, { type: 'PLAY_CARD', cardId: 'traveling_merchant_1' }));
   });
 
   it('an animal the opponent could not Guard — Parrot', () => {
