@@ -779,3 +779,13 @@ overwrites tracked files.)
   bug) — split into `TVScreen` (guard) + `TVBoard` (hooks). zsh doesn't
   word-split `set -- $spec`; run harness loops under `bash -c`. An AI-room
   game takes ~15–20 min at server AI pace — budget harness deadlines for it.
+
+## 2026-10-29 — Cancel stops at hidden information
+- Cancel is dropped the moment a step moves the deck or shows a card from the
+  deck or the opponent's hand (`revealsHiddenInfo` in `cancelAction.ts`),
+  replacing the 2026-10-12 "peeks rewind too" rule. It scans every card id in
+  the pending resolution generically, so new reveal cards are covered without
+  a per-card list — keep hidden cards *in* `pendingResolution` fields.
+- Gotcha: an abs-pos grid child placed with `grid-column` resolved `left: 50%`
+  against the wrong box in Chrome (menu hello bubble a column off). Position
+  from the container with a `--col` var + `cqw` instead.
