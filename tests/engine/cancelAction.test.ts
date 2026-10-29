@@ -176,15 +176,36 @@ describe('CANCEL_ACTION — every resolution screen, until the opponent acts', (
     }
   });
 
-  it('animals the opponent could not Guard — Parrot and Hyena (hand already shown)', () => {
-    for (const cardId of ['parrot_1', 'hyena_1'] as DeckCardId[]) {
-      let before = richState([cardId]);
-      before = claim(before, ['ware_3k_2']);
-      before = withHand(before, 1, ['ware_3k_2']); // opponent has no Guard
-      const s = act(before, { type: 'PLAY_CARD', cardId });
-      expect(s.pendingResolution).not.toBeNull();
-      expectRestores(before, s);
-    }
+  it('an animal the opponent could not Guard — Parrot', () => {
+    let before = richState(['parrot_1']);
+    before = claim(before, ['ware_3k_2']);
+    before = withHand(before, 1, ['ware_3k_2']); // opponent has no Guard
+    const s = act(before, { type: 'PLAY_CARD', cardId: 'parrot_1' });
+    expect(s.pendingResolution).not.toBeNull();
+    expectRestores(before, s);
+  });
+
+  it('Hyena is never cancellable — the opponent’s hand is already shown (2026-10-29)', () => {
+    let before = richState(['hyena_1']);
+    before = claim(before, ['ware_3k_2', 'ware_2h1t_2']);
+    before = withHand(before, 1, ['ware_3k_2', 'ware_2h1t_2']); // opponent has no Guard
+    const s = act(before, { type: 'PLAY_CARD', cardId: 'hyena_1' });
+    expect(s.pendingResolution?.type).toBe('HAND_SWAP');
+    expectNotCancellable(s);
+    // nor on the give step, after taking a card
+    const took = resolve(s, { type: 'SELECT_CARD', cardId: 'ware_3k_2' });
+    if (took.pendingResolution) expectNotCancellable(took);
+  });
+
+  it('Hyena after the opponent declines to Guard is not cancellable either', () => {
+    let before = richState(['hyena_1']);
+    before = claim(before, ['guard_2', 'ware_3k_2']);
+    before = withHand(before, 1, ['guard_2', 'ware_3k_2']);
+    const s = act(before, { type: 'PLAY_CARD', cardId: 'hyena_1' });
+    expect(s.pendingGuardReaction).toBeTruthy();
+    const declined = act(s, { type: 'GUARD_REACTION', play: false });
+    expect(declined.pendingResolution?.type).toBe('HAND_SWAP');
+    expectNotCancellable(declined);
   });
 
   it('an animal waiting on the opponent’s Guard decision, or after it, is not cancellable', () => {

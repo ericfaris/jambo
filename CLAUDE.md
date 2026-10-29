@@ -360,7 +360,8 @@ where they were — you've seen them, by design. The snapshot is dropped as
 soon as the opponent is involved (Guard decision, bid, draft pick, opponent
 choice) or the effect finishes. Scale draws its 2 cards as it starts (no
 "draw" step) and is **never** cancellable, even when a Crocodile borrows it
-(2026-10-14). The snapshot never goes into the public Cast state. Not in
+(2026-10-14). Hyena is **never** cancellable either: it has already shown you
+the opponent's hand (2026-10-29). The snapshot never goes into the public Cast state. Not in
 `getValidActions()` — the AI never cancels.
 
 ### Endgame

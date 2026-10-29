@@ -12,8 +12,9 @@
 // decision, an auction bid, a draft pick, an opponent choice — or the effect
 // finishes. Rewinding someone else's decision is never offered.
 //
-// Scale is the exception: it draws its 2 cards the moment it starts, so it is
-// never cancellable — not even when a Crocodile borrows it (2026-10-14).
+// Two exceptions are never cancellable: Scale draws its 2 cards the moment it
+// starts — not even when a Crocodile borrows it (2026-10-14) — and Hyena shows
+// you the opponent's hand, which no undo can take back (2026-10-29).
 // ============================================================================
 
 import type { CancellableAction, GameAction, GameState } from './types.ts';
@@ -40,10 +41,13 @@ function cardName(before: GameState, action: GameAction): string | null {
   return null;
 }
 
-/** Scale's "keep 1, give 1" — its cards are already drawn, so no backing out. */
-function isScaleEffect(state: GameState): boolean {
+/**
+ * Scale's "keep 1, give 1" (its cards are already drawn) and Hyena's swap (the
+ * opponent's hand is already shown) — no backing out of either.
+ */
+function isNeverCancellable(state: GameState): boolean {
   const pr = state.pendingResolution;
-  return pr?.type === 'UTILITY_EFFECT' && pr.utilityDesign === 'scale';
+  return (pr?.type === 'UTILITY_EFFECT' && pr.utilityDesign === 'scale') || pr?.type === 'HAND_SWAP';
 }
 
 /**
@@ -52,7 +56,7 @@ function isScaleEffect(state: GameState): boolean {
  */
 export function deriveCancellableAction(before: GameState, action: GameAction, after: GameState): CancellableAction | null {
   if (after.currentPlayer !== before.currentPlayer || !activePlayerToAct(after)) return null;
-  if (isScaleEffect(after)) return null;
+  if (isNeverCancellable(after)) return null;
 
   // A card or utility just opened a resolution waiting on its player
   if (action.type === 'PLAY_CARD' || action.type === 'ACTIVATE_UTILITY') {
