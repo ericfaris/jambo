@@ -242,7 +242,10 @@ describe('friend rooms over the real server', () => {
       const pub = host.pub!;
       const who = pub.waitingOnPlayer ?? pub.currentPlayer;
       const phone = bySlot()[who];
-      await phone.waitFor(() => phone.pub?.log.length === pub.log.length && !!phone.priv);
+      // Log length alone can match while the phone still holds a stale view
+      // (same log, different responder); wait until it agrees on who acts.
+      await phone.waitFor(() => phone.pub?.log.length === pub.log.length && !!phone.priv
+        && (phone.pub.waitingOnPlayer ?? phone.pub.currentPlayer) === who && phone.pub.phase === pub.phase);
       const action = chooseAction(phone.pub!, phone.priv!, who, rng, { endTurnRate: 0.3 });
       expect(action).not.toBeNull();
       const seq = host.seq;
